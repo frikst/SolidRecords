@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SolidRecords.App/SolidRecords.App.csproj" />
+    <Project Path="src/SolidRecords.Core/SolidRecords.Core.csproj" />
+    <Project Path="src/SolidRecords.Storage/SolidRecords.Storage.csproj" />
+    <Project Path="src/SolidRecords.Windows/SolidRecords.Windows.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SolidRecords.DesktopChecks/SolidRecords.DesktopChecks.csproj" />
+    <Project Path="tests/SolidRecords.Tests/SolidRecords.Tests.csproj" />
+  </Folder>
+</Solution>
