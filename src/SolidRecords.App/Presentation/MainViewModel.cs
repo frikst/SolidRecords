@@ -14,7 +14,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private DateTime? _selectedDate = DateTime.Today;
     private string _search = "";
     private string _error = "";
-    private DailyReport _report = new([], []);
+    private DailyReport _report = new([]);
     private bool _loading;
     private bool _reloadRequested;
 
@@ -40,17 +40,16 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand NextDayCommand { get; }
     public RelayCommand TodayCommand { get; }
     public ObservableCollection<ActivityRow> Activities { get; } = [];
-    public ObservableCollection<EventRow> Events { get; } = [];
     public IReadOnlyList<ActivityInterval> Timeline => _report.Intervals;
     public string ToggleLabel => _recorder.IsRecording ? "■  Zastaviť záznam" : "▶  Spustiť záznam";
     public string Status => _recorder.Error is not null ? "Zápis zlyhal" : _recorder.IsRecording ? "Zaznamenávanie je aktívne" : "Zaznamenávanie je pozastavené";
     public string StatusColor => _recorder.Error is not null ? "#D63D4F" : _recorder.IsRecording ? "#16A078" : "#8A96AA";
-    public string Notice => _error.Length > 0 ? _error : _recorder.Warning ?? "Údaje zostávajú v tomto počítači. Zatvorením okna aplikácia pokračuje v systray.";
+    public string Notice => _error.Length > 0 ? _error : "Údaje zostávajú v tomto počítači. Zatvorením okna aplikácia pokračuje v systray.";
     public string Started => _report.FirstActivity?.ToLocalTime().ToString("HH:mm") ?? "—";
     public string Finished => _report.LastActivity?.ToLocalTime().ToString("HH:mm") ?? "—";
     public string TotalDuration => ActivityRow.FormatDuration(_report.ActiveDuration);
     public string Count => _report.Intervals.Count.ToString();
-    public string Details => $"{Activities.Count} aktivít  ·  {Events.Count} udalostí  ·  časy v miestnom časovom pásme";
+    public string Details => $"{Activities.Count} aktivít  ·  {_report.Processes.Count} procesov  ·  časy v miestnom časovom pásme";
     public bool IsEmpty => Activities.Count == 0;
     public DateTime? SelectedDate
     {
@@ -108,12 +107,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Activities.Clear();
         foreach (var interval in _report.Intervals.Reverse())
             if (Matches(interval.Window.Application, interval.Window.Title, interval.Window.Url)) Activities.Add(new(interval));
-        Events.Clear();
-        foreach (var entry in _report.Events.Reverse())
-        {
-            var row = new EventRow(entry);
-            if (Matches(row.Application, row.Description, row.Url, row.Kind)) Events.Add(row);
-        }
         Changed(nameof(Details));
         Changed(nameof(IsEmpty));
     }

@@ -12,9 +12,11 @@ public sealed class RecorderTests
         var source = new FakeSource();
         await using var recorder = new Recorder(store, source);
         await recorder.StartAsync();
-        for (var i = 0; i < 100; i++) source.Publish!(new(SignalKind.ProcessStarted, DateTimeOffset.UtcNow, ProcessId: i));
+        source.Publish!(new(SignalKind.SessionActive, DateTimeOffset.UtcNow));
+        for (var i = 0; i < 100; i++) source.Publish!(new(SignalKind.ForegroundChanged, DateTimeOffset.UtcNow,
+            new(i + 1, i + 1, "app", "window")));
         await recorder.StopAsync();
-        Assert.Equal(100, store.Events.Count(x => x.Kind == EventKind.ProcessStarted));
+        Assert.Equal(100, store.Events.Count(x => x.Kind == EventKind.WindowActivated));
         Assert.Equal(EventKind.RecordingStopped, store.Events[^1].Kind);
         Assert.False(recorder.IsRecording);
         await recorder.StartAsync();
@@ -39,7 +41,6 @@ public sealed class RecorderTests
         public Action<CaptureSignal>? Publish { get; private set; }
         public bool Fail { get; init; }
         public bool Stopped { get; private set; }
-        public string? Warning => null;
         public Task StartAsync(Action<CaptureSignal> publish, CancellationToken cancellationToken = default)
         {
             Publish = publish;
@@ -60,6 +61,8 @@ public sealed class RecorderTests
         }
         public Task<IReadOnlyList<ActivityInterval>> ReadIntervalsAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<ActivityInterval>>([]);
+        public Task<IReadOnlyList<ProcessActivity>> ReadProcessesAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ProcessActivity>>([]);
         public Task<IReadOnlyList<ActivityEvent>> ReadEventsAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<ActivityEvent>>(Events.ToArray());
     }

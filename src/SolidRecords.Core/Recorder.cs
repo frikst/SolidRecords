@@ -27,7 +27,6 @@ public sealed class Recorder : IAsyncDisposable
 
     public bool IsRecording => _isRecording;
     public string? Error => _failure?.Message;
-    public string? Warning => _source.Warning;
     public event EventHandler? StateChanged;
 
     public async Task StartAsync()
@@ -103,7 +102,8 @@ public sealed class Recorder : IAsyncDisposable
                 if (work.Signal.Kind == SignalKind.CaptureFailed)
                     throw new InvalidOperationException(work.Signal.Reason ?? "Zber udalostí zlyhal.");
                 var batch = _engine.Apply(work.Signal);
-                if (batch.Events.Count > 0 || batch.Intervals.Count > 0) await _store.SaveAsync(batch);
+                if (batch.Events.Count > 0 || batch.Intervals.Count > 0 || batch.Processes.Count > 0 || batch.Windows.Count > 0)
+                    await _store.SaveAsync(batch);
                 work.Completion?.SetResult();
             }
             catch (Exception ex)

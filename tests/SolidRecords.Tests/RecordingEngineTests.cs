@@ -97,7 +97,7 @@ public sealed class RecordingEngineTests
         engine.Apply(new(SignalKind.ForegroundChanged, Origin, Browser));
         var heartbeat = engine.Apply(new(SignalKind.Heartbeat, Origin.AddSeconds(5)));
         Assert.Equal(Origin.AddSeconds(5), Assert.Single(heartbeat.Intervals).End);
-        var stopped = engine.Apply(new(SignalKind.ProcessStopped, Origin.AddSeconds(3), ProcessId: 42));
+        var stopped = engine.Apply(new(SignalKind.WindowClosed, Origin.AddSeconds(3), Browser));
         Assert.Equal(TimeSpan.FromSeconds(5), Assert.Single(stopped.Intervals).Duration);
     }
 
@@ -109,5 +109,62 @@ public sealed class RecordingEngineTests
         var batch = engine.Apply(new(SignalKind.ForegroundChanged, Origin.AddSeconds(1)));
         Assert.Equal(EventKind.WindowDeactivated, Assert.Single(batch.Events).Kind);
         Assert.False(Assert.Single(batch.Intervals).IsOpen);
+    }
+
+    [Fact]
+    public void BackgroundProcessStaysOpenButDoesNotAccumulateActiveTime()
+    {
+        var engine = Start();
+        var first = engine.Apply(new(SignalKind.ForegroundChanged, Origin, Browser));
+        var deactivated = engine.Apply(new(SignalKind.ForegroundChanged, Origin.AddMinutes(2)));
+        Assert.Equal(TimeSpan.FromMinutes(2), Assert.Single(deactivated.Intervals).Duration);
+        Assert.DoesNotContain(deactivated.Processes, p => !p.IsOpen);
+        var background = engine.Apply(new(SignalKind.Heartbeat, Origin.AddMinutes(10)));
+        Assert.Empty(background.Intervals);
+        Assert.True(Assert.Single(background.Processes).IsOpen);
+        var closed = engine.Apply(new(SignalKind.WindowClosed, Origin.AddMinutes(12), Browser));
+        var process = Assert.Single(closed.Processes);
+        Assert.Equal(Assert.Single(first.Processes).Id, process.Id);
+        Assert.False(process.IsOpen);
+        Assert.Equal(Origin.AddMinutes(12), process.End);
+    }
+
+    [Fact]
+    public void ProcessEndsOnlyWhenLastWindowCloses()
+    {
+        var engine = Start();
+        engine.Apply(new(SignalKind.ForegroundChanged, Origin, Browser));
+        var second = Browser with { Handle = 101, Title = "Other window" };
+        engine.Apply(new(SignalKind.WindowObserved, Origin.AddSeconds(1), second));
+        var firstClosed = engine.Apply(new(SignalKind.WindowClosed, Origin.AddSeconds(2), Browser));
+        Assert.DoesNotContain(firstClosed.Processes, p => !p.IsOpen);
+        Assert.False(Assert.Single(firstClosed.Windows).IsOpen);
+        var lastClosed = engine.Apply(new(SignalKind.WindowClosed, Origin.AddSeconds(3), second));
+        Assert.False(Assert.Single(lastClosed.Processes).IsOpen);
+    }
+
+    [Fact]
+    public void ReactivationAndUrlChangesKeepCompositeParentsAndCreateSeparateLeaves()
+    {
+        var engine = Start();
+        var first = Assert.Single(engine.Apply(new(SignalKind.ForegroundChanged, Origin, Browser)).Intervals);
+        engine.Apply(new(SignalKind.ForegroundChanged, Origin.AddMinutes(1)));
+        var again = Assert.Single(engine.Apply(new(SignalKind.ForegroundChanged, Origin.AddMinutes(5), Browser)).Intervals);
+        Assert.Equal(first.ProcessActivityId, again.ProcessActivityId);
+        Assert.Equal(first.WindowActivityId, again.WindowActivityId);
+        Assert.NotEqual(first.Id, again.Id);
+        var changed = engine.Apply(new(SignalKind.ForegroundChanged, Origin.AddMinutes(6), Browser with { Url = "https://example.com/b" }));
+        Assert.Equal(2, changed.Intervals.Count);
+        Assert.All(changed.Intervals, leaf => Assert.Equal(first.WindowActivityId, leaf.WindowActivityId));
+        Assert.Equal(TimeSpan.FromMinutes(1), changed.Intervals[0].Duration);
+    }
+
+    [Fact]
+    public void ReusedPidDoesNotMergeDistinctProcessInstances()
+    {
+        var engine = Start();
+        var first = engine.Apply(new(SignalKind.ForegroundChanged, Origin, Browser with { ProcessStartTicks = 100 }));
+        var next = engine.Apply(new(SignalKind.ForegroundChanged, Origin.AddSeconds(1), Browser with { ProcessStartTicks = 200 }));
+        Assert.NotEqual(first.Processes[0].Id, next.Processes[^1].Id);
     }
 }

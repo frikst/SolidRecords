@@ -16,10 +16,11 @@ public sealed class WindowsActivitySource : IActivitySource
     private Thread? _thread;
     private HwndSource? _messageWindow;
     private DispatcherTimer? _timer;
-    private ProcessMonitor? _processes;
+    private ObservedWindowRegistry? _windows;
     private Action<CaptureSignal>? _publish;
     private nint _foregroundHook;
     private nint _nameHook;
+    private nint _destroyHook;
     private WindowInfo? _foreground;
     private bool _active;
     private bool _suspended;
@@ -27,7 +28,6 @@ public sealed class WindowsActivitySource : IActivitySource
     private int _ticks;
 
     public WindowsActivitySource() => _callback = OnWinEvent;
-    public string? Warning { get; private set; }
 
     public Task StartAsync(Action<CaptureSignal> publish, CancellationToken cancellationToken = default)
     {
@@ -40,6 +40,7 @@ public sealed class WindowsActivitySource : IActivitySource
             {
                 _dispatcher = Dispatcher.CurrentDispatcher;
                 _publish = publish;
+                _windows = new ObservedWindowRegistry(publish);
                 _generation++;
                 _ticks = 0;
                 _suspended = false;
@@ -52,13 +53,11 @@ public sealed class WindowsActivitySource : IActivitySource
                     throw new Win32Exception(System.Runtime.InteropServices.Marshal.GetLastWin32Error());
                 _foregroundHook = NativeMethods.SetWinEventHook(3, 3, 0, _callback, 0, 0, 0);
                 _nameHook = NativeMethods.SetWinEventHook(0x800C, 0x800C, 0, _callback, 0, 0, 0);
-                if (_foregroundHook == 0 || _nameHook == 0)
+                _destroyHook = NativeMethods.SetWinEventHook(0x8001, 0x8001, 0, _callback, 0, 0, 0);
+                if (_foregroundHook == 0 || _nameHook == 0 || _destroyHook == 0)
                     throw new Win32Exception("Nepodarilo sa zaregistrovať sledovanie okien.");
                 _active = NativeMethods.IsDesktopActive();
                 Emit(_active ? SignalKind.SessionActive : SignalKind.SessionInactive, "RecordingBaseline");
-                _processes = new ProcessMonitor(publish, _dispatcher);
-                _processes.Start();
-                Warning = _processes.Warning;
                 CaptureForeground();
                 _timer = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background,
                     (_, _) => Tick(), _dispatcher);
@@ -91,6 +90,7 @@ public sealed class WindowsActivitySource : IActivitySource
         // Reconcile missed notifications, secure desktop and workstation state.
         SetSession(NativeMethods.IsDesktopActive(), "DesktopState");
         CaptureForeground();
+        _windows?.Refresh();
         if (_active && _foreground is { } window && IsBrowser(window.Application))
         {
             var generation = _generation;
@@ -116,6 +116,11 @@ public sealed class WindowsActivitySource : IActivitySource
 
     private void OnWinEvent(nint hook, uint kind, nint window, int objectId, int childId, uint threadId, uint eventTime)
     {
+        if (kind == 0x8001 && objectId == 0 && childId == 0)
+        {
+            if (_windows?.Contains(window) == true) _windows.Refresh(window);
+            return;
+        }
         if (kind == 3 || (objectId == 0 && window == NativeMethods.GetForegroundWindow())) CaptureForeground();
     }
 
@@ -132,7 +137,10 @@ public sealed class WindowsActivitySource : IActivitySource
                 using var process = Process.GetProcessById((int)pid);
                 var title = new StringBuilder(2048);
                 NativeMethods.GetWindowText(handle, title, title.Capacity);
-                next = new(handle, (int)pid, process.ProcessName, title.ToString());
+                long? startTicks = null;
+                try { startTicks = process.StartTime.ToUniversalTime().Ticks; }
+                catch (Win32Exception) { }
+                next = new(handle, (int)pid, process.ProcessName, title.ToString(), ProcessStartTicks: startTicks);
                 if (_foreground is not null && next == _foreground with { Url = null })
                     next = next with { Url = _foreground.Url };
             }
@@ -141,6 +149,7 @@ public sealed class WindowsActivitySource : IActivitySource
         if (_foreground == next) return;
         _foreground = next;
         _publish(new(SignalKind.ForegroundChanged, DateTimeOffset.UtcNow, next));
+        if (next is not null) _windows?.ObserveForeground(next);
     }
 
     private nint OnMessage(nint window, int message, nint wParam, nint lParam, ref bool handled)
@@ -214,11 +223,10 @@ public sealed class WindowsActivitySource : IActivitySource
         _generation++;
         _timer?.Stop();
         _timer = null;
-        _processes?.Dispose();
-        _processes = null;
         if (_foregroundHook != 0) NativeMethods.UnhookWinEvent(_foregroundHook);
         if (_nameHook != 0) NativeMethods.UnhookWinEvent(_nameHook);
-        _foregroundHook = _nameHook = 0;
+        if (_destroyHook != 0) NativeMethods.UnhookWinEvent(_destroyHook);
+        _foregroundHook = _nameHook = _destroyHook = 0;
         if (_messageWindow is not null)
         {
             NativeMethods.WTSUnRegisterSessionNotification(_messageWindow.Handle);
@@ -227,6 +235,7 @@ public sealed class WindowsActivitySource : IActivitySource
         }
         _publish = null;
         _foreground = null;
+        _windows = null;
     }
 
     public async ValueTask DisposeAsync()

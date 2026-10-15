@@ -5,6 +5,13 @@ namespace SolidRecords.Windows;
 
 internal static class NativeMethods
 {
+    internal delegate bool EnumWindowsCallback(nint window, nint parameter);
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool EnumWindows(EnumWindowsCallback callback, nint parameter);
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool IsWindowVisible(nint window);
     internal delegate void WinEventCallback(nint hook, uint kind, nint window, int objectId,
         int childId, uint threadId, uint eventTime);
 

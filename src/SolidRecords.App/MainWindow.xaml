@@ -55,12 +55,11 @@
             </DockPanel>
           </Border>
         </DockPanel>
-        <TabControl Grid.Row="1" BorderThickness="0" Background="White">
-          <TabItem Header="  Aktivity  ">
-            <Grid>
+            <Grid Grid.Row="1">
               <DataGrid ItemsSource="{Binding Activities}">
                 <DataGrid.Columns>
                   <DataGridTextColumn Header="Aplikácia" Binding="{Binding Application}" Width="155" />
+                  <DataGridTextColumn Header="PID" Binding="{Binding ProcessId}" Width="65" />
                   <DataGridTextColumn Header="Dokument / názov okna" Binding="{Binding Description}" Width="*" MinWidth="190" />
                   <DataGridTextColumn Header="URL" Binding="{Binding Url}" Width="220" />
                   <DataGridTextColumn Header="Začiatok" Binding="{Binding Start}" Width="86" />
@@ -74,18 +73,6 @@
                 </Style></TextBlock.Style>
               </TextBlock>
             </Grid>
-          </TabItem>
-          <TabItem Header="  Udalosti  ">
-            <DataGrid ItemsSource="{Binding Events}"><DataGrid.Columns>
-              <DataGridTextColumn Header="Čas" Binding="{Binding Time}" Width="112" />
-              <DataGridTextColumn Header="Udalosť" Binding="{Binding Kind}" Width="184" />
-              <DataGridTextColumn Header="Aplikácia" Binding="{Binding Application}" Width="140" />
-              <DataGridTextColumn Header="PID" Binding="{Binding ProcessId}" Width="65" />
-              <DataGridTextColumn Header="Podrobnosti" Binding="{Binding Description}" Width="*" MinWidth="160" />
-              <DataGridTextColumn Header="URL" Binding="{Binding Url}" Width="200" />
-            </DataGrid.Columns></DataGrid>
-          </TabItem>
-        </TabControl>
       </Grid>
     </Border>
     <DockPanel Grid.Row="5" Margin="2,12,2,0">
