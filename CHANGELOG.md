@@ -2,9 +2,10 @@
 
 Novinky a zmeny v aplikácii SolidRecords pre používateľov.
 Formát vychádza z [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
-Všetky doterajšie funkcie sú zatiaľ nevydané a patria do sekcie `Unreleased`.
 
 ## Unreleased
+
+## [1.0.0] - 2026-10-16
 
 ### Added
 
