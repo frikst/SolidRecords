@@ -1,7 +1,8 @@
 using SolidRecords.App.Presentation;
 using SolidRecords.Core;
+using SolidRecords.Core.Recording;
 
-namespace SolidRecords.App;
+namespace SolidRecords.App.Tray;
 
 internal sealed class TrayIconFactory(MainViewModel viewModel, Recorder recorder)
 {

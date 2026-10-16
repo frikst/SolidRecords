@@ -1,6 +1,8 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using SolidRecords.Core;
+using SolidRecords.Core.Recording;
+using SolidRecords.Core.Reporting;
 using SolidRecords.Storage;
 using Xunit;
 

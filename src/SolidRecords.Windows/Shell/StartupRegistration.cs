@@ -1,7 +1,7 @@
 using Microsoft.Win32;
 using System.IO;
 
-namespace SolidRecords.Windows;
+namespace SolidRecords.Windows.Shell;
 
 public static class StartupRegistration
 {

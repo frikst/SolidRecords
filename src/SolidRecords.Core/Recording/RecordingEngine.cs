@@ -1,4 +1,4 @@
-namespace SolidRecords.Core;
+namespace SolidRecords.Core.Recording;
 
 /// <summary>Builds composites from window observations. Process lifetimes never contribute to tracked time.</summary>
 public sealed class RecordingEngine

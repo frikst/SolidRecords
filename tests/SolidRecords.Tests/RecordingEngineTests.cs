@@ -1,4 +1,5 @@
 using SolidRecords.Core;
+using SolidRecords.Core.Recording;
 using Xunit;
 
 namespace SolidRecords.Tests;

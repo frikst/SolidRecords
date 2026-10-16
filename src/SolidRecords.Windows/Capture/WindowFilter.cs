@@ -1,6 +1,7 @@
 using System.Text;
+using SolidRecords.Windows.Interop;
 
-namespace SolidRecords.Windows;
+namespace SolidRecords.Windows.Capture;
 
 internal sealed record WindowCandidate(string Application, string Title, string ClassName,
     uint ExtendedStyle, bool IsRoot, bool IsVisible, bool IsCloaked);

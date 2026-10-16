@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace SolidRecords.Windows;
+namespace SolidRecords.Windows.Shell;
 
 public static class WindowAppearance
 {

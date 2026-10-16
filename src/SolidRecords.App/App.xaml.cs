@@ -1,6 +1,9 @@
 using System.Windows;
+using SolidRecords.App.Infrastructure;
 using SolidRecords.App.Presentation;
+using SolidRecords.App.Tray;
 using SolidRecords.Core;
+using SolidRecords.Core.Recording;
 
 namespace SolidRecords.App;
 

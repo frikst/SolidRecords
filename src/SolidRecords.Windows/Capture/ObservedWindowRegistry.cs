@@ -1,7 +1,8 @@
 using System.ComponentModel;
 using SolidRecords.Core;
+using SolidRecords.Windows.Interop;
 
-namespace SolidRecords.Windows;
+namespace SolidRecords.Windows.Capture;
 
 /// <summary>
 /// Enrolls a process only after a foreground visit. Thereafter it watches its top-level

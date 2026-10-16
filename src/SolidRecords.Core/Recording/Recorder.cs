@@ -1,6 +1,6 @@
 using System.Threading.Channels;
 
-namespace SolidRecords.Core;
+namespace SolidRecords.Core.Recording;
 
 /// <summary>Serializes capture and persistence; Stop drains all accepted observations.</summary>
 public sealed class Recorder : IAsyncDisposable

@@ -4,8 +4,9 @@ using System.Text;
 using System.Windows.Interop;
 using System.Windows.Threading;
 using SolidRecords.Core;
+using SolidRecords.Windows.Interop;
 
-namespace SolidRecords.Windows;
+namespace SolidRecords.Windows.Capture;
 
 /// <summary>Owns a native message loop independently of the visible application window.</summary>
 public sealed class WindowsActivitySource : IActivitySource

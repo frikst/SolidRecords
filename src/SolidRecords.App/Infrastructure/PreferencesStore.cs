@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace SolidRecords.App;
+namespace SolidRecords.App.Infrastructure;
 
 internal sealed class PreferencesStore(string dataDirectory)
 {

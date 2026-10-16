@@ -7,8 +7,11 @@ using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using SolidRecords.App.Presentation;
 using SolidRecords.Core;
+using SolidRecords.Core.Recording;
+using SolidRecords.Core.Reporting;
 using SolidRecords.Storage;
-using SolidRecords.Windows;
+using SolidRecords.Windows.Capture;
+using SolidRecords.Windows.Interop;
 
 namespace SolidRecords.DesktopChecks;
 

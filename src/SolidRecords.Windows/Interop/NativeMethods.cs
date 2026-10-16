@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace SolidRecords.Windows;
+namespace SolidRecords.Windows.Interop;
 
 internal static class NativeMethods
 {

@@ -1,8 +1,10 @@
 using System.Collections.ObjectModel;
-using System.Windows.Threading;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using SolidRecords.Core;
+using SolidRecords.Core.Recording;
+using SolidRecords.Core.Reporting;
 
 namespace SolidRecords.App.Presentation;
 

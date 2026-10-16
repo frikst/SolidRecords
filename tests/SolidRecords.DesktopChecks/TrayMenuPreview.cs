@@ -1,10 +1,10 @@
-using System.IO;
-using System.Reflection;
-using System.Windows.Interop;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.IO;
+using System.Reflection;
 using System.Windows.Forms;
-using SolidRecords.App;
+using System.Windows.Interop;
+using SolidRecords.App.Tray;
 
 namespace SolidRecords.DesktopChecks;
 

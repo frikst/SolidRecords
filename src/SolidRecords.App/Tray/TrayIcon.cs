@@ -2,9 +2,10 @@ using System.Drawing;
 using System.Windows.Forms;
 using SolidRecords.App.Presentation;
 using SolidRecords.Core;
-using SolidRecords.Windows;
+using SolidRecords.Core.Recording;
+using SolidRecords.Windows.Shell;
 
-namespace SolidRecords.App;
+namespace SolidRecords.App.Tray;
 
 internal sealed class TrayIcon : IDisposable
 {

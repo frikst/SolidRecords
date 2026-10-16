@@ -1,4 +1,6 @@
-namespace SolidRecords.Core;
+using SolidRecords.Core.Recording;
+
+namespace SolidRecords.Core.Reporting;
 
 public sealed class DailyReport
 {

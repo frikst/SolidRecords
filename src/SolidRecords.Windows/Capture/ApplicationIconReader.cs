@@ -7,7 +7,7 @@ using System.Windows.Interop;
 using System.Windows.Media.Imaging;
 using SolidRecords.Core;
 
-namespace SolidRecords.Windows;
+namespace SolidRecords.Windows.Capture;
 
 /// <summary>Used on the capture thread, including when the GUI is hidden.</summary>
 internal sealed class ApplicationIconReader

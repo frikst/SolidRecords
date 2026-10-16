@@ -3,7 +3,7 @@ using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
 using SolidRecords.App.Presentation;
-using SolidRecords.Windows;
+using SolidRecords.Windows.Shell;
 
 namespace SolidRecords.App;
 

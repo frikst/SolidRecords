@@ -1,4 +1,4 @@
-namespace SolidRecords.Core;
+namespace SolidRecords.Core.Recording;
 
 /// <summary>Persistence policy over raw observations; short candidates exist only in capture memory.</summary>
 public sealed class ActivityLogPolicy(ActivityTrackingOptions? options = null)

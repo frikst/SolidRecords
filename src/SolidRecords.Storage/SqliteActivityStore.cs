@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using SolidRecords.Core;
+using SolidRecords.Core.Recording;
 
 namespace SolidRecords.Storage;
 

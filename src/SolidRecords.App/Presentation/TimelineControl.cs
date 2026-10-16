@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using SolidRecords.Core;
+using SolidRecords.Core.Recording;
 
 namespace SolidRecords.App.Presentation;
 

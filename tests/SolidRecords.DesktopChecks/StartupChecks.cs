@@ -2,8 +2,10 @@ using System.IO;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using SolidRecords.App;
+using SolidRecords.App.Infrastructure;
 using SolidRecords.App.Presentation;
 using SolidRecords.Core;
+using SolidRecords.Core.Recording;
 
 namespace SolidRecords.DesktopChecks;
 

@@ -1,6 +1,6 @@
 using System.Windows.Automation;
 
-namespace SolidRecords.Windows;
+namespace SolidRecords.Windows.Capture;
 
 /// <summary>
 /// UI Automation providers belong to other processes and can stall. All calls run

@@ -4,7 +4,7 @@ using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
-namespace SolidRecords.App;
+namespace SolidRecords.App.Tray;
 
 /// <summary>Runs an owner-drawn HMENU in the real Windows menu loop used by the notification area.</summary>
 internal sealed class NativeTrayMenu : NativeWindow, IDisposable

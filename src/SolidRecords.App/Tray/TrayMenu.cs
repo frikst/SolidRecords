@@ -2,7 +2,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
-namespace SolidRecords.App;
+namespace SolidRecords.App.Tray;
 
 internal enum TrayMenuSymbol { Window, Play, Stop, Startup, Info, Power }
 

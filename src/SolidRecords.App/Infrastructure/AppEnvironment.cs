@@ -2,7 +2,7 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace SolidRecords.App;
+namespace SolidRecords.App.Infrastructure;
 
 internal static class AppEnvironment
 {

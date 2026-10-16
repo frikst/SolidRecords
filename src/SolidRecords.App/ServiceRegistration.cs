@@ -1,8 +1,12 @@
 using Microsoft.Extensions.DependencyInjection;
+using SolidRecords.App.Infrastructure;
 using SolidRecords.App.Presentation;
+using SolidRecords.App.Tray;
 using SolidRecords.Core;
+using SolidRecords.Core.Recording;
+using SolidRecords.Core.Reporting;
 using SolidRecords.Storage;
-using SolidRecords.Windows;
+using SolidRecords.Windows.Capture;
 
 namespace SolidRecords.App;
 

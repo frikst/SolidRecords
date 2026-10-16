@@ -1,5 +1,7 @@
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
+using SolidRecords.App.Infrastructure;
+using SolidRecords.Core.Recording;
 
 namespace SolidRecords.App;
 

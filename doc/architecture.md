@@ -4,12 +4,14 @@
 
 | Projekt | Zodpovednosť a vstupné súbory |
 | --- | --- |
-| `src/SolidRecords.Core` | Čisté modely a kontrakty (`Models.cs`), stavový automat (`RecordingEngine.cs`), pravidlá prijatia a zlúčenia (`ActivityLogPolicy.cs`), koordinácia (`Recorder.cs`), denné reporty (`DailyReport.cs`). Target `net10.0`, bez externých balíkov. |
+| `src/SolidRecords.Core` | Spoločné modely, kontrakty a nastavenia v koreni (`Models.cs`, `ActivityTrackingOptions.cs`); `Recording/` obsahuje stavový automat, pravidlá prijatia a zlúčenia a Recorder; `Reporting/` denné reporty a ich službu. Target `net10.0`, bez externých balíkov. |
 | `src/SolidRecords.Storage` | `SqliteActivityStore.cs`, `ActivityDbContext.cs`, `SqliteSchema.cs`, `Migrations/`; Entity Framework Core SQLite 10.0.12. Závisí len od Core. |
-| `src/SolidRecords.Windows` | `WindowsActivitySource.cs`, `ObservedWindowRegistry.cs`, `WindowFilter.cs`, `BrowserUrlReader.cs`, `StartupRegistration.cs`, Win32 interop. Target `net10.0-windows`, WPF pre natívne message window; závisí len od Core. |
-| `src/SolidRecords.App` | WPF/MVVM, vlastné príkazy a observable modely, WinForms NotifyIcon. `Program.cs` spúšťa aplikáciu, `ServiceRegistration.cs` registruje DI služby a `App.xaml.cs` riadi životný cyklus; `Presentation/` obsahuje view model, riadky a časovú os. Závisí od troch implementačných projektov. |
+| `src/SolidRecords.Windows` | `Capture/` obsahuje zdroj signálov, register a filter okien, čítanie URL a ikon; `Interop/` spoločné Win32 volania; `Shell/` autostart a vzhľad okna. Target `net10.0-windows`, WPF pre natívne message window; závisí len od Core. |
+| `src/SolidRecords.App` | WPF/MVVM, vlastné príkazy a observable modely, WinForms NotifyIcon. `Program.cs` spúšťa aplikáciu, `ServiceRegistration.cs` registruje DI služby a `App.xaml.cs` riadi životný cyklus; `Presentation/` obsahuje view model, riadky a časovú os; `Tray/` ikonu a menu systémovej lišty; `Infrastructure/` dátové cesty, preferencie a jednu inštanciu aplikácie. Závisí od troch implementačných projektov. |
 | `tests/SolidRecords.Tests` | xUnit testy Core a SQLite, target `net10.0`. |
 | `tests/SolidRecords.DesktopChecks` | STA konzolový program pre Windows integráciu, klasifikáciu okien, živé GUI a WPF náhľad; referencuje App. |
+
+Namespace zodpovedajú priečinkom pod koreňom projektu (napr. `SolidRecords.Windows.Capture`). Spoločné Core kontrakty zostávajú v `SolidRecords.Core`; Storage tvorí jeden celok s oddelenými EF migráciami v `SolidRecords.Storage.Migrations`.
 
 ## Tok dát a vlákna
 

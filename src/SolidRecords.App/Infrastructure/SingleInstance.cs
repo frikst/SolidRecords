@@ -1,7 +1,7 @@
 using System.Security.Principal;
 using System.Windows.Threading;
 
-namespace SolidRecords.App;
+namespace SolidRecords.App.Infrastructure;
 
 internal sealed class SingleInstance : IDisposable
 {
