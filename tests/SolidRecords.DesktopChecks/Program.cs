@@ -37,6 +37,58 @@ internal static class Program
         catch (Exception ex) { Console.Error.WriteLine(ex); return 1; }
     }
 
+    private static void CheckSorting(System.Windows.Controls.DataGrid grid)
+    {
+        var source = grid.ItemsSource;
+        var start = DateTimeOffset.Now;
+        ActivityRow Row(int seconds, bool open = false) => new(new(
+            Guid.NewGuid(), Guid.NewGuid(), new(100, seconds, $"App {seconds}", "Sorting sample"),
+            start, start.AddSeconds(seconds), open));
+        var rows = new System.Collections.ObjectModel.ObservableCollection<ActivityRow>(
+            new[] { Row(600), Row(90), Row(3600), Row(20), Row(120, true), Row(9) });
+        grid.ItemsSource = rows;
+        var sorting = typeof(System.Windows.Controls.DataGrid).GetMethod("OnSorting",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+        void Click(System.Windows.Controls.DataGridColumn column) =>
+            sorting.Invoke(grid, new object[] { new System.Windows.Controls.DataGridSortingEventArgs(column) });
+        ActivityRow[] Visible() => grid.Items.Cast<ActivityRow>().ToArray();
+        void Drain() => grid.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+        var duration = grid.Columns.Single(column => Equals(column.Header, "Trvanie"));
+        Click(duration);
+        Require(Visible().SequenceEqual(rows.OrderBy(row => row.Interval.Duration)), "Duration ASC used formatted text");
+        Click(duration);
+        Require(Visible().SequenceEqual(rows.OrderByDescending(row => row.Interval.Duration)), "Duration DESC used formatted text");
+        Click(duration);
+        Require(Visible().SequenceEqual(rows) && grid.Columns.All(column => column.SortDirection is null),
+            "Third click did not restore source order and clear arrows");
+
+        foreach (var column in grid.Columns)
+        {
+            Click(column);
+            Require(column.SortDirection == System.ComponentModel.ListSortDirection.Ascending, "First click is not ASC");
+            Click(column);
+            Require(column.SortDirection == System.ComponentModel.ListSortDirection.Descending, "Second click is not DESC");
+            Click(column);
+            Require(grid.Items.SortDescriptions.Count == 0 && Visible().SequenceEqual(rows), "Column sort did not clear");
+        }
+
+        Click(duration);
+        var growing = rows[1];
+        growing.Update(growing.Interval with { End = start.AddHours(2), IsOpen = true });
+        rows.Insert(0, Row(45));
+        Drain();
+        Require(Visible().SequenceEqual(rows.OrderBy(row => row.Interval.Duration)), "Live duration update or insert lost numeric ordering");
+        var application = grid.Columns[0];
+        Click(application);
+        Require(duration.SortDirection is null && grid.Items.SortDescriptions.Count == 1,
+            "Switching columns retained the previous sort");
+        Click(application);
+        Click(application);
+        rows.Move(0, rows.Count - 1);
+        Require(Visible().SequenceEqual(rows), "Cleared sorting did not follow source updates");
+        grid.ItemsSource = source;
+        Console.WriteLine("Sorting: numeric durations, all column cycles, column switch, live updates and original order passed.");
+    }
     private static async Task CheckCaptureAsync(string directory)
     {
         var store = new SqliteActivityStore(Path.Combine(directory, $"capture-{Guid.NewGuid():N}.db"));
@@ -161,6 +213,7 @@ internal static class Program
         Render("main-window-small-150.png", 744, 380, 1.5);
         var timeline = Descendants<TimelineControl>(content).Single();
         var grid = Descendants<System.Windows.Controls.DataGrid>(content).Single();
+        CheckSorting(grid);
         grid.SelectedIndex = 0;
         var selected = grid.SelectedItem;
         var lightBackground = ((SolidColorBrush)window.Background).Color;

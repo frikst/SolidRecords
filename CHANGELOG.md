@@ -21,3 +21,7 @@ Všetky doterajšie funkcie sú zatiaľ nevydané a patria do sekcie `Unreleased
 - Po páde aplikácie alebo výpadku napájania sa pri ďalšom spustení posledná aktivita ukončí podľa posledného uloženého času. Obdobie, keď aplikácia nebežala, sa tak nepripočíta k práci.
 - Aplikácia je dostupná pod licenciou GPL v3. Jej úplné znenie nájdete aj pri aplikácii a v inštalátore.
 - Inštalátor a prenosný ZIP pre 64-bitový Windows. Potrebné súčasti sú pribalené, takže netreba samostatne inštalovať .NET. Prenosnú verziu stačí rozbaliť a spustiť.
+
+### Fixed
+
+- Záznamy sa podľa trvania radia podľa skutočného času. Tretí klik na rovnakú hlavičku zruší triedenie a vráti poradie od najnovších záznamov.

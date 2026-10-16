@@ -24,7 +24,7 @@ WindowsActivitySource → CaptureSignal → Recorder (Channel, jeden reader)
 - `BrowserUrlReader` číta adresný riadok cez UI Automation na samostatnom MTA vlákne. Pomalý externý provider tak neblokuje GUI ani message loop zberu.
 - `RecordingEngine.Apply` je synchrónny stavový automat bez I/O. `Recorder` serializuje signály cez Channel, aplikuje politiku a zapisuje dávky. `StopAsync` zastaví zdroj a dopíše prijaté signály. Chyba zberu/zápisu vypne stav zaznamenávania; zotavenie vyžaduje reštart.
 - `RecordsChanged` sa vyvolá až po úspešnom uložení. View model prenesie notifikáciu na UI dispatcher a zoskupí požiadavky na obnovu cez 150 ms timer. Čítanie reportu beží cez `Task.Run`, pretože SQLite vykonáva časť async API synchrónne.
-- Riadky v `ObservableCollection` sa pridávajú, presúvajú a aktualizujú podľa ID. Odpoveď pre už zmenený deň sa nezobrazí. Vyhľadávanie filtruje len zoznam; súčet a časová os patria celému vybranému dňu.
+- Riadky v `ObservableCollection` sa pridávajú, presúvajú a aktualizujú podľa ID. Odpoveď pre už zmenený deň sa nezobrazí. Triedenie hlavičkou cykluje vzostupne → zostupne → pôvodné poradie od najnovších záznamov; stĺpec Trvanie používa skutočný čas vrátane aktívneho záznamu, hoci sa pri ňom zobrazuje pomlčka. Triedenie sa priebežne prispôsobuje zmenám riadkov. Vyhľadávanie filtruje len zoznam; súčet a časová os patria celému vybranému dňu.
 
 ## Životný cyklus aplikácie
 

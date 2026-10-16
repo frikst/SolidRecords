@@ -161,17 +161,17 @@
                    AutomationProperties.Name="Hľadať aktivity" />
         </DockPanel>
         <Grid Grid.Row="1">
-          <DataGrid ItemsSource="{Binding Activities}">
-            <DataGrid.Columns>
+          <p:ActivityDataGrid Style="{StaticResource {x:Type DataGrid}}" ItemsSource="{Binding Activities}">
+            <p:ActivityDataGrid.Columns>
               <DataGridTextColumn Header="Aplikácia" Binding="{Binding Application}" Width="130" ElementStyle="{StaticResource CellText}" />
               <DataGridTextColumn Header="PID" Binding="{Binding ProcessId}" Width="52" />
               <DataGridTextColumn Header="Dokument / názov okna" Binding="{Binding Description}" Width="2*" MinWidth="130" ElementStyle="{StaticResource CellText}" />
               <DataGridTextColumn Header="URL" Binding="{Binding Url}" Width="1.5*" MinWidth="110" ElementStyle="{StaticResource CellText}" />
               <DataGridTextColumn Header="Začiatok" Binding="{Binding Start}" Width="74" />
               <DataGridTextColumn Header="Koniec" Binding="{Binding End}" Width="74" />
-              <DataGridTextColumn Header="Trvanie" Binding="{Binding Duration}" Width="100" />
-            </DataGrid.Columns>
-          </DataGrid>
+              <DataGridTextColumn Header="Trvanie" Binding="{Binding Duration}" SortMemberPath="DurationValue" Width="100" />
+            </p:ActivityDataGrid.Columns>
+          </p:ActivityDataGrid>
           <TextBlock Text="Žiadne aktivity pre vybraný deň alebo vyhľadávanie." HorizontalAlignment="Center" VerticalAlignment="Center"
                      Foreground="{DynamicResource TextFillColorSecondaryBrush}" IsHitTestVisible="False">
             <TextBlock.Style>

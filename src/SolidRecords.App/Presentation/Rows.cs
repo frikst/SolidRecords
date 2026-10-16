@@ -11,7 +11,7 @@ public sealed class ActivityRow(ActivityInterval interval) : ObservableObject
             Interval.End == value.End && Interval.IsOpen == value.IsOpen && Interval.Spans.SequenceEqual(value.Spans)) return;
         Interval = value;
         foreach (var name in new[] { nameof(Interval), nameof(Application), nameof(ProcessId), nameof(Description),
-                     nameof(Url), nameof(Start), nameof(End), nameof(Duration), nameof(State) }) Changed(name);
+                     nameof(Url), nameof(Start), nameof(End), nameof(Duration), nameof(DurationValue), nameof(State) }) Changed(name);
     }
 
     public string Application => Interval.Window.Application;
@@ -20,6 +20,7 @@ public sealed class ActivityRow(ActivityInterval interval) : ObservableObject
     public string Url => Interval.Window.Url ?? "—";
     public string Start => Interval.Start.ToLocalTime().ToString("HH:mm:ss");
     public string End => Interval.IsOpen ? "-" : Interval.End.ToLocalTime().ToString("HH:mm:ss");
+    public TimeSpan DurationValue => Interval.Duration;
     public string Duration => Interval.IsOpen ? "-" : FormatDuration(Interval.Duration);
     public string State => Interval.IsOpen ? "Práve aktívne" : "";
     public static string FormatDuration(TimeSpan duration) => duration.TotalHours >= 1
