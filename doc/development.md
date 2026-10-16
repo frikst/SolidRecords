@@ -46,7 +46,7 @@ dotnet run --project src/SolidRecords.App -- --show
 dotnet publish src/SolidRecords.App -c Release -r win-x64 --self-contained true -o artifacts/publish/win-x64
 ```
 
-Pred overením novej zostavy ukonči starú cez systray: druhá inštancia iba otvorí už bežiacu. Bežné spustenie aplikácie používa reálnu históriu a môže migrovať databázu. Prenosnú publikáciu spúšťaj z finálneho priečinka; až potom nastav autostart. MSI z GitHub Releases inštaluje rovnakú self-contained aplikáciu do Program Files.
+Vývojový režim je konfigurácia `Debug` (predvolená pre `dotnet run`); používa samostatné dáta podľa [storage.md](storage.md). Môže bežať súčasne s nainštalovanou Release aplikáciou. Pred overením novej zostavy ukonči starú zostavu rovnakého režimu a repozitára cez systray: druhá inštancia iba otvorí už bežiacu. Spustenie Release aplikácie používa reálnu históriu a môže migrovať databázu. Diagnostika `--inspect-history` naďalej cieli na používateľskú Release databázu aj pri spustení v Debug konfigurácii. Prenosnú publikáciu spúšťaj z finálneho priečinka; až potom nastav autostart. MSI z GitHub Releases inštaluje rovnakú self-contained aplikáciu do Program Files.
 
 ## Automatické vydanie
 

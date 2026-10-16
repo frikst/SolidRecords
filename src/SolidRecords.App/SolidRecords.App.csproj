@@ -7,6 +7,9 @@
     <ApplicationIcon>Assets/SolidRecords.ico</ApplicationIcon>
     <AssemblyName>SolidRecords.App</AssemblyName>
   </PropertyGroup>
+  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <AssemblyMetadata Include="DevelopmentDataDirectory" Value="$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../../artifacts/dev'))" />
+  </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="SolidRecords.DesktopChecks" />
     <Resource Include="Assets/SolidRecords.ico" />

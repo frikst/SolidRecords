@@ -26,13 +26,13 @@ public partial class App : Application
     {
         base.OnStartup(e);
         var identity = System.Security.Principal.WindowsIdentity.GetCurrent().User!.Value;
-        var instanceName = $"Global\\SolidRecords.{identity}";
+        var instanceName = $"Global\\SolidRecords.{identity}{AppEnvironment.InstanceSuffix}";
         _instance = new Mutex(true, instanceName, out var firstInstance);
         _showEvent = new EventWaitHandle(false, EventResetMode.AutoReset, instanceName + ".Show");
         if (!firstInstance) { _showEvent.Set(); Shutdown(); return; }
         try
         {
-            _dataDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SolidRecords");
+            _dataDirectory = AppEnvironment.DataDirectory;
             Directory.CreateDirectory(_dataDirectory);
             var store = new SqliteActivityStore(Path.Combine(_dataDirectory, "activity.db"));
             await store.InitializeAsync();

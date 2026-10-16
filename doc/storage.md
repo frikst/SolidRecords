@@ -2,7 +2,7 @@
 
 ## Súbory a schéma
 
-Používateľské dáta sú v `%LOCALAPPDATA%\SolidRecords`: `activity.db` a `settings.json`. Databáza obsahuje názvy dokumentov a celé dostupné URL vrátane query parametrov. Nie je šifrovaná, bez automatickej retencie; aplikácia dáta neposiela na sieť.
+Release zostava ukladá používateľské dáta do `%LOCALAPPDATA%\SolidRecords`: `activity.db` a `settings.json`. Debug zostava používa oba súbory v `artifacts/dev/` v repozitári, ktorý je celý ignorovaný Gitom. Absolútna vývojová cesta sa vloží pri zostavení, takže nezávisí od pracovného priečinka pri spustení. Existujúce dáta sa medzi týmito priečinkami nekopírujú. Databáza obsahuje názvy dokumentov a celé dostupné URL vrátane query parametrov. Nie je šifrovaná, bez automatickej retencie; aplikácia dáta neposiela na sieť.
 
 SQLite používa Microsoft.Data.Sqlite, WAL, `synchronous=FULL`, cudzie kľúče, parametrizované SQL, transakcie a časové/rodičovské indexy. `SaveAsync` zapisuje celú dávku v jednej transakcii. Čítanie kompozitov má spoločnú read transakciu, aby heartbeat medzi SELECTmi nevytvoril nekonzistentný report. Časy sú UTC Unix milisekundy; GUID sa ukladajú ako text.
 

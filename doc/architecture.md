@@ -31,7 +31,7 @@ WindowsActivitySource → CaptureSignal → Recorder (Channel, jeden reader)
 
 `App` vytvorí jeden store, Recorder, report service, view model, hlavné okno a systray. Recorder aj report dostanú spoločné `ActivityTrackingOptions`. Bez `--show` zostane aplikácia v systray. Zatvorenie okna ho skryje; ukončenie cez systray uvoľní view model, dopíše Recorder a zavrie aplikáciu.
 
-Globálny mutex podľa používateľského SID povoľuje jednu inštanciu naprieč reláciami; druhé spustenie signalizuje otvorenie existujúceho okna cez EventWaitHandle. `settings.json` uchováva iba `RecordOnLaunch`, predvolene true. Spúšťanie po prihlásení spravuje `StartupRegistration` cez HKCU Run pre aktuálnu cestu aplikácie.
+Globálny mutex podľa používateľského SID povoľuje jednu inštanciu naprieč reláciami; druhé spustenie signalizuje otvorenie existujúceho okna cez EventWaitHandle. Debug zostava pridáva k názvom oboch objektov vývojovú príponu s hashom dátového priečinka, takže môže bežať súčasne s Release zostavou aj s Debug zostavou z iného repozitára. `settings.json` uchováva iba `RecordOnLaunch`, predvolene true. Spúšťanie po prihlásení spravuje `StartupRegistration` cez HKCU Run pre aktuálnu cestu aplikácie.
 
 ## Vzhľad
 
