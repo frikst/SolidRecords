@@ -9,6 +9,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Resource Include="Assets/SolidRecords.ico" />
+    <None Include="../../LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <ProjectReference Include="../SolidRecords.Core/SolidRecords.Core.csproj" />
     <ProjectReference Include="../SolidRecords.Storage/SolidRecords.Storage.csproj" />
     <ProjectReference Include="../SolidRecords.Windows/SolidRecords.Windows.csproj" />

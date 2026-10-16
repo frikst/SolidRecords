@@ -52,7 +52,7 @@ Pred overením novej zostavy ukonči starú cez systray: druhá inštancia iba o
 
 Workflow `.github/workflows/release.yml` reaguje na push tagu `vX.Y.Z`. Overí presný formát bez úvodných núl, MSI limity major ≤ 255, minor ≤ 255 a patch ≤ 65535 a práve jednu neprázdnu sekciu danej verzie v `CHANGELOG.md`. Pred pushom musí byť v označenom commite pripravená hlavička `## [X.Y.Z] - YYYY-MM-DD` s položkami zmien; `Unreleased` sa do poznámok vydania nepreberá. Samotný push tagu bez príslušnej sekcie skončí chybou. Verziu vydania priprav podľa projektového release postupu; workflow ju pri zostavení explicitne preberá z tagu cez MSBuild `Version`.
 
-Na runneri `windows-2025` sa obnoví a zostaví riešenie, spustia xUnit testy a DesktopChecks `--preview-only`. Až po ich úspechu nasleduje netrimovaná self-contained publikácia `win-x64`, WiX 5.0.2 MSI a prenosný ZIP. WiX je pripnutý na konkrétnu verziu a inštaluje sa do izolovaného `artifacts/wix`. `tools/Build-Installer.ps1` kontroluje prítomnosť runtime aj zhodu súborovej verzie aplikácie s MSI. Dočasný release artefakt v Actions sa uchováva 1 deň, diagnostika testov a náhľady 3 dni. Táto retencia neovplyvňuje MSI a ZIP pripojené ku GitHub Release.
+Na runneri `windows-2025` sa obnoví a zostaví riešenie, spustia xUnit testy a DesktopChecks `--preview-only`. Až po ich úspechu nasleduje netrimovaná self-contained publikácia `win-x64`, WiX 5.0.2 MSI a prenosný ZIP. WiX je pripnutý na konkrétnu verziu a inštaluje sa do izolovaného `artifacts/wix`. `tools/Build-Installer.ps1` kontroluje prítomnosť runtime, zhodu súborovej verzie aplikácie s MSI aj zhodu publikovaného súboru `LICENSE` s repozitárom. Pri balení pridá pripnuté rozšírenie `WixToolset.UI.wixext/5.0.2` do lokálnej cache `.wix/` (pri prvom použití potrebuje NuGet). Z koreňového `LICENSE` vytvorí `artifacts/installer/LICENSE.rtf` pre slovenský licenčný dialóg `WixUI_Minimal`. Súbor `LICENSE` sa pri zostavení a publikácii kopíruje vedľa aplikácie, takže ho obsahujú MSI aj prenosný ZIP. Dočasný release artefakt v Actions sa uchováva 1 deň, diagnostika testov a náhľady 3 dni. Táto retencia neovplyvňuje MSI a ZIP pripojené ku GitHub Release.
 
 Samostatný job s oprávnením `contents: write` vytvorí GitHub Release pre existujúci tag cez `gh release create --verify-tag`. Pripojí `SolidRecords-X.Y.Z-win-x64.msi` a `SolidRecords-X.Y.Z-win-x64.zip`; telo vydania tvorí presný obsah verziovej sekcie changelogu so zachovanými kategóriami. Stačí vstavaný `GITHUB_TOKEN`, ďalší secret netreba. Existujúce vydanie sa neprepisuje; opakovaný beh po úspešnom publikovaní skončí pri vytvorení release chybou.
 
@@ -67,7 +67,7 @@ dotnet tool install wix --version 5.0.2 --tool-path artifacts/wix
 ./tools/Build-Installer.ps1 -Version 1.2.3
 ```
 
-WiX stačí nainštalovať raz; výstup je v `artifacts/release/`. Inštaláciu, upgrade a odinštalovanie overuj v izolovanom Windows prostredí, bez spustenia nad používateľskou históriou. Test extrakcie changelogu používa vlastné súbory pod `artifacts/release-metadata-tests/`.
+WiX stačí nainštalovať raz; výstup je v `artifacts/release/`. Pri kontrole MSI over slovenský licenčný dialóg s úplným textom GPL v3 a prítomnosť `LICENSE` v nainštalovanom priečinku aj v ZIPe. Inštaláciu, upgrade a odinštalovanie overuj v izolovanom Windows prostredí, bez spustenia nad používateľskou históriou. Test extrakcie changelogu používa vlastné súbory pod `artifacts/release-metadata-tests/`.
 
 ## Aktuálny stav a hranice
 

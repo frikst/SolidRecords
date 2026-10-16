@@ -7,3 +7,4 @@ TestResults/
 *.db-shm
 *.db-wal
 artifacts/
+.wix/

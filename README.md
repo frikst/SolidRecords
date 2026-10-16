@@ -55,6 +55,10 @@ Pri vynútenom ukončení alebo výpadku napájania nemusia byť uložené posle
 
 Pred súborovou zálohou aplikáciu ukončite. Databáza sa pri spustení automaticky aktualizuje na aktuálnu schému; po migrácii do nej nezapisujte staršou verziou aplikácie.
 
+## Licencia
+
+SolidRecords je dostupný pod licenciou **GNU General Public License, verzia 3 (GPL-3.0-only)**. Úplné znenie je v súbore [LICENSE](LICENSE), ktorý je pribalený aj k nainštalovanej a prenosnej aplikácii. Aplikácia sa poskytuje bez záruky v rozsahu uvedenom v licencii. Použité súčasti tretích strán si zachovávajú vlastné licencie.
+
 ## Pre vývojárov
 
 Vstupným bodom sú [AGENTS.md](AGENTS.md), [architektúra](doc/architecture.md), [pravidlá záznamu](doc/recording.md), [úložisko a diagnostika](doc/storage.md) a [vývojový postup](doc/development.md).
