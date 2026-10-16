@@ -29,7 +29,7 @@ internal static class Program
                 CheckCaptureAsync(directory).GetAwaiter().GetResult();
                 CheckWindowRegistry();
             }
-            RenderWindow(directory);
+            RenderWindow(directory, args.Contains("--interactive-preview", StringComparer.Ordinal));
             Console.WriteLine("PASS: Requested desktop checks and WPF rendering.");
             return 0;
         }
@@ -65,7 +65,7 @@ internal static class Program
         await recorder.StopAsync();
     }
 
-    private static void RenderWindow(string directory)
+    private static void RenderWindow(string directory, bool interactive)
     {
         var bindings = new StringWriter();
         PresentationTraceSources.DataBindingSource.Listeners.Add(new TextWriterTraceListener(bindings));
@@ -137,6 +137,13 @@ internal static class Program
             CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.FromCurrentSynchronizationContext());
         Dispatcher.PushFrame(liveFrame);
         liveCheck.GetAwaiter().GetResult();
+        if (interactive)
+        {
+            window.Title += " · Náhľad";
+            window.AllowClose = true;
+            window.Loaded += (_, _) => Console.WriteLine($"Interactive preview DPI: {VisualTreeHelper.GetDpi(window).PixelsPerInchX}");
+            window.ShowDialog();
+        }
         PresentationTraceSources.DataBindingSource.Flush();
         Require(string.IsNullOrWhiteSpace(bindings.ToString()), "WPF binding errors: " + bindings);
         vm.Dispose();
