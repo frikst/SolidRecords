@@ -18,6 +18,7 @@ public partial class App : Application
     private MainViewModel? _viewModel;
     private MainWindow? _window;
     private TrayIcon? _tray;
+    private AboutWindow? _aboutWindow;
     private bool _exiting;
     private string _dataDirectory = "";
 
@@ -40,7 +41,7 @@ public partial class App : Application
             _viewModel = new MainViewModel(_recorder, new DailyReportService(store, options: trackingOptions), SavePreferenceAsync);
             _window = new MainWindow(_viewModel);
             MainWindow = _window;
-            _tray = new TrayIcon(_viewModel, _recorder, ShowWindow, ExitAsync);
+            _tray = new TrayIcon(_viewModel, _recorder, ShowWindow, ShowAboutWindow, ExitAsync);
             _showRegistration = ThreadPool.RegisterWaitForSingleObject(_showEvent,
                 (_, _) => Dispatcher.BeginInvoke(ShowWindow), null, Timeout.Infinite, false);
             if (ReadPreferences().RecordOnLaunch)
@@ -67,6 +68,25 @@ public partial class App : Application
         _viewModel?.RequestRefresh();
     }
 
+    private void ShowAboutWindow()
+    {
+        if (_exiting) return;
+        if (_aboutWindow is not null) { _aboutWindow.Activate(); return; }
+        var dialog = new AboutWindow();
+        if (_window?.IsVisible == true && _window.WindowState != WindowState.Minimized)
+        {
+            dialog.Owner = _window;
+        }
+        else
+        {
+            dialog.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            dialog.ShowInTaskbar = true;
+        }
+        _aboutWindow = dialog;
+        try { dialog.ShowDialog(); }
+        finally { _aboutWindow = null; }
+    }
+
     private Preferences ReadPreferences()
     {
         try
@@ -89,6 +109,7 @@ public partial class App : Application
     {
         if (_exiting) return;
         _exiting = true;
+        _aboutWindow?.Close();
         _viewModel?.Dispose();
         try { if (_recorder is not null) await _recorder.DisposeAsync(); }
         catch (Exception ex)

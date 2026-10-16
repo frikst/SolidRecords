@@ -19,6 +19,8 @@ Pri bežnom spustení bez `--show` sa aplikácia otvorí v systray. Prvýkrát z
 
 Záznam sa spúšťa a zastavuje tlačidlom v okne alebo položkou kontextového menu ikony. Voľba zostane uložená aj pri ďalšom spustení. **Spúšťať po prihlásení** v kontextovom menu voliteľne pridá aktuálnu cestu aplikácie do `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`. Zapínajte ju z finálneho priečinka publikovanej aplikácie; po presunutí aplikácie ju vypnite a zapnite znova.
 
+Položka **O aplikácii** v kontextovom menu ikony pri hodinách otvorí dialóg s verziou, autorom, organizáciou a odkazom na web katedry. Dialóg zatvoríte aj klávesom Esc.
+
 ## Funkcie
 
 - Aktívna a neaktívna používateľská relácia: prihlásenie, odhlásenie, zamknutie, odomknutie, pripojenie a odpojenie RDP; zaznamenáva sa aj uspatie a obnovenie.

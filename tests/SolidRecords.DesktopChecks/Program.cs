@@ -183,6 +183,36 @@ internal static class Program
             RenderFocusedSearch("main-window-search-dark-150.png");
             window.Hide();
         }
+        var about = new SolidRecords.App.AboutWindow();
+        foreach (var theme in new[] { ThemeMode.Light, ThemeMode.Dark })
+        {
+            app.ThemeMode = theme;
+            var aboutContent = (FrameworkElement)about.Content;
+            aboutContent.Measure(new Size(480, double.PositiveInfinity));
+            var size = new Size(480, aboutContent.DesiredSize.Height);
+            aboutContent.Arrange(new Rect(size));
+            aboutContent.UpdateLayout();
+            foreach (var scale in new[] { 1.0, 1.5 })
+            {
+                var visual = new DrawingVisual();
+                using (var drawing = visual.RenderOpen())
+                {
+                    drawing.DrawRectangle(about.Background, null, new Rect(size));
+                }
+                var bitmap = new RenderTargetBitmap((int)Math.Ceiling(size.Width * scale),
+                    (int)Math.Ceiling(size.Height * scale), 96 * scale, 96 * scale, PixelFormats.Pbgra32);
+                bitmap.Render(visual);
+                bitmap.Render(aboutContent);
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(bitmap));
+                using var file = File.Create(Path.Combine(directory, $"about-{theme.ToString().ToLowerInvariant()}-{scale * 100:0}.png"));
+                encoder.Save(file);
+            }
+        }
+        about.Show();
+        about.UpdateLayout();
+        Console.WriteLine($"About dialog actual DPI: {VisualTreeHelper.GetDpi(about).PixelsPerInchX}");
+        about.Close();
         app.ThemeMode = ThemeMode.System;
 #pragma warning restore WPF0001
         Console.WriteLine("Themes: light/dark/light switched on the existing window; timeline colors and selection verified; 100% and 150% previews rendered.");

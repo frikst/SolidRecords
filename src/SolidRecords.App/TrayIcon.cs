@@ -15,7 +15,7 @@ internal sealed class TrayIcon : IDisposable
     private readonly ToolStripMenuItem _startup;
     private readonly MainViewModel _viewModel;
 
-    public TrayIcon(MainViewModel viewModel, Recorder recorder, Action showWindow, Func<Task> exit)
+    public TrayIcon(MainViewModel viewModel, Recorder recorder, Action showWindow, Action showAbout, Func<Task> exit)
     {
         _viewModel = viewModel;
         _menu = new ContextMenuStrip();
@@ -31,6 +31,7 @@ internal sealed class TrayIcon : IDisposable
         };
         _menu.Items.Add(_startup);
         _menu.Items.Add(new ToolStripSeparator());
+        _menu.Items.Add("O aplikácii", null, (_, _) => showAbout());
         _menu.Items.Add("Ukončiť aplikáciu", null, async (_, _) => await exit());
         _menu.Opening += (_, _) =>
         {

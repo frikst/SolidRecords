@@ -2,7 +2,7 @@
 
 ## Prostredie a príkazy
 
-Windows 10/11, .NET 10 SDK. `global.json` požaduje 10.0.100 s `rollForward=latestFeature`; spoločné vlastnosti sú v `Directory.Build.props`. Riešenie používa formát `SolidRecords.slnx`.
+Windows 10/11, .NET 10 SDK. `global.json` požaduje 10.0.100 s `rollForward=latestFeature`; spoločné vlastnosti a centrálna produktová `Version` sú v `Directory.Build.props`. Dialóg O aplikácii zobrazuje odvodenú `AssemblyInformationalVersion` vrátane prípony vývojovej verzie, bez metadát za `+`. Riešenie používa formát `SolidRecords.slnx`.
 
 Z koreňa repozitára:
 
@@ -21,7 +21,7 @@ git diff --check
 | Kontrola | Čo overuje |
 | --- | --- |
 | `SolidRecords.Tests` | Stavový automat, životnosti rodičov, PID/URL zmeny, Recorder start/stop a chyby, SQLite perzistenciu a migrácie, prahy, zlúčenie/rozdelenie úsekov a hranice dňa. |
-| DesktopChecks `--preview-only` | Filter okien, živé aktualizácie WPF zoznamu vrátane predvolených časových pravidiel, vykreslenie svetlej a tmavej témy do `artifacts/desktop-checks/main-window*.png` pri 100 % a 150 % mierke, prepnutie témy na existujúcom okne so zachovaním výberu a binding chyby. Nespúšťa natívny zber ani test životnosti skutočných okien. |
+| DesktopChecks `--preview-only` | Filter okien, živé aktualizácie WPF zoznamu vrátane predvolených časových pravidiel, vykreslenie svetlej a tmavej témy do `artifacts/desktop-checks/main-window*.png` pri 100 % a 150 % mierke, prepnutie témy na existujúcom okne so zachovaním výberu a binding chyby. Vykresľuje aj dialóg O aplikácii v oboch témach a mierkach (`about-*.png`) a vypíše jeho skutočné DPI. Nespúšťa natívny zber ani test životnosti skutočných okien. |
 | DesktopChecks bez prepínača | Navyše krátky reálny zber v aktuálnej relácii a test posledného pracovného okna procesu s pomocným oknom. Používa izolované DB, neotvára používateľskú históriu. |
 | DesktopChecks `--inspect-history` | Samostatná read-only diagnostika používateľskej DB; podrobnosti v [storage.md](storage.md). Nie je súčasťou bežného testovania. |
 
@@ -50,7 +50,7 @@ Pred overením novej zostavy ukonči starú cez systray: druhá inštancia iba o
 
 ## Automatické vydanie
 
-Workflow `.github/workflows/release.yml` reaguje na push tagu `vX.Y.Z`. Overí presný formát bez úvodných núl, MSI limity major ≤ 255, minor ≤ 255 a patch ≤ 65535 a práve jednu neprázdnu sekciu danej verzie v `CHANGELOG.md`. Pred pushom musí byť v označenom commite pripravená hlavička `## [X.Y.Z] - YYYY-MM-DD` s položkami zmien; `Unreleased` sa do poznámok vydania nepreberá. Samotný push tagu bez príslušnej sekcie skončí chybou. Verziu vydania priprav podľa projektového release postupu; workflow ju pri zostavení explicitne preberá z tagu cez MSBuild `Version`.
+Workflow `.github/workflows/release.yml` reaguje na push tagu `vX.Y.Z`. Overí presný formát bez úvodných núl, MSI limity major ≤ 255, minor ≤ 255 a patch ≤ 65535 a práve jednu neprázdnu sekciu danej verzie v `CHANGELOG.md`. Pred pushom musí byť v označenom commite pripravená hlavička `## [X.Y.Z] - YYYY-MM-DD` s položkami zmien; `Unreleased` sa do poznámok vydania nepreberá. Pred zostavením sa kontroluje aj presná zhoda verzie tagu bez `v` s jedinou `<Version>` v commitnutom `Directory.Build.props`; chýbajúca, duplicitná alebo odlišná verzia (aj s vývojovou príponou) zastaví workflow. Samotný push tagu bez príslušnej sekcie skončí chybou. Verziu vydania priprav podľa projektového release postupu; workflow ju pri zostavení explicitne preberá z tagu cez MSBuild `Version`.
 
 Na runneri `windows-2025` sa obnoví a zostaví riešenie, spustia xUnit testy a DesktopChecks `--preview-only`. Až po ich úspechu nasleduje netrimovaná self-contained publikácia `win-x64`, WiX 5.0.2 MSI a prenosný ZIP. WiX je pripnutý na konkrétnu verziu a inštaluje sa do izolovaného `artifacts/wix`. `tools/Build-Installer.ps1` kontroluje prítomnosť runtime, zhodu súborovej verzie aplikácie s MSI aj zhodu publikovaného súboru `LICENSE` s repozitárom. Pri balení pridá pripnuté rozšírenie `WixToolset.UI.wixext/5.0.2` do lokálnej cache `.wix/` (pri prvom použití potrebuje NuGet). Z koreňového `LICENSE` vytvorí `artifacts/installer/LICENSE.rtf` pre slovenský licenčný dialóg `WixUI_Minimal`. Súbor `LICENSE` sa pri zostavení a publikácii kopíruje vedľa aplikácie, takže ho obsahujú MSI aj prenosný ZIP. Dočasný release artefakt v Actions sa uchováva 1 deň, diagnostika testov a náhľady 3 dni. Táto retencia neovplyvňuje MSI a ZIP pripojené ku GitHub Release.
 

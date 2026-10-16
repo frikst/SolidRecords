@@ -26,12 +26,12 @@ jobs:
             - uses: actions/setup-dotnet@v4
               with:
                   dotnet-version: '10.0.x'
-            - name: Validate tag and extract changelog
+            - name: Validate tag, central version and changelog
               id: metadata
               env:
                   RELEASE_TAG: ${{ github.ref_name }}
               run: |
-                  $metadata = ./tools/Get-ReleaseMetadata.ps1 -Tag $env:RELEASE_TAG
+                  $metadata = ./tools/Get-ReleaseMetadata.ps1 -Tag $env:RELEASE_TAG -BuildPropsPath ./Directory.Build.props
                   "version=$($metadata.Version)" >> $env:GITHUB_OUTPUT
             - name: Check release scripts
               run: ./tools/Test-ReleaseMetadata.ps1

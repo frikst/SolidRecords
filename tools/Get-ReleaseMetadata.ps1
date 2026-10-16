@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory)]
     [string] $Tag,
+    [string] $BuildPropsPath = (Join-Path $PSScriptRoot '../Directory.Build.props'),
     [string] $ChangelogPath = (Join-Path $PSScriptRoot '../CHANGELOG.md'),
     [string] $OutputDirectory = (Join-Path $PSScriptRoot '../artifacts/release')
 )
@@ -14,6 +15,17 @@ $parts = $version.Split('.')
 # Windows Installer uses an 8-bit major/minor and a 16-bit build number.
 if ([long]$parts[0] -gt 255 -or [long]$parts[1] -gt 255 -or [long]$parts[2] -gt 65535) {
     throw "Verzia '$version' prekračuje MSI limit 255.255.65535."
+}
+
+# Check the committed source before any MSBuild Version override can hide a mismatch.
+[xml]$buildProps = [IO.File]::ReadAllText((Resolve-Path -LiteralPath $BuildPropsPath))
+$versions = $buildProps.SelectNodes('/Project/PropertyGroup/Version')
+if ($versions.Count -ne 1) {
+    throw 'Directory.Build.props musí obsahovať práve jednu produktovú Version.'
+}
+$sourceVersion = $versions[0].InnerText.Trim()
+if ($sourceVersion -cne $version) {
+    throw "Verzia v Directory.Build.props '$sourceVersion' nesúhlasí s release tagom '$Tag' (očakáva sa '$version')."
 }
 
 $changelog = [IO.File]::ReadAllText((Resolve-Path -LiteralPath $ChangelogPath))
