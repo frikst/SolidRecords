@@ -178,6 +178,23 @@ namespace SolidRecords.Storage.Migrations
                         });
                 });
 
+            modelBuilder.Entity("SolidRecords.Storage.SettingsRow", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("value");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("settings", (string)null);
+                });
+
             modelBuilder.Entity("SolidRecords.Storage.SpanRow", b =>
                 {
                     b.Property<string>("Id")

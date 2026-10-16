@@ -168,7 +168,7 @@ internal static class Program
         }
         Save(new(SignalKind.RecordingStopped, day.AddMinutes(228)));
         var recorder = new Recorder(store, new EmptySource());
-        var vm = new MainViewModel(recorder, new DailyReportService(store), _ => Task.CompletedTask);
+        var vm = new MainViewModel(recorder, new DailyReportService(store));
         var refresh = vm.RefreshAsync();
         var frame = new DispatcherFrame();
         refresh.ContinueWith(_ => Dispatcher.CurrentDispatcher.BeginInvoke(() => frame.Continue = false),
@@ -253,6 +253,26 @@ internal static class Program
         {
             app.ThemeMode = theme;
             TrayMenuPreview.Render(directory, theme.ToString().ToLowerInvariant());
+            var settingsDialog = new SolidRecords.App.SettingsWindow(new SettingsViewModel(new ApplicationSettings(), _ => Task.CompletedTask));
+            settingsDialog.Show();
+            settingsDialog.UpdateLayout();
+            Console.WriteLine($"Settings dialog actual DPI: {VisualTreeHelper.GetDpi(settingsDialog).PixelsPerInchX}");
+            var settingsContent = (FrameworkElement)settingsDialog.Content;
+            var settingsSize = new Size(settingsContent.ActualWidth, settingsContent.ActualHeight);
+            foreach (var settingsScale in new[] { 1.0, 1.5 })
+            {
+                var settingsVisual = new DrawingVisual();
+                using (var drawing = settingsVisual.RenderOpen()) drawing.DrawRectangle(settingsDialog.Background, null, new Rect(settingsSize));
+                var settingsBitmap = new RenderTargetBitmap((int)Math.Ceiling(settingsSize.Width * settingsScale),
+                    (int)Math.Ceiling(settingsSize.Height * settingsScale), 96 * settingsScale, 96 * settingsScale, PixelFormats.Pbgra32);
+                settingsBitmap.Render(settingsVisual);
+                settingsBitmap.Render(settingsContent);
+                var settingsEncoder = new PngBitmapEncoder();
+                settingsEncoder.Frames.Add(BitmapFrame.Create(settingsBitmap));
+                using var settingsFile = File.Create(Path.Combine(directory, $"settings-{theme.ToString().ToLowerInvariant()}-{settingsScale * 100:0}.png"));
+                settingsEncoder.Save(settingsFile);
+            }
+            settingsDialog.Close();
             var aboutContent = (FrameworkElement)about.Content;
             aboutContent.Measure(new Size(480, double.PositiveInfinity));
             var size = new Size(480, aboutContent.DesiredSize.Height);
@@ -365,7 +385,7 @@ internal static class Program
         var at = new DateTimeOffset(DateTime.Today.AddHours(12));
         var options = new ActivityTrackingOptions(TimeSpan.Zero, TimeSpan.Zero);
         await using var recorder = new Recorder(store, source, new FixedClock(at), options);
-        using var viewModel = new MainViewModel(recorder, new DailyReportService(store, options: options), _ => Task.CompletedTask);
+        using var viewModel = new MainViewModel(recorder, new DailyReportService(store, options: options));
         await viewModel.RefreshAsync();
         var resets = 0;
         viewModel.Activities.CollectionChanged += (_, e) =>
@@ -421,7 +441,7 @@ internal static class Program
         var source = new ManualSource();
         var at = new DateTimeOffset(DateTime.Today.AddHours(12));
         await using var recorder = new Recorder(store, source, new FixedClock(at));
-        using var vm = new MainViewModel(recorder, new DailyReportService(store), _ => Task.CompletedTask);
+        using var vm = new MainViewModel(recorder, new DailyReportService(store));
         await vm.RefreshAsync();
         async Task Until(Func<Task<bool>> condition)
         {

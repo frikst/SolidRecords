@@ -18,6 +18,8 @@ internal static class StartupChecks
         File.WriteAllText(Path.Combine(directory, "settings.json"), paused ? "{\"RecordOnLaunch\":false}" : "{\"RecordOnLaunch\":true}");
         var source = new EmptySource();
         var services = new ServiceCollection().AddSolidRecords(directory);
+        services.RemoveAll<Action<bool>>();
+        services.AddSingleton<Action<bool>>(_ => _ => { });
         services.RemoveAll<Recorder>();
         services.AddSingleton(provider => new Recorder(provider.GetRequiredService<IActivityStore>(), source,
             options: provider.GetRequiredService<ActivityTrackingOptions>()));
@@ -50,8 +52,37 @@ internal static class StartupChecks
                     app.MainWindow.Close();
                     if (app.MainWindow.IsVisible) throw new InvalidOperationException("Closing did not hide the window.");
                     await viewModel.ToggleRecordingAsync();
-                    if (provider.GetRequiredService<PreferencesStore>().RecordOnLaunch != paused)
-                        throw new InvalidOperationException("Recording preference was not saved.");
+                    if (provider.GetRequiredService<PreferencesStore>().RecordOnLaunch == paused)
+                        throw new InvalidOperationException("Recording toggle changed the launch preference.");
+                    var saveCalls = 0;
+                    var editor = new SettingsViewModel(new(), _ => { saveCalls++; return Task.CompletedTask; });
+                    foreach (var invalid in new[] { "", "-1", "601", "1.5", "abc" })
+                    {
+                        editor.MinimumActivitySeconds = invalid;
+                        editor.SaveCommand.Execute(null);
+                        if (saveCalls != 0 || editor.Error.Length == 0)
+                            throw new InvalidOperationException("Settings editor accepted an invalid threshold.");
+                    }
+                    editor.MinimumActivitySeconds = "600";
+                    editor.SaveCommand.Execute(null);
+                    if (saveCalls != 1 || editor.Error.Length != 0 || !editor.IsEditable)
+                        throw new InvalidOperationException("Settings editor failed to save a valid threshold.");
+                    var failingEditor = new SettingsViewModel(new(), _ => Task.FromException(new IOException("Test save failure")));
+                    failingEditor.SaveCommand.Execute(null);
+                    if (failingEditor.Error.Length == 0 || !failingEditor.IsEditable)
+                        throw new InvalidOperationException("Settings editor did not recover from a save failure.");
+                    var settings = new ApplicationSettings(0, false, false, false, ApplicationTheme.Dark);
+                    var recordingBeforeSave = recorder.IsRecording;
+                    await app.SaveSettingsAsync(settings);
+                    if (recorder.IsRecording != recordingBeforeSave)
+                        throw new InvalidOperationException("Saving settings changed the recording state.");
+                    if (await provider.GetRequiredService<ISettingsStore>().ReadSettingsAsync() != settings
+                        || provider.GetRequiredService<ActivityTrackingOptions>().MinimumActivityDuration != TimeSpan.Zero)
+                        throw new InvalidOperationException("Settings did not persist or update shared thresholds.");
+                    // A later load must prefer the database over the original JSON file.
+                    await provider.GetRequiredService<PreferencesStore>().LoadAsync();
+                    if (provider.GetRequiredService<PreferencesStore>().Current != settings)
+                        throw new InvalidOperationException("Legacy JSON overwrote database settings.");
                 }
                 catch (Exception ex) { failure = ex; }
                 finally { await app.ExitAsync(); }

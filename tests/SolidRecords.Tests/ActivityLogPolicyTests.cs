@@ -27,6 +27,26 @@ public sealed class ActivityLogPolicyTests
     }
 
     [Theory]
+    [InlineData(0, 1, true)]
+    [InlineData(15, 14, false)]
+    [InlineData(15, 15, true)]
+    [InlineData(600, 599, false)]
+    [InlineData(600, 600, true)]
+    public void ConfiguredMinimumIsSharedByRecordingAndReports(int minimum, int duration, bool retained)
+    {
+        var options = new ActivityTrackingOptions();
+        options.SetMinimumActivityDuration(TimeSpan.FromSeconds(minimum));
+        var visit = Visit(0, duration);
+        var batch = new ActivityLogPolicy(options).Apply(new([], [visit]));
+        var window = new WindowActivity(Window, Process, Info.Handle, Info.Title, visit.Start, visit.End, false) { Activities = [visit] };
+        var process = new ProcessActivity(Process, Recording, Info.ProcessId, Info.Application, null, visit.Start, visit.End, false) { Windows = [window] };
+        var report = new SolidRecords.Core.Reporting.DailyReport([process], options);
+        Assert.Equal(retained ? 1 : 0, batch.Intervals.Count);
+        Assert.Equal(retained ? 1 : 0, report.Intervals.Count);
+        Assert.Equal(TimeSpan.FromSeconds(15), options.MaximumMergeGap);
+    }
+
+    [Theory]
     [InlineData(0, false)]
     [InlineData(14.999, false)]
     [InlineData(15, true)]

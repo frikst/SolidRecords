@@ -5,7 +5,7 @@ using SolidRecords.Core.Recording;
 
 namespace SolidRecords.Storage;
 
-public sealed class SqliteActivityStore : IActivityStore
+public sealed class SqliteActivityStore : IActivityStore, ISettingsStore
 {
     private readonly DbContextOptions<ActivityDbContext> _options;
     private readonly SemaphoreSlim _initialize = new(1, 1);
@@ -35,6 +35,29 @@ public sealed class SqliteActivityStore : IActivityStore
             _initialized = true;
         }
         finally { _initialize.Release(); }
+    }
+
+    public async Task<ApplicationSettings?> ReadSettingsAsync(CancellationToken cancellationToken = default)
+    {
+        await InitializeAsync(cancellationToken);
+        await using var db = new ActivityDbContext(_options);
+        var row = await db.Settings.AsNoTracking().SingleOrDefaultAsync(x => x.Id == 1, cancellationToken);
+        if (row is null) return null;
+        var settings = System.Text.Json.JsonSerializer.Deserialize<ApplicationSettings>(row.Value)
+            ?? throw new InvalidOperationException("Nastavenia v databáze nie sú platné.");
+        settings.Validate();
+        return settings;
+    }
+
+    public async Task SaveSettingsAsync(ApplicationSettings settings, CancellationToken cancellationToken = default)
+    {
+        settings.Validate();
+        await InitializeAsync(cancellationToken);
+        await using var db = new ActivityDbContext(_options);
+        var row = await db.Settings.FindAsync([1], cancellationToken);
+        if (row is null) { row = new() { Id = 1 }; db.Settings.Add(row); }
+        row.Value = System.Text.Json.JsonSerializer.Serialize(settings);
+        await db.SaveChangesAsync(cancellationToken);
     }
 
     public async Task SaveAsync(RecordingBatch batch, CancellationToken cancellationToken = default)

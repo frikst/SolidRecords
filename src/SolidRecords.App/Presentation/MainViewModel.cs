@@ -15,7 +15,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private readonly DailyReportService _reports;
     private readonly Dispatcher _dispatcher;
     private readonly DispatcherTimer _refresh;
-    private readonly Func<bool, Task> _savePreference;
     private DateTime? _selectedDate = DateTime.Today;
     private string _search = "";
     private string _error = "";
@@ -25,11 +24,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private volatile bool _disposed;
     private int _refreshPending;
 
-    public MainViewModel(Recorder recorder, DailyReportService reports, Func<bool, Task> savePreference)
+    public MainViewModel(Recorder recorder, DailyReportService reports)
     {
         _recorder = recorder;
         _reports = reports;
-        _savePreference = savePreference;
         _dispatcher = Dispatcher.CurrentDispatcher;
         ToggleRecordingCommand = new(ToggleRecordingAsync, ShowError);
         PreviousDayCommand = new(() => SelectedDate = (SelectedDate ?? DateTime.Today).AddDays(-1));
@@ -77,7 +75,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _error = "";
         if (_recorder.IsRecording) await _recorder.StopAsync();
         else await _recorder.StartAsync();
-        await _savePreference(_recorder.IsRecording);
         NotifyState();
         await RefreshAsync();
     }

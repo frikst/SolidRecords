@@ -1,29 +1,35 @@
 using System.Text.Json;
+using SolidRecords.Core;
 
 namespace SolidRecords.App.Infrastructure;
 
-internal sealed class PreferencesStore(string dataDirectory)
+internal sealed class PreferencesStore(ISettingsStore store, string dataDirectory)
 {
-    private sealed record Preferences(bool RecordOnLaunch = true);
-    private readonly string _path = Path.Combine(dataDirectory, "settings.json");
+    private sealed record LegacyPreferences(bool RecordOnLaunch = true);
+    public ApplicationSettings Current { get; private set; } = new();
+    public bool RecordOnLaunch => Current.RecordOnLaunch;
 
-    public bool RecordOnLaunch
+    public async Task LoadAsync()
     {
-        get
+        var saved = await store.ReadSettingsAsync();
+        if (saved is not null) { Current = saved; return; }
+        var initial = new ApplicationSettings();
+        try
         {
-            try
+            var path = Path.Combine(dataDirectory, "settings.json");
+            if (File.Exists(path))
             {
-                return !File.Exists(_path)
-                    || (JsonSerializer.Deserialize<Preferences>(File.ReadAllText(_path)) ?? new()).RecordOnLaunch;
+                var legacy = JsonSerializer.Deserialize<LegacyPreferences>(await File.ReadAllTextAsync(path));
+                if (legacy is not null) initial = initial with { RecordOnLaunch = legacy.RecordOnLaunch };
             }
-            catch (Exception ex) when (ex is IOException or JsonException) { return true; }
         }
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException) { }
+        await SaveAsync(initial);
     }
 
-    public async Task SaveAsync(bool recordOnLaunch)
+    public async Task SaveAsync(ApplicationSettings settings)
     {
-        var temporary = _path + ".tmp";
-        await File.WriteAllTextAsync(temporary, JsonSerializer.Serialize(new Preferences(recordOnLaunch)));
-        File.Move(temporary, _path, true);
+        await store.SaveSettingsAsync(settings);
+        Current = settings;
     }
 }

@@ -2,12 +2,13 @@
 
 ## Súbory a schéma
 
-Release zostava ukladá používateľské dáta do `%LOCALAPPDATA%\SolidRecords`: `activity.db` a `settings.json`. Debug zostava používa oba súbory v `artifacts/dev/` v repozitári, ktorý je celý ignorovaný Gitom. Absolútna vývojová cesta sa vloží pri zostavení, takže nezávisí od pracovného priečinka pri spustení. Existujúce dáta sa medzi týmito priečinkami nekopírujú. Databáza obsahuje názvy dokumentov a celé dostupné URL vrátane query parametrov. Nie je šifrovaná, bez automatickej retencie; aplikácia dáta neposiela na sieť.
+Release zostava ukladá používateľské dáta do `%LOCALAPPDATA%\SolidRecords`: `activity.db` vrátane nastavení. Pôvodný `settings.json` sa číta iba pri jednorazovom prevzatí preferencie záznamu. Debug zostava používa databázu v `artifacts/dev/` v repozitári, ktorý je celý ignorovaný Gitom. Absolútna vývojová cesta sa vloží pri zostavení, takže nezávisí od pracovného priečinka pri spustení. Existujúce dáta sa medzi týmito priečinkami nekopírujú. Databáza obsahuje názvy dokumentov a celé dostupné URL vrátane query parametrov. Nie je šifrovaná, bez automatickej retencie; aplikácia dáta neposiela na sieť.
 
 SQLite používa Entity Framework Core 10.0.12 s providerom `Microsoft.EntityFrameworkCore.Sqlite` (pod ním Microsoft.Data.Sqlite), WAL, `synchronous=FULL`, cudzie kľúče, parametrizované príkazy, transakcie a časové/rodičovské indexy. `ActivityDbContext` mapuje samostatné perzistenčné entity na pôvodné tabuľky; modely Core nezávisia od EF. Každá operácia store vytvára vlastný kontext, takže Recorder a report nezdieľajú change tracker. Čítanie používa LINQ bez trackovania, zápis sledované entity a `SaveChangesAsync`; hromadné mazanie a recovery používajú EF príkazy. Pri udalostiach zostáva parametrizovaný `FromSqlInterpolated`, aby sa zachovalo historické poradie `timestamp,rowid`. `SaveAsync` zapisuje celú dávku v jednej transakcii. Čítanie kompozitov má spoločnú read transakciu, aby heartbeat medzi SELECTmi nevytvoril nekonzistentný report. Časy sú UTC Unix milisekundy; GUID sa ukladajú ako text.
 
 | Tabuľka | Význam |
 | --- | --- |
+| `settings` | Jeden riadok s ID 1 a JSON hodnotou `ApplicationSettings`; rozsah minima a téma sa validujú pred zápisom aj po načítaní. |
 | `application_icons` | Posledná dostupná PNG ikona podľa názvu aplikácie (bez rozlíšenia veľkosti písmen), spoločná aj pre staršie záznamy. |
 | `process_activities` | Pozorovaná životnosť procesu a identita v rámci záznamu. |
 | `window_activities` | Životnosť okna, FK na proces. |
@@ -29,6 +30,7 @@ Schému spravujú EF migrácie v `Migrations/` a tabuľka `__EFMigrationsHistory
 - Verzia 1: intervaly sa prenesú pod nové procesy a okná, ID listov, názvy, URL a časy zostávajú. Pôvodná tabuľka sa nemaže. Rodičovské životnosti sú odvodené z histórie, skutočný zánik starých okien nie je známy.
 - Verzia 2: doplnia sa `activity_spans`, každý pôvodný list dostane jeden úsek.
 - Verzia 3: pridá sa samostatná tabuľka ikon bez zmeny ID, časov a aktívnych úsekov histórie. Ikony sa dopĺňajú pri ďalšom pozorovaní aplikácií; bez dostupnej ikony zostáva miesto vedľa názvu prázdne. PNG sa ukladá raz na názov aplikácie ako BLOB, nie pri každej aktivite.
+- EF migrácia `AddApplicationSettings` pridáva tabuľku nastavení bez zmeny histórie. Chýbajúce nastavenia sa pri štarte vytvoria s predvolenými hodnotami, prípadne s prevzatým `RecordOnLaunch` zo starého JSON. Existujúce databázové nastavenia majú vždy prednosť; starý súbor sa nemení.
 - EF migrácie spravujú vlastné transakcie. Prevod starých dát aj následné uzavretie otvorených procesov/okien/listov majú samostatné transakcie. Po páde sa nemení posledný potvrdený koniec, iba sa zruší `is_open`, aby prestoj nevytvoril pracovný čas.
 - Novšia neznáma hodnota `user_version` alebo neznámy záznam v `__EFMigrationsHistory` sa odmietne ešte pred migráciami a recovery. Staršiu aplikáciu nepoužívaj na zápis po migrácii. Zmeny schémy musia mať test migrácie s izolovanou databázou.
 

@@ -4,7 +4,7 @@ using System.Windows.Forms;
 
 namespace SolidRecords.App.Tray;
 
-internal enum TrayMenuSymbol { Window, Play, Stop, Startup, Info, Power }
+internal enum TrayMenuSymbol { Window, Play, Stop, Settings, Info, Power }
 
 internal sealed class TrayMenu : ContextMenuStrip
 {
@@ -18,6 +18,26 @@ internal sealed class TrayMenu : ContextMenuStrip
         ShowImageMargin = false;
         ShowCheckMargin = false;
         Renderer = new MenuRenderer();
+    }
+
+    internal static TrayMenu Create(Action showWindow, Action toggleRecording, Action showSettings, Action showAbout, Func<Task> exit)
+    {
+        var menu = new TrayMenu();
+        menu.Items.Add(new ToolStripMenuItem("Otvoriť SolidRecords", null, (_, _) => showWindow()) { Tag = TrayMenuSymbol.Window });
+        menu.Items.Add(new ToolStripMenuItem("Spustiť záznam", null, (_, _) => toggleRecording()) { Tag = TrayMenuSymbol.Play });
+        menu.Items.Add(new ToolStripMenuItem("Nastavenia…", null, (_, _) => showSettings()) { Tag = TrayMenuSymbol.Settings });
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add(new ToolStripMenuItem("O aplikácii", null, (_, _) => showAbout()) { Tag = TrayMenuSymbol.Info });
+        menu.Items.Add(new ToolStripMenuItem("Ukončiť aplikáciu", null, async (_, _) => await exit()) { Tag = TrayMenuSymbol.Power });
+        return menu;
+    }
+
+    internal void UpdateRecordingState(bool isRecording, bool canToggle = true)
+    {
+        var toggle = Items[1];
+        toggle.Text = isRecording ? "Zastaviť záznam" : "Spustiť záznam";
+        toggle.Tag = isRecording ? TrayMenuSymbol.Stop : TrayMenuSymbol.Play;
+        toggle.Enabled = canToggle;
     }
 
     protected override Padding DefaultPadding => new(Px(5));
@@ -191,10 +211,15 @@ internal sealed class TrayMenu : ContextMenuStrip
                 case TrayMenuSymbol.Stop:
                     graphics.DrawRectangle(pen, 3, 3, 12, 12);
                     break;
-                case TrayMenuSymbol.Startup:
-                    graphics.DrawRectangle(pen, 2, 2, 14, 14);
-                    if (item is ToolStripMenuItem { Checked: true })
-                        graphics.DrawLines(pen, [new PointF(5, 9), new PointF(8, 12), new PointF(13, 6)]);
+                case TrayMenuSymbol.Settings:
+                    graphics.DrawEllipse(pen, 4, 4, 10, 10);
+                    graphics.DrawEllipse(pen, 7, 7, 4, 4);
+                    for (var tooth = 0; tooth < 8; tooth++)
+                    {
+                        var angle = tooth * Math.PI / 4;
+                        graphics.DrawLine(pen, 9 + (float)Math.Cos(angle) * 5, 9 + (float)Math.Sin(angle) * 5,
+                            9 + (float)Math.Cos(angle) * 7.5f, 9 + (float)Math.Sin(angle) * 7.5f);
+                    }
                     break;
                 case TrayMenuSymbol.Info:
                     graphics.DrawEllipse(pen, 1.5f, 1.5f, 15, 15);

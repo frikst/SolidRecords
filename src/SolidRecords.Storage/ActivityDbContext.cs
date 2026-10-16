@@ -12,8 +12,15 @@ public sealed class ActivityDbContext(DbContextOptions<ActivityDbContext> option
     internal DbSet<IconRow> Icons => Set<IconRow>();
     internal DbSet<EventRow> Events => Set<EventRow>();
 
+    internal DbSet<SettingsRow> Settings => Set<SettingsRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<SettingsRow>(entity =>
+        {
+            entity.ToTable("settings");
+            entity.HasKey(x => x.Id);
+        });
         modelBuilder.Entity<ProcessRow>(entity =>
         {
             entity.ToTable("process_activities", table => table.HasCheckConstraint("ck_process_time", "end >= start"));
@@ -128,4 +135,10 @@ internal sealed class EventRow
     public string? Title { get; set; }
     public string? Url { get; set; }
     public string? Reason { get; set; }
+}
+
+internal sealed class SettingsRow
+{
+    public int Id { get; set; }
+    public string Value { get; set; } = "";
 }

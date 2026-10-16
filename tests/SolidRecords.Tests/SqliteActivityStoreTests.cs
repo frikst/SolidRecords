@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using SolidRecords.Core;
 using SolidRecords.Core.Recording;
 using SolidRecords.Core.Reporting;
@@ -12,6 +13,48 @@ public sealed class SqliteActivityStoreTests : IDisposable
 {
     private readonly string _directory = Path.GetFullPath(Path.Combine("artifacts", "storage-tests", Guid.NewGuid().ToString()));
     private SqliteActivityStore CreateStore() => new(Path.Combine(_directory, "activity.db"));
+
+    [Fact]
+    public async Task SettingsMigrationPreservesHistoryAndRoundTripsAllValues()
+    {
+        var store = CreateStore();
+        var options = new DbContextOptionsBuilder<ActivityDbContext>().UseSqlite($"Data Source={store.DatabasePath}").Options;
+        Directory.CreateDirectory(_directory);
+        await using (var db = new ActivityDbContext(options))
+        {
+            var migrator = db.GetService<Microsoft.EntityFrameworkCore.Migrations.IMigrator>();
+            await migrator.MigrateAsync("20261016191818_AdoptExistingSchema");
+        }
+        await store.InitializeAsync();
+        Assert.Null(await store.ReadSettingsAsync());
+        var at = DateTimeOffset.UnixEpoch;
+        var interval = new ActivityInterval(Guid.NewGuid(), Guid.NewGuid(), new(1, 2, "app", "title"), at, at.AddSeconds(30), false);
+        await store.SaveAsync(Composite(interval));
+        // Simulate the preceding release with populated history and no settings table.
+        await using (var connection = new SqliteConnection($"Data Source={store.DatabasePath}"))
+        {
+            await connection.OpenAsync();
+            using var command = connection.CreateCommand();
+            command.CommandText = "DROP TABLE settings; DELETE FROM __EFMigrationsHistory WHERE MigrationId LIKE '%_AddApplicationSettings';";
+            await command.ExecuteNonQueryAsync();
+        }
+        store = CreateStore();
+        await store.InitializeAsync();
+        Assert.Null(await store.ReadSettingsAsync());
+        foreach (var seconds in new[] { 0, 600, 15 })
+        {
+            var settings = new ApplicationSettings(seconds, false, false, false, ApplicationTheme.Dark);
+            await store.SaveSettingsAsync(settings);
+            Assert.Equal(settings, await CreateStore().ReadSettingsAsync());
+        }
+        var actual = Assert.Single(await store.ReadIntervalsAsync(at, at.AddDays(1)));
+        Assert.Equal(interval.Id, actual.Id);
+        Assert.Equal(interval.Duration, actual.Duration);
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => store.SaveSettingsAsync(new(-1)));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => store.SaveSettingsAsync(new(601)));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => store.SaveSettingsAsync(new(Theme: (ApplicationTheme)99)));
+        Assert.Equal(15, (await store.ReadSettingsAsync())!.MinimumActivitySeconds);
+    }
 
     [Fact]
     public async Task RoundTripsEventsAndIntervalsWithQuotedUnicodeTitles()
@@ -255,7 +298,7 @@ public sealed class SqliteActivityStoreTests : IDisposable
         {
             await connection.OpenAsync();
             using var command = connection.CreateCommand();
-            command.CommandText = "DROP TABLE activity_spans; DELETE FROM __EFMigrationsHistory; PRAGMA user_version=2;";
+            command.CommandText = "DROP TABLE settings; DROP TABLE activity_spans; DELETE FROM __EFMigrationsHistory; PRAGMA user_version=2;";
             await command.ExecuteNonQueryAsync();
         }
         var migrated = CreateStore();
@@ -276,7 +319,7 @@ public sealed class SqliteActivityStoreTests : IDisposable
         {
             await connection.OpenAsync();
             using var command = connection.CreateCommand();
-            command.CommandText = "DROP TABLE application_icons; DELETE FROM __EFMigrationsHistory; PRAGMA user_version=3;";
+            command.CommandText = "DROP TABLE settings; DROP TABLE application_icons; DELETE FROM __EFMigrationsHistory; PRAGMA user_version=3;";
             await command.ExecuteNonQueryAsync();
         }
         var migrated = CreateStore();
@@ -331,7 +374,7 @@ public sealed class SqliteActivityStoreTests : IDisposable
         await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => store.InitializeAsync()));
         var options = new DbContextOptionsBuilder<ActivityDbContext>().UseSqlite($"Data Source={store.DatabasePath}").Options;
         await using var db = new ActivityDbContext(options);
-        Assert.Single(await db.Database.GetAppliedMigrationsAsync());
+        Assert.Equal(2, (await db.Database.GetAppliedMigrationsAsync()).Count());
         Assert.Empty(await db.Database.GetPendingMigrationsAsync());
         Assert.False(db.Database.HasPendingModelChanges());
         var at = DateTimeOffset.UnixEpoch;
@@ -360,7 +403,7 @@ public sealed class SqliteActivityStoreTests : IDisposable
         {
             await connection.OpenAsync();
             using var command = connection.CreateCommand();
-            command.CommandText = "DROP TABLE __EFMigrationsHistory;";
+            command.CommandText = "DROP TABLE settings; DROP TABLE __EFMigrationsHistory;";
             await command.ExecuteNonQueryAsync();
         }
         var adopted = CreateStore();

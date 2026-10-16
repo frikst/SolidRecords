@@ -1,9 +1,7 @@
 using System.Drawing;
 using System.Windows.Forms;
 using SolidRecords.App.Presentation;
-using SolidRecords.Core;
 using SolidRecords.Core.Recording;
-using SolidRecords.Windows.Shell;
 
 namespace SolidRecords.App.Tray;
 
@@ -12,34 +10,13 @@ internal sealed class TrayIcon : IDisposable
     private readonly NotifyIcon _icon;
     private readonly Icon _applicationIcon;
     private readonly TrayMenu _menu;
-    private readonly ToolStripMenuItem _toggle;
-    private readonly ToolStripMenuItem _startup;
     private readonly MainViewModel _viewModel;
 
-    public TrayIcon(MainViewModel viewModel, Recorder recorder, Action showWindow, Action showAbout, Func<Task> exit)
+    public TrayIcon(MainViewModel viewModel, Recorder recorder, Action showWindow, Action showAbout, Action showSettings, Func<Task> exit)
     {
         _viewModel = viewModel;
-        _menu = new TrayMenu();
-        _menu.Items.Add(new ToolStripMenuItem("Otvoriť SolidRecords", null, (_, _) => showWindow()) { Tag = TrayMenuSymbol.Window });
-        _toggle = new ToolStripMenuItem("", null, (_, _) => viewModel.ToggleRecordingCommand.Execute(null));
-        _menu.Items.Add(_toggle);
-        _startup = new ToolStripMenuItem("Spúšťať po prihlásení") { CheckOnClick = false, Tag = TrayMenuSymbol.Startup };
-        _startup.Click += (_, _) =>
-        {
-            try { StartupRegistration.SetEnabled(!StartupRegistration.IsEnabled); }
-            catch (Exception ex) { viewModel.ShowError(ex); showWindow(); }
-        };
-        _menu.Items.Add(_startup);
-        _menu.Items.Add(new ToolStripSeparator());
-        _menu.Items.Add(new ToolStripMenuItem("O aplikácii", null, (_, _) => showAbout()) { Tag = TrayMenuSymbol.Info });
-        _menu.Items.Add(new ToolStripMenuItem("Ukončiť aplikáciu", null, async (_, _) => await exit()) { Tag = TrayMenuSymbol.Power });
-        _menu.Opening += (_, _) =>
-        {
-            _toggle.Text = recorder.IsRecording ? "Zastaviť záznam" : "Spustiť záznam";
-            _toggle.Tag = recorder.IsRecording ? TrayMenuSymbol.Stop : TrayMenuSymbol.Play;
-            _toggle.Enabled = viewModel.ToggleRecordingCommand.CanExecute(null);
-            _startup.Checked = StartupRegistration.IsEnabled;
-        };
+        _menu = TrayMenu.Create(showWindow, () => viewModel.ToggleRecordingCommand.Execute(null), showSettings, showAbout, exit);
+        _menu.Opening += (_, _) => _menu.UpdateRecordingState(recorder.IsRecording, viewModel.ToggleRecordingCommand.CanExecute(null));
         using (var resource = System.Windows.Application.GetResourceStream(
             new Uri("pack://application:,,,/SolidRecords.App;component/Assets/SolidRecords.ico")).Stream)
         {

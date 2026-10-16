@@ -15,9 +15,21 @@ dotnet build SolidRecords.slnx
 dotnet run --project src/SolidRecords.App -- --show
 ```
 
-Pri bežnom spustení bez `--show` sa aplikácia otvorí v systray. Prvýkrát začne zaznamenávať automaticky. Dvojklik na ikonu alebo položka **Otvoriť SolidRecords** zobrazí prehľad. Zatvorenie okna ponechá aplikáciu bežať; položka **Ukončiť aplikáciu** zastaví zber, dopíše front udalostí a aplikáciu ukončí.
+Pri predvolenom nastavení sa aplikácia spustí v systray a začne zaznamenávať automaticky. Prepínač `--show` vždy otvorí prehľad. Dvojklik na ikonu alebo položka **Otvoriť SolidRecords** zobrazí prehľad. Zatvorenie okna ponechá aplikáciu bežať; položka **Ukončiť aplikáciu** zastaví zber, dopíše front udalostí a aplikáciu ukončí.
 
-Záznam sa spúšťa a zastavuje tlačidlom v okne alebo položkou kontextového menu ikony. Voľba zostane uložená aj pri ďalšom spustení. **Spúšťať po prihlásení** v kontextovom menu voliteľne pridá aktuálnu cestu aplikácie do `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`. Zapínajte ju z finálneho priečinka publikovanej aplikácie; po presunutí aplikácie ju vypnite a zapnite znova.
+Záznam sa spúšťa a zastavuje tlačidlom v okne alebo položkou kontextového menu ikony. Stav záznamu nemení nastavenie automatického záznamu pri ďalšom spustení.
+
+Pravým kliknutím na ikonu pri hodinách otvorte **Nastavenia…**. Tlačidlo **Uložiť** uloží všetky voľby do databázy; **Zrušiť** ich zahodí.
+
+| Nastavenie | Predvolená hodnota |
+| --- | --- |
+| Minimálne trvanie aktivity | 15 sekúnd; rozsah 0–600, pri 0 sa minimum vypne. |
+| Automatický záznam pri spustení aplikácie | Zapnutý. |
+| Spustenie programu pri prihlásení do Windows | Zapnuté. |
+| Spustenie minimalizované v systray | Zapnuté. |
+| Téma | Podľa systému; voliteľne svetlá alebo tmavá. |
+
+Téma a minimum sa použijú po uložení. Pri zmene minima sa aktívny záznam dopíše a pokračuje s novým prahom; nové minimum sa použije aj na zobrazenie histórie, ale neobnoví predtým neuložené krátke aktivity. Voľby spúšťania sa prejavia pri ďalšom štarte. Automatické spustenie používa aktuálnu cestu aplikácie v `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, preto prenosnú aplikáciu spúšťajte z finálneho priečinka.
 
 Položka **O aplikácii** v kontextovom menu ikony pri hodinách otvorí dialóg s verziou, autorom, organizáciou a odkazom na web katedry. Dialóg zatvoríte aj klávesom Esc.
 
@@ -27,16 +39,16 @@ Položka **O aplikácii** v kontextovom menu ikony pri hodinách otvorí dialóg
 - Životnosť procesu odvodená z okien: od prvého aktívneho okna až po zatvorenie posledného evidovaného okna procesu.
 - Aktivovanie a deaktivovanie okna, zmena názvu okna a zmena dostupnej URL.
 - Kompozitná evidencia proces → okná → aktívne úseky okna alebo URL. GUI zobrazuje plochý zoznam listových aktivít s PID, názvom okna, URL a časmi. Udalosti sa v GUI nezobrazujú.
-- Svetlá a tmavá téma sa automaticky riadi nastavením režimu aplikácií vo Windows a prepína sa aj počas behu aplikácie.
+- Téma podľa systému sleduje režim aplikácií vo Windows aj počas behu; v nastaveniach možno zvoliť stálu svetlú alebo tmavú tému.
 - Denná časová os s farbami aplikácií, denný súčet času v aktívnych oknách, prvá a posledná aktivita.
 - Výber dňa a textové vyhľadávanie podľa aplikácie, dokumentu alebo URL. Okno je živé: po zápise zmien sa aktualizuje zoznam, súhrn aj časová os. Otvorená aktivita má pri konci a trvaní pomlčku; hodnoty sa zobrazia až po jej ukončení. Denný súčet a časová os sa priebežne aktualizujú aj počas aktivity. Tlačidlo na manuálne obnovenie nie je potrebné. Ďalšie filtre zatiaľ nie sú pridané.
 - Žiadny skupinový pohľad, zaškrtávacie políčka ani pridávanie, zlučovanie a mazanie položiek timetrackingu.
 
 Súčet sa počíta výhradne z listových aktivít: v každom okamihu sa započíta aktívne okno alebo jeho aktívna URL, nikdy oba súčasne. Životnosť procesu a otvoreného okna sa nesčítava. Aplikácia na pozadí, minimalizované okno a čas medzi opakovanými aktiváciami nepridávajú pracovný čas. Nie je to detekcia nečinnosti podľa klávesnice a myši. Zamknutie, odpojenie a uspatie aktívny úsek uzatvoria; rodičovské záznamy môžu zostať otvorené. Intervaly sa v dennom prehľade orežú na miestnu polnoc vrátane prechodov letného času. Vyhľadávanie filtruje zoznam; denný súčet a časová os zobrazujú celý deň.
 
-Aktivita kratšia než **15 sekúnd** sa do pracovného logu neuloží a nezobrazí. Otvorená aktivita sa objaví až po dosiahnutí tejto hranice, so zachovaním pôvodného začiatku. Každý samostatný aktívny úsek musí hranicu dosiahnuť; viac krátkych návštev sa nesčítava na splnenie minima. Ak po vyradení krátkych aktivít zostanú dve totožné aktivity priamo po sebe a medzera medzi nimi je **menšia než 15 sekúnd**, uložia sa ako jedna aktivita. Presne 15-sekundová aktivita sa prijme, presne 15-sekundová medzera sa nezlúči. Identita zahŕňa záznam procesu a okna, názov dokumentu aj URL; dve rôzne inštancie programu sa nezlúčia.
+Aktivita kratšia než nastavené minimum (predvolene **15 sekúnd**) sa do pracovného logu neuloží a nezobrazí. Otvorená aktivita sa objaví až po dosiahnutí tejto hranice, so zachovaním pôvodného začiatku. Každý samostatný aktívny úsek musí hranicu dosiahnuť; viac krátkych návštev sa nesčítava na splnenie minima. Ak po vyradení krátkych aktivít zostanú dve totožné aktivity priamo po sebe a medzera medzi nimi je **menšia než 15 sekúnd**, uložia sa ako jedna aktivita. Presne 15-sekundová aktivita sa prijme, presne 15-sekundová medzera sa nezlúči. Identita zahŕňa záznam procesu a okna, názov dokumentu aj URL; dve rôzne inštancie programu sa nezlúčia.
 
-Zlúčenie zachová skutočné aktívne úseky: 20 s práce + 5 s prestávka + 20 s práce = jeden záznam s trvaním 40 s. Časová os naďalej zobrazuje prestávku. Rovnaké pravidlá sa používajú aj pri zobrazení pôvodnej histórie bez jej hromadného mazania. Minima sa posudzujú pred orezaním na deň, aby sa nestratila platná aktivita zasahujúca cez polnoc. Oba prahy sú zatiaľ pevné; nastavenie cez GUI nie je pridané.
+Zlúčenie zachová skutočné aktívne úseky: 20 s práce + 5 s prestávka + 20 s práce = jeden záznam s trvaním 40 s. Časová os naďalej zobrazuje prestávku. Rovnaké pravidlá sa používajú aj pri zobrazení pôvodnej histórie bez jej hromadného mazania. Minima sa posudzujú pred orezaním na deň, aby sa nestratila platná aktivita zasahujúca cez polnoc. Minimum možno meniť v nastaveniach; prah zlúčenia zostáva 15 sekúnd.
 
 ## Hranice zberu
 
@@ -50,7 +62,6 @@ Pri vynútenom ukončení alebo výpadku napájania nemusia byť uložené posle
 
 ```text
 %LOCALAPPDATA%\SolidRecords\activity.db
-%LOCALAPPDATA%\SolidRecords\settings.json
 ```
 
 Údaje zostávajú lokálne; aplikácia ich nikam neposiela. Databáza nie je šifrovaná a nemá automatické mazanie ani limit retencie. Názvy dokumentov a celé dostupné URL vrátane query parametrov sú súčasťou záznamu.
@@ -73,4 +84,4 @@ Prenosná publikácia s pribaleným .NET runtime pre Windows x64:
 dotnet publish src/SolidRecords.App -c Release -r win-x64 --self-contained true -o artifacts/publish/win-x64
 ```
 
-Spúšťa sa `artifacts/publish/win-x64/SolidRecords.App.exe`. Inštalátor nie je potrebný. Automatické spúšťanie sa zapína až z cieľového priečinka.
+Spúšťa sa `artifacts/publish/win-x64/SolidRecords.App.exe`. Inštalátor nie je potrebný. Pri prvom spustení sa automatické spúšťanie predvolene zapne pre aktuálnu cestu.

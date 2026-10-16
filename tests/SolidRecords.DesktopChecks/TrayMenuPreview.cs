@@ -12,26 +12,18 @@ internal static class TrayMenuPreview
 {
     public static void Render(string directory, string theme)
     {
-        using var menu = new TrayMenu();
-        menu.Items.Add(new ToolStripMenuItem("Otvoriť SolidRecords") { Tag = TrayMenuSymbol.Window });
-        var recording = new ToolStripMenuItem("Zastaviť záznam") { Tag = TrayMenuSymbol.Stop };
-        menu.Items.Add(recording);
-        var startup = new ToolStripMenuItem("Spúšťať po prihlásení") { Tag = TrayMenuSymbol.Startup, Checked = true };
-        menu.Items.Add(startup);
-        menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add(new ToolStripMenuItem("O aplikácii") { Tag = TrayMenuSymbol.Info });
-        menu.Items.Add(new ToolStripMenuItem("Ukončiť aplikáciu") { Tag = TrayMenuSymbol.Power });
+        using var menu = TrayMenu.Create(() => { }, () => { }, () => { }, () => { }, () => Task.CompletedTask);
+        menu.UpdateRecordingState(true);
+        var recording = menu.Items[1];
         NativeMenuChecks.Run(menu, directory, theme);
         CheckInteraction(menu);
         // Open only this standalone menu: no NotifyIcon, registry changes or real App startup.
         menu.Show(new Point(40, 40));
         recording.Select();
         Save("recording");
-        recording.Text = "Spustiť záznam";
-        recording.Tag = TrayMenuSymbol.Play;
-        startup.Checked = false;
+        menu.UpdateRecordingState(false);
         Save("stopped");
-        Console.WriteLine($"Tray menu preview: {theme}, actual DPI {menu.DeviceDpi}; checked/unchecked and stop/play rendered.");
+        Console.WriteLine($"Tray menu preview: {theme}, actual DPI {menu.DeviceDpi}; settings action and stop/play rendered.");
         menu.Close();
 
         void Save(string state)

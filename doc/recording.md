@@ -11,9 +11,9 @@
 
 ## Minimum a zlúčenie
 
-`ActivityTrackingOptions` obsahuje jeden predvolený prah 15 s a dva samostatné parametre: `MinimumActivityDuration` a `MaximumMergeGap`. Konfigurácia cez GUI ani settings zatiaľ nie je zapojená.
+`ActivityTrackingOptions` obsahuje jeden predvolený prah 15 s a dva samostatné parametre: `MinimumActivityDuration` a `MaximumMergeGap`. Minimum je nastaviteľné v rozsahu 0–600 s (0 vypne minimum); zlúčenie zostáva 15 s. Recorder a report používajú spoločné nastavenia, jeden report si vytvorí nemenný snapshot prahov.
 
-1. Každá samostatná súvislá aktivita musí dosiahnuť minimum. Kandidát kratší než 15 s zostáva len v pamäti zberu; list sa neuloží ani nezobrazí. Interné udalosti a rodičovská metadata tým nie sú filtrované. Pri presne 15 s sa prijme s pôvodným začiatkom. Viac krátkych návštev sa na splnenie minima nesčítava.
+1. Každá samostatná súvislá aktivita musí dosiahnuť minimum. Kandidát kratší než nastavené minimum (predvolene 15 s) zostáva len v pamäti zberu; list sa neuloží ani nezobrazí. Interné udalosti a rodičovská metadata tým nie sú filtrované. Pri presnom dosiahnutí minima sa prijme s pôvodným začiatkom. Viac krátkych návštev sa na splnenie minima nesčítava.
 2. Po vyradení krátkych kandidátov sa zlučujú chronologicky susedné totožné aktivity s nezápornou medzerou striktne menšou než 15 s. Presne 15 s medzera sa nezlúči. Identita zahŕňa RecordingId, ID rodičovského procesu/okna a celý WindowInfo (HWND, PID, aplikácia, názov, URL, dostupný čas vytvorenia procesu).
 3. Zlúčenie zachová prvé ID a skutočné úseky `ActivitySpan`. Trvanie je ich súčet, nie `End - Start`: 20 s + 5 s medzera + 20 s = 40 s. Aj časová os kreslí úseky, takže prestávka zostane viditeľná.
 

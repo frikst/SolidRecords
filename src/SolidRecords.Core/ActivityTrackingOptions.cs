@@ -1,6 +1,6 @@
 namespace SolidRecords.Core;
 
-/// <summary>Shared defaults, ready to be supplied from application settings later.</summary>
+/// <summary>Shared recording and report thresholds.</summary>
 public sealed class ActivityTrackingOptions
 {
     private static readonly TimeSpan DefaultThreshold = TimeSpan.FromSeconds(15);
@@ -8,12 +8,19 @@ public sealed class ActivityTrackingOptions
 
     public ActivityTrackingOptions(TimeSpan? minimumActivityDuration = null, TimeSpan? maximumMergeGap = null)
     {
-        MinimumActivityDuration = minimumActivityDuration ?? DefaultThreshold;
+        _minimumActivityTicks = (minimumActivityDuration ?? DefaultThreshold).Ticks;
         MaximumMergeGap = maximumMergeGap ?? DefaultThreshold;
         ArgumentOutOfRangeException.ThrowIfLessThan(MinimumActivityDuration, TimeSpan.Zero);
         ArgumentOutOfRangeException.ThrowIfLessThan(MaximumMergeGap, TimeSpan.Zero);
     }
 
-    public TimeSpan MinimumActivityDuration { get; }
+    private long _minimumActivityTicks;
+    public TimeSpan MinimumActivityDuration => TimeSpan.FromTicks(Interlocked.Read(ref _minimumActivityTicks));
+
+    public void SetMinimumActivityDuration(TimeSpan duration)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(duration, TimeSpan.Zero);
+        Interlocked.Exchange(ref _minimumActivityTicks, duration.Ticks);
+    }
     public TimeSpan MaximumMergeGap { get; }
 }

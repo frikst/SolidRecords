@@ -7,8 +7,10 @@ public sealed class DailyReport
     public DailyReport(IReadOnlyList<ProcessActivity> processes, ActivityTrackingOptions? options = null,
         DateTimeOffset? from = null, DateTimeOffset? to = null)
     {
+        var current = options ?? ActivityTrackingOptions.Default;
+        var snapshot = new ActivityTrackingOptions(current.MinimumActivityDuration, current.MaximumMergeGap);
         var normalized = ActivityLogPolicy.MergeAdjacent(processes.SelectMany(p => p.Windows).SelectMany(w => w.Activities),
-            options ?? ActivityTrackingOptions.Default);
+            snapshot);
         Intervals = normalized.Select(interval => ActivityLogPolicy.Clip(interval,
             from ?? DateTimeOffset.MinValue, to ?? DateTimeOffset.MaxValue)).OfType<ActivityInterval>()
             .Where(interval => interval.Duration > TimeSpan.Zero).ToArray();
