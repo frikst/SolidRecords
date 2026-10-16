@@ -195,8 +195,9 @@ internal static class Program
         var store = new SqliteActivityStore(Path.Combine(directory, $"live-{Guid.NewGuid():N}.db"));
         var source = new ManualSource();
         var at = new DateTimeOffset(DateTime.Today.AddHours(12));
-        await using var recorder = new Recorder(store, source, new FixedClock(at));
-        using var viewModel = new MainViewModel(recorder, new DailyReportService(store), _ => Task.CompletedTask);
+        var options = new ActivityTrackingOptions(TimeSpan.Zero, TimeSpan.Zero);
+        await using var recorder = new Recorder(store, source, new FixedClock(at), options);
+        using var viewModel = new MainViewModel(recorder, new DailyReportService(store, options: options), _ => Task.CompletedTask);
         await viewModel.RefreshAsync();
         var resets = 0;
         viewModel.Activities.CollectionChanged += (_, e) =>
@@ -243,6 +244,55 @@ internal static class Program
         await Until(() => viewModel.Activities.Count == 2);
         Require(resets == 0, "Live updates reset the collection and lost row selection");
         Console.WriteLine("Live view: automatic insert, duration update, URL change, recording stop and date navigation passed without collection resets.");
+        await CheckDefaultActivityRulesAsync(directory);
+    }
+
+    private static async Task CheckDefaultActivityRulesAsync(string directory)
+    {
+        var store = new SqliteActivityStore(Path.Combine(directory, $"thresholds-{Guid.NewGuid():N}.db"));
+        var source = new ManualSource();
+        var at = new DateTimeOffset(DateTime.Today.AddHours(12));
+        await using var recorder = new Recorder(store, source, new FixedClock(at));
+        using var vm = new MainViewModel(recorder, new DailyReportService(store), _ => Task.CompletedTask);
+        await vm.RefreshAsync();
+        async Task Until(Func<Task<bool>> condition)
+        {
+            var timer = Stopwatch.StartNew();
+            while (!await condition())
+            {
+                if (timer.Elapsed > TimeSpan.FromSeconds(5)) throw new InvalidOperationException("Default activity rules did not reach the expected live state");
+                await Task.Delay(25);
+            }
+        }
+        Task<bool> State(Func<bool> predicate) => Task.FromResult(predicate());
+        async Task<bool> HeartbeatWritten(int second) => (await store.ReadEventsAsync(at, at.AddDays(1)))
+            .Any(e => e.Kind == EventKind.Heartbeat && e.Timestamp == at.AddSeconds(second));
+        await recorder.StartAsync();
+        var document = new WindowInfo(100, 42, "editor", "Document");
+        source.Publish(new(SignalKind.SessionActive, at));
+        source.Publish(new(SignalKind.ForegroundChanged, at, document));
+        source.Publish(new(SignalKind.Heartbeat, at.AddSeconds(14)));
+        await Until(() => HeartbeatWritten(14));
+        Require(vm.Activities.Count == 0 && (await store.ReadIntervalsAsync(at, at.AddDays(1))).Count == 0,
+            "A sub-15-second candidate reached the activity log");
+        source.Publish(new(SignalKind.Heartbeat, at.AddSeconds(15)));
+        await Until(() => State(() => vm.Activities.Count == 1));
+        var row = vm.Activities[0];
+        Require(row.Interval.Start == at, "The threshold changed the original start time");
+        source.Publish(new(SignalKind.ForegroundChanged, at.AddSeconds(20), document with { Title = "Brief other document" }));
+        source.Publish(new(SignalKind.ForegroundChanged, at.AddSeconds(25), document));
+        source.Publish(new(SignalKind.Heartbeat, at.AddSeconds(39)));
+        await Until(() => HeartbeatWritten(39));
+        await Until(() => State(() => !row.Interval.IsOpen));
+        Require(vm.Activities.Count == 1, "A brief intervening document reached the log");
+        source.Publish(new(SignalKind.Heartbeat, at.AddSeconds(40)));
+        await Until(() => State(() => row.Interval.IsOpen && row.Interval.Duration == TimeSpan.FromSeconds(35)));
+        Require(vm.Activities.Count == 1 && ReferenceEquals(row, vm.Activities[0]), "A merged activity replaced or duplicated its existing row");
+        source.Publish(new(SignalKind.Heartbeat, at.AddSeconds(45)));
+        await recorder.StopAsync();
+        await Until(() => State(() => !row.Interval.IsOpen && row.Interval.Duration == TimeSpan.FromSeconds(40)));
+        Require(row.Interval.Spans.Count == 2, "Merge did not preserve the separate foreground spans");
+        Console.WriteLine("Default activity rules: 14 s hidden; 15 s visible; short intervening visit discarded; identical visits merged live with gap excluded.");
     }
 
     private static void CheckWindowFilter()

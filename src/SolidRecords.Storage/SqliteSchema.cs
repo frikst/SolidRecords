@@ -10,7 +10,7 @@ internal static class SqliteSchema
         using var command = connection.CreateCommand();
         command.CommandText = "PRAGMA user_version;";
         var version = Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken));
-        if (version > 2) throw new InvalidOperationException("Databázu vytvorila novšia verzia SolidRecords.");
+        if (version > 3) throw new InvalidOperationException("Databázu vytvorila novšia verzia SolidRecords.");
         command.CommandText = "PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;";
         await command.ExecuteNonQueryAsync(cancellationToken);
         using var transaction = connection.BeginTransaction();
@@ -38,14 +38,23 @@ internal static class SqliteSchema
             CREATE INDEX IF NOT EXISTS ix_window_parent ON window_activities(process_activity_id);
             CREATE INDEX IF NOT EXISTS ix_leaf_time ON activity_leaves(start,end);
             CREATE INDEX IF NOT EXISTS ix_leaf_parent ON activity_leaves(window_activity_id);
+            CREATE TABLE IF NOT EXISTS activity_spans (
+                id TEXT PRIMARY KEY,activity_id TEXT NOT NULL REFERENCES activity_leaves(id) ON DELETE CASCADE,
+                start INTEGER NOT NULL,end INTEGER NOT NULL,CHECK(end >= start));
+            CREATE INDEX IF NOT EXISTS ix_span_parent ON activity_spans(activity_id);
             """;
         await command.ExecuteNonQueryAsync(cancellationToken);
         if (version == 1) await MigrateLegacyAsync(connection, transaction, cancellationToken);
+        if (version < 3)
+        {
+            command.CommandText = "INSERT OR IGNORE INTO activity_spans(id,activity_id,start,end) SELECT id,id,start,end FROM activity_leaves;";
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
         command.CommandText = """
             UPDATE activity_leaves SET is_open=0 WHERE is_open=1;
             UPDATE window_activities SET is_open=0 WHERE is_open=1;
             UPDATE process_activities SET is_open=0 WHERE is_open=1;
-            PRAGMA user_version=2;
+            PRAGMA user_version=3;
             """;
         await command.ExecuteNonQueryAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);

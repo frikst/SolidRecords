@@ -75,6 +75,7 @@ public sealed class SqliteActivityStore : IActivityStore
                 ("$end", Millis(window.End)), ("$open", window.IsOpen));
 
         foreach (var interval in batch.Intervals)
+        {
             await Execute("""
                 INSERT INTO activity_leaves(id,window_activity_id,title,url,start,end,is_open)
                 VALUES($id,$parent,$title,$url,$start,$end,$open)
@@ -82,6 +83,18 @@ public sealed class SqliteActivityStore : IActivityStore
                 """, ("$id", interval.Id.ToString()), ("$parent", interval.WindowActivityId.ToString()),
                 ("$title", interval.Window.Title), ("$url", interval.Window.Url), ("$start", Millis(interval.Start)),
                 ("$end", Millis(interval.End)), ("$open", interval.IsOpen));
+        }
+        // Move spans before deleting superseded leaves. Late URL resolution can alter
+        // merge groups after a visit has already been retained.
+        foreach (var interval in batch.Intervals)
+        foreach (var span in ActivityLogPolicy.GetSpans(interval))
+            await Execute("""
+                INSERT INTO activity_spans(id,activity_id,start,end) VALUES($id,$activity,$start,$end)
+                ON CONFLICT(id) DO UPDATE SET activity_id=excluded.activity_id,start=excluded.start,end=excluded.end;
+                """, ("$id", span.Id.ToString()), ("$activity", interval.Id.ToString()),
+                ("$start", Millis(span.Start)), ("$end", Millis(span.End)));
+        foreach (var id in batch.RemovedIntervalIds)
+            await Execute("DELETE FROM activity_leaves WHERE id=$id;", ("$id", id.ToString()));
 
         foreach (var entry in batch.Events)
             await Execute("""
@@ -138,9 +151,21 @@ public sealed class SqliteActivityStore : IActivityStore
                 activities.Add(new(Guid.Parse(reader.GetString(0)), process.RecordingId,
                     new(window.Handle, process.ProcessId, process.Application, reader.GetString(2),
                         reader.IsDBNull(3) ? null : reader.GetString(3), process.ProcessStartTicks),
-                    start < from ? from : start, end > to ? to : end, reader.GetBoolean(6), process.Id, window.Id));
+                    start, end, reader.GetBoolean(6), process.Id, window.Id));
             }
-        var leavesByWindow = activities.ToLookup(x => x.WindowActivityId);
+        command.CommandText = """
+            SELECT s.id,s.activity_id,s.start,s.end FROM activity_spans s
+            JOIN activity_leaves a ON a.id=s.activity_id
+            WHERE a.start < $to AND a.end >= $from ORDER BY s.start;
+            """;
+        var spans = new List<(Guid Activity, ActivitySpan Span)>();
+        using (var reader = await command.ExecuteReaderAsync(cancellationToken))
+            while (await reader.ReadAsync(cancellationToken))
+                spans.Add((Guid.Parse(reader.GetString(1)), new(Guid.Parse(reader.GetString(0)),
+                    Time(reader.GetInt64(2)), Time(reader.GetInt64(3)))));
+        var spansByActivity = spans.ToLookup(x => x.Activity, x => x.Span);
+        var leavesByWindow = activities.Select(activity => activity with { Spans = spansByActivity[activity.Id].ToArray() })
+            .ToLookup(x => x.WindowActivityId);
         var windowsByProcess = windows.Values.Select(w => w with { Activities = leavesByWindow[w.Id].ToArray() })
             .ToLookup(w => w.ProcessActivityId);
         return processes.Values.Select(p => p with { Windows = windowsByProcess[p.Id].ToArray() }).ToArray();
@@ -148,7 +173,8 @@ public sealed class SqliteActivityStore : IActivityStore
 
     public async Task<IReadOnlyList<ActivityInterval>> ReadIntervalsAsync(DateTimeOffset from, DateTimeOffset to,
         CancellationToken cancellationToken = default) => (await ReadProcessesAsync(from, to, cancellationToken))
-        .SelectMany(p => p.Windows).SelectMany(w => w.Activities).OrderBy(x => x.Start).ToArray();
+        .SelectMany(p => p.Windows).SelectMany(w => w.Activities)
+        .Select(interval => ActivityLogPolicy.Clip(interval, from, to)).OfType<ActivityInterval>().OrderBy(x => x.Start).ToArray();
 
     public async Task<IReadOnlyList<ActivityEvent>> ReadEventsAsync(DateTimeOffset from, DateTimeOffset to,
         CancellationToken cancellationToken = default)

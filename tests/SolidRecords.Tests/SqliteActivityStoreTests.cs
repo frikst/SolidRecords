@@ -158,6 +158,109 @@ public sealed class SqliteActivityStoreTests : IDisposable
         Assert.False(leaf.IsOpen);
     }
 
+    [Fact]
+    public async Task RetentionPersistsOneMergedLeafAndSeparateActiveSpans()
+    {
+        var store = CreateStore();
+        var engine = new RecordingEngine();
+        var policy = new ActivityLogPolicy();
+        var at = new DateTimeOffset(2026, 10, 16, 8, 0, 0, TimeSpan.Zero);
+        var info = new WindowInfo(1, 2, "editor", "Document");
+        async Task Send(SignalKind kind, int seconds, WindowInfo? window = null) =>
+            await store.SaveAsync(policy.Apply(engine.Apply(new(kind, at.AddSeconds(seconds), window))));
+        await Send(SignalKind.RecordingStarted, 0);
+        await Send(SignalKind.SessionActive, 0);
+        await Send(SignalKind.ForegroundChanged, 0, info);
+        await Send(SignalKind.Heartbeat, 14);
+        Assert.Empty(await store.ReadIntervalsAsync(at, at.AddDays(1)));
+        await Send(SignalKind.ForegroundChanged, 20);
+        await Send(SignalKind.ForegroundChanged, 25, info);
+        await Send(SignalKind.Heartbeat, 39);
+        Assert.False(Assert.Single(await store.ReadIntervalsAsync(at, at.AddDays(1))).IsOpen);
+        await Send(SignalKind.Heartbeat, 40);
+        var live = Assert.Single(await store.ReadIntervalsAsync(at, at.AddDays(1)));
+        Assert.True(live.IsOpen);
+        Assert.Equal(TimeSpan.FromSeconds(35), live.Duration);
+        await Send(SignalKind.RecordingStopped, 45);
+        var result = Assert.Single(await store.ReadIntervalsAsync(at, at.AddDays(1)));
+        Assert.False(result.IsOpen);
+        Assert.Equal(TimeSpan.FromSeconds(40), result.Duration);
+        Assert.Equal(TimeSpan.FromSeconds(45), result.End - result.Start);
+        Assert.Equal(2, result.Spans.Count);
+        await using var connection = new SqliteConnection($"Data Source={store.DatabasePath}");
+        await connection.OpenAsync();
+        using var count = connection.CreateCommand();
+        count.CommandText = "SELECT COUNT(*) FROM activity_leaves;";
+        Assert.Equal(1L, await count.ExecuteScalarAsync());
+    }
+
+    [Theory]
+    [InlineData(true, 1)]
+    [InlineData(false, 2)]
+    public async Task LateUrlMetadataReassignsSpansWithoutOrphans(bool firstUrlKnown, int expectedLeaves)
+    {
+        var store = CreateStore();
+        var policy = new ActivityLogPolicy();
+        var at = new DateTimeOffset(2026, 10, 16, 8, 0, 0, TimeSpan.Zero);
+        var firstBatch = Composite(new(Guid.NewGuid(), Guid.NewGuid(),
+            new(1, 2, "browser", "Document", firstUrlKnown ? "https://example.com" : null), at, at.AddSeconds(20), false));
+        await store.SaveAsync(policy.Apply(firstBatch));
+        var next = firstBatch.Intervals[0] with
+        {
+            Id = Guid.NewGuid(), Start = at.AddSeconds(25), End = at.AddSeconds(40), IsOpen = true,
+            Window = firstBatch.Intervals[0].Window with { Url = null }
+        };
+        await store.SaveAsync(policy.Apply(new([], [next])));
+        await store.SaveAsync(policy.Apply(new([], [next with
+        {
+            End = at.AddSeconds(41), Window = next.Window with { Url = "https://example.com" }
+        }])));
+        var leaves = await store.ReadIntervalsAsync(at, at.AddDays(1));
+        Assert.Equal(expectedLeaves, leaves.Count);
+        Assert.Equal(2, leaves.Sum(leaf => leaf.Spans.Count));
+        Assert.Equal(TimeSpan.FromSeconds(36), TimeSpan.FromTicks(leaves.Sum(leaf => leaf.Duration.Ticks)));
+        await using var connection = new SqliteConnection($"Data Source={store.DatabasePath}");
+        await connection.OpenAsync();
+        using var check = connection.CreateCommand();
+        check.CommandText = "PRAGMA foreign_key_check;";
+        using var reader = await check.ExecuteReaderAsync();
+        Assert.False(await reader.ReadAsync());
+    }
+
+    [Fact]
+    public async Task DailyReportFiltersBeforeClippingAtMidnight()
+    {
+        var store = CreateStore();
+        var midnight = new DateTimeOffset(2026, 10, 16, 0, 0, 0, TimeSpan.Zero);
+        await store.SaveAsync(Composite(new(Guid.NewGuid(), Guid.NewGuid(), new(1, 2, "editor", "Long document"),
+            midnight.AddSeconds(-14), midnight.AddSeconds(1), false)));
+        await store.SaveAsync(Composite(new(Guid.NewGuid(), Guid.NewGuid(), new(2, 3, "editor", "Brief document"),
+            midnight.AddSeconds(1), midnight.AddSeconds(15), false)));
+        var report = await new DailyReportService(store, TimeZoneInfo.Utc).ReadAsync(new(2026, 10, 16));
+        Assert.Single(report.Intervals);
+        Assert.Equal(TimeSpan.FromSeconds(1), report.ActiveDuration);
+    }
+
+    [Fact]
+    public async Task VersionTwoMigrationCreatesSpansWithoutChangingActivityTime()
+    {
+        var store = CreateStore();
+        var at = new DateTimeOffset(2026, 10, 16, 8, 0, 0, TimeSpan.Zero);
+        await store.SaveAsync(Composite(new(Guid.NewGuid(), Guid.NewGuid(), new(1, 2, "app", "document"),
+            at, at.AddSeconds(20), false)));
+        await using (var connection = new SqliteConnection($"Data Source={store.DatabasePath}"))
+        {
+            await connection.OpenAsync();
+            using var command = connection.CreateCommand();
+            command.CommandText = "DROP TABLE activity_spans; PRAGMA user_version=2;";
+            await command.ExecuteNonQueryAsync();
+        }
+        var migrated = CreateStore();
+        var interval = Assert.Single(await migrated.ReadIntervalsAsync(at, at.AddDays(1)));
+        Assert.Single(interval.Spans);
+        Assert.Equal(TimeSpan.FromSeconds(20), interval.Duration);
+    }
+
     private static RecordingBatch Composite(ActivityInterval leaf)
     {
         var process = new ProcessActivity(leaf.Id, leaf.RecordingId, leaf.Window.ProcessId,

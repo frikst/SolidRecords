@@ -28,8 +28,12 @@ public sealed record ActivityInterval(Guid Id, Guid RecordingId, WindowInfo Wind
     DateTimeOffset Start, DateTimeOffset End, bool IsOpen,
     Guid ProcessActivityId = default, Guid WindowActivityId = default)
 {
-    public TimeSpan Duration => End - Start;
+    public IReadOnlyList<ActivitySpan> Spans { get; init; } = [];
+    public TimeSpan Duration => Spans.Count == 0 ? End - Start : TimeSpan.FromTicks(Spans.Sum(span => (span.End - span.Start).Ticks));
 }
+
+/// <summary>Actual foreground time. Gaps between spans are never counted as work.</summary>
+public sealed record ActivitySpan(Guid Id, DateTimeOffset Start, DateTimeOffset End);
 
 /// <summary>Observed lifetime, starting with the first foreground window and ending with the last closed window.</summary>
 public sealed record ProcessActivity(Guid Id, Guid RecordingId, int ProcessId, string Application,
@@ -50,6 +54,7 @@ public sealed record RecordingBatch(IReadOnlyList<ActivityEvent> Events, IReadOn
 {
     public IReadOnlyList<ProcessActivity> Processes { get; init; } = [];
     public IReadOnlyList<WindowActivity> Windows { get; init; } = [];
+    public IReadOnlyList<Guid> RemovedIntervalIds { get; init; } = [];
 }
 
 public interface IActivityStore

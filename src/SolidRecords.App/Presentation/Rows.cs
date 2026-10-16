@@ -7,7 +7,8 @@ public sealed class ActivityRow(ActivityInterval interval) : ObservableObject
     public ActivityInterval Interval { get; private set; } = interval;
     public void Update(ActivityInterval value)
     {
-        if (Interval == value) return;
+        if (Interval.Id == value.Id && Interval.Window == value.Window && Interval.Start == value.Start &&
+            Interval.End == value.End && Interval.IsOpen == value.IsOpen && Interval.Spans.SequenceEqual(value.Spans)) return;
         Interval = value;
         foreach (var name in new[] { nameof(Interval), nameof(Application), nameof(ProcessId), nameof(Description),
                      nameof(Url), nameof(Start), nameof(End), nameof(Duration), nameof(State) }) Changed(name);

@@ -35,9 +35,10 @@ public sealed class TimelineControl : FrameworkElement
         var seconds = (to - from).TotalSeconds;
         drawing.DrawRoundedRectangle(new SolidColorBrush(Color.FromRgb(242, 245, 250)), null, new Rect(0, 2, width, 16), 3, 3);
         foreach (var item in items)
+        foreach (var span in ActivityLogPolicy.GetSpans(item))
         {
-            var x = (item.Start - from).TotalSeconds / seconds * width;
-            var w = Math.Max(1.5, item.Duration.TotalSeconds / seconds * width);
+            var x = (span.Start - from).TotalSeconds / seconds * width;
+            var w = Math.Max(1.5, (span.End - span.Start).TotalSeconds / seconds * width);
             var bounds = new Rect(Math.Max(0, x), 2, Math.Min(w, width - Math.Max(0, x)), 16);
             drawing.DrawRectangle(BrushFor(item.Window.Application), null, bounds);
             _hitAreas.Add((bounds, item));

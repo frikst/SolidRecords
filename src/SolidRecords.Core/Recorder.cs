@@ -10,6 +10,7 @@ public sealed class Recorder : IAsyncDisposable
     private readonly IActivitySource _source;
     private readonly TimeProvider _clock;
     private readonly RecordingEngine _engine = new();
+    private readonly ActivityLogPolicy _activityLog;
     private readonly SemaphoreSlim _lifecycle = new(1, 1);
     private readonly Channel<Work> _queue = Channel.CreateUnbounded<Work>(new() { SingleReader = true });
     private readonly Task _writer;
@@ -17,11 +18,12 @@ public sealed class Recorder : IAsyncDisposable
     private volatile bool _isRecording;
     private volatile Exception? _failure;
 
-    public Recorder(IActivityStore store, IActivitySource source, TimeProvider? clock = null)
+    public Recorder(IActivityStore store, IActivitySource source, TimeProvider? clock = null, ActivityTrackingOptions? options = null)
     {
         _store = store;
         _source = source;
         _clock = clock ?? TimeProvider.System;
+        _activityLog = new(options);
         _writer = Task.Run(WriteLoopAsync);
     }
 
@@ -103,8 +105,8 @@ public sealed class Recorder : IAsyncDisposable
                 if (_failure is not null) throw new InvalidOperationException("Zápis do databázy bol zastavený.", _failure);
                 if (work.Signal.Kind == SignalKind.CaptureFailed)
                     throw new InvalidOperationException(work.Signal.Reason ?? "Zber udalostí zlyhal.");
-                var batch = _engine.Apply(work.Signal);
-                if (batch.Events.Count > 0 || batch.Intervals.Count > 0 || batch.Processes.Count > 0 || batch.Windows.Count > 0)
+                var batch = _activityLog.Apply(_engine.Apply(work.Signal));
+                if (batch.Events.Count > 0 || batch.Intervals.Count > 0 || batch.Processes.Count > 0 || batch.Windows.Count > 0 || batch.RemovedIntervalIds.Count > 0)
                 {
                     await _store.SaveAsync(batch);
                     RecordsChanged?.Invoke(this, EventArgs.Empty);
