@@ -8,6 +8,7 @@
     <AssemblyName>SolidRecords.App</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="SolidRecords.DesktopChecks" />
     <Resource Include="Assets/SolidRecords.ico" />
     <None Include="../../LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <ProjectReference Include="../SolidRecords.Core/SolidRecords.Core.csproj" />

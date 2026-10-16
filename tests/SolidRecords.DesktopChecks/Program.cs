@@ -187,6 +187,7 @@ internal static class Program
         foreach (var theme in new[] { ThemeMode.Light, ThemeMode.Dark })
         {
             app.ThemeMode = theme;
+            TrayMenuPreview.Render(directory, theme.ToString().ToLowerInvariant());
             var aboutContent = (FrameworkElement)about.Content;
             aboutContent.Measure(new Size(480, double.PositiveInfinity));
             var size = new Size(480, aboutContent.DesiredSize.Height);
