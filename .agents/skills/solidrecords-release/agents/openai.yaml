@@ -1,0 +1,4 @@
+interface:
+  display_name: "Vydanie SolidRecords"
+  short_description: "SemVer vydanie SolidRecords s commitom a tagom"
+  default_prompt: "Použi $solidrecords-release na vydanie novej verzie SolidRecords podľa aktuálneho changelogu."
