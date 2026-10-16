@@ -2,6 +2,10 @@
 
 Lokálny záznam práce na počítači pre Windows, postavený na **.NET 10 / WPF**. Aplikácia beží v systémovej lište a ukladá udalosti a časové intervaly do SQLite. Rozhranie je v slovenčine.
 
+## Inštalácia
+
+V GitHub Releases repozitára nájdete MSI inštalátor a prenosný ZIP pre Windows x64 s pribaleným .NET runtime. MSI vyžaduje administrátorské oprávnenia na inštaláciu a pridá SolidRecords do ponuky Štart. Samotná aplikácia ich nevyžaduje. Pred aktualizáciou aplikáciu ukončite cez systray; pred odinštalovaním vypnite aj spúšťanie po prihlásení. Odinštalovanie ponechá lokálnu históriu a nastavenia.
+
 ## Spustenie
 
 Vyžaduje Windows 10/11 a .NET 10 SDK pre zostavenie, prípadne .NET 10 Desktop Runtime pre framework-dependent publikáciu.

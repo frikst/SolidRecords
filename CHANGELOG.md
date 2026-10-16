@@ -8,6 +8,7 @@ Všetky doterajšie funkcie sú zatiaľ nevydané a patria do sekcie `Unreleased
 
 ### Added
 
+- Automatické vydanie pri tagu vX.Y.Z: testy, self-contained aplikácia pre Windows x64, MSI inštalátor a prenosný ZIP v GitHub Release s poznámkami z príslušnej verzie changelogu.
 - Lokálny záznam práce pre Windows v slovenčine, s ukladaním udalostí a aktivít do SQLite bez odosielania údajov na sieť.
 - Beh v systémovej lište aj pri zatvorenom hlavnom okne, ovládanie záznamu z okna aj menu lišty a zapamätanie stavu záznamu pri ďalšom spustení.
 - Voliteľné spúšťanie po prihlásení a ochrana pred spustením viacerých inštancií; opätovné spustenie otvorí okno bežiacej aplikácie.

@@ -46,13 +46,34 @@ dotnet run --project src/SolidRecords.App -- --show
 dotnet publish src/SolidRecords.App -c Release -r win-x64 --self-contained true -o artifacts/publish/win-x64
 ```
 
-Pred overením novej zostavy ukonči starú cez systray: druhá inštancia iba otvorí už bežiacu. Bežné spustenie aplikácie používa reálnu históriu a môže migrovať databázu. Publikácia je prenosná, bez inštalátora; autostart nastavuj až z finálneho priečinka.
+Pred overením novej zostavy ukonči starú cez systray: druhá inštancia iba otvorí už bežiacu. Bežné spustenie aplikácie používa reálnu históriu a môže migrovať databázu. Prenosnú publikáciu spúšťaj z finálneho priečinka; až potom nastav autostart. MSI z GitHub Releases inštaluje rovnakú self-contained aplikáciu do Program Files.
+
+## Automatické vydanie
+
+Workflow `.github/workflows/release.yml` reaguje na push tagu `vX.Y.Z`. Overí presný formát bez úvodných núl, MSI limity major ≤ 255, minor ≤ 255 a patch ≤ 65535 a práve jednu neprázdnu sekciu danej verzie v `CHANGELOG.md`. Pred pushom musí byť v označenom commite pripravená hlavička `## [X.Y.Z] - YYYY-MM-DD` s položkami zmien; `Unreleased` sa do poznámok vydania nepreberá. Samotný push tagu bez príslušnej sekcie skončí chybou. Verziu vydania priprav podľa projektového release postupu; workflow ju pri zostavení explicitne preberá z tagu cez MSBuild `Version`.
+
+Na runneri `windows-2025` sa obnoví a zostaví riešenie, spustia xUnit testy a DesktopChecks `--preview-only`. Až po ich úspechu nasleduje netrimovaná self-contained publikácia `win-x64`, WiX 5.0.2 MSI a prenosný ZIP. WiX je pripnutý na konkrétnu verziu a inštaluje sa do izolovaného `artifacts/wix`. `tools/Build-Installer.ps1` kontroluje prítomnosť runtime aj zhodu súborovej verzie aplikácie s MSI. Dočasný release artefakt v Actions sa uchováva 1 deň, diagnostika testov a náhľady 3 dni. Táto retencia neovplyvňuje MSI a ZIP pripojené ku GitHub Release.
+
+Samostatný job s oprávnením `contents: write` vytvorí GitHub Release pre existujúci tag cez `gh release create --verify-tag`. Pripojí `SolidRecords-X.Y.Z-win-x64.msi` a `SolidRecords-X.Y.Z-win-x64.zip`; telo vydania tvorí presný obsah verziovej sekcie changelogu so zachovanými kategóriami. Stačí vstavaný `GITHUB_TOKEN`, ďalší secret netreba. Existujúce vydanie sa neprepisuje; opakovaný beh po úspešnom publikovaní skončí pri vytvorení release chybou.
+
+MSI je x64, inštaluje pre všetkých používateľov do `%ProgramFiles%\SolidRecords` a potrebuje administrátorské oprávnenia na inštaláciu. Aplikácia sa potom spúšťa bez administrátorských práv, cez odkaz v ponuke Štart s `--show`. Stabilný `UpgradeCode` zabezpečuje aktualizáciu starších MSI a blokuje downgrade. Pred aktualizáciou alebo odinštalovaním aplikáciu ukonči cez systray; autostart pred odinštalovaním vypni v aplikácii. Inštalátor autostart nezapína ani nečistí používateľské HKCU nastavenia. Používateľskú databázu a nastavenia neobsahuje ani neodstraňuje. MSI a EXE sa zatiaľ digitálne nepodpisujú.
+
+Lokálne overenie balenia (ukážková verzia musí zodpovedať publikácii):
+
+```powershell
+./tools/Test-ReleaseMetadata.ps1
+dotnet publish src/SolidRecords.App -c Release -r win-x64 --self-contained true -p:Version=1.2.3 -p:PublishSingleFile=false -p:PublishTrimmed=false -o artifacts/publish/win-x64
+dotnet tool install wix --version 5.0.2 --tool-path artifacts/wix
+./tools/Build-Installer.ps1 -Version 1.2.3
+```
+
+WiX stačí nainštalovať raz; výstup je v `artifacts/release/`. Inštaláciu, upgrade a odinštalovanie overuj v izolovanom Windows prostredí, bez spustenia nad používateľskou históriou. Test extrakcie changelogu používa vlastné súbory pod `artifacts/release-metadata-tests/`.
 
 ## Aktuálny stav a hranice
 
 - Hotové: systray, lokálny zber relácie/okien/URL, kompozitná SQLite evidencia, minimum a zlúčenie aktivít, živý denný plochý zoznam, časová os, textové vyhľadávanie a voliteľný autostart.
 - Kompaktné GUI spája titulkový riadok, záznam a výber dňa do jednej hlavičky cez WPF `WindowChrome`, s rovnakým pozadím ako štatistiky. Tenký systémový rám zachováva `GlassFrameThickness="1"`; na Windows 11 sa pri vytvorení okna žiada zaoblenie cez DWM (`WindowAppearance`). Skutočný rám, rohy a tieň over na živom okne, obsahový PNG náhľad ich nevykresľuje. Voľná plocha hlavičky presúva okno a podporuje systémové gestá; tlačidlá okna používajú `SystemCommands`, zatvorenie naďalej skryje aplikáciu do systray. Počiatočná veľkosť sa obmedzuje dostupnou pracovnou plochou. Chýba manuálne tlačidlo Obnoviť; zoznam žije zo zápisov Recorderu.
 - Zámerne bez priameho monitorovania procesov, skupinového pohľadu, checkboxov a timetracking integrácie. Interné udalosti sa v GUI nezobrazujú.
-- Zatiaľ bez ďalších filtrov, používateľskej konfigurácie 15 s prahov, detekcie idle podľa vstupu, šifrovania, retencie a inštalátora. `settings.json` neobsahuje prahy.
+- Zatiaľ bez ďalších filtrov, používateľskej konfigurácie 15 s prahov, detekcie idle podľa vstupu, šifrovania a retencie. `settings.json` neobsahuje prahy.
 - Zber vidí len reláciu bežiacej aplikácie; neobnovuje udalosti z obdobia, keď nebežala alebo bola pozastavená. URL a privilegované okná závisia od dostupnosti Windows/accessibility API.
 - Pri poslednej implementácii pravidiel aktivity prešlo 49 xUnit prípadov a desktop náhľad so živými aktualizáciami. Ide o historický výsledok; po zmene spusti príslušné kontroly znova.

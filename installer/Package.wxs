@@ -1,0 +1,31 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+    <Package Name="SolidRecords" Manufacturer="SolidRecords" Version="$(var.ProductVersion)"
+             UpgradeCode="DFB14D04-31C1-4ACD-BCF3-1AE587213276" Scope="perMachine" Language="1051" Codepage="1250">
+        <MajorUpgrade DowngradeErrorMessage="V počítači je už nainštalovaná novšia verzia SolidRecords." />
+        <MediaTemplate EmbedCab="yes" />
+        <Icon Id="AppIcon" SourceFile="$(sys.SOURCEFILEDIR)../src/SolidRecords.App/Assets/SolidRecords.ico" />
+        <Property Id="ARPPRODUCTICON" Value="AppIcon" />
+        <StandardDirectory Id="ProgramFiles64Folder">
+            <Directory Id="INSTALLFOLDER" Name="SolidRecords" />
+        </StandardDirectory>
+        <StandardDirectory Id="ProgramMenuFolder">
+            <Directory Id="ApplicationProgramsFolder" Name="SolidRecords">
+                <Component Id="StartMenuShortcut" Guid="*">
+                    <Shortcut Id="StartMenuShortcut" Name="SolidRecords" Target="[INSTALLFOLDER]SolidRecords.App.exe"
+                              Arguments="--show" WorkingDirectory="INSTALLFOLDER" Icon="AppIcon" />
+                    <RemoveFolder Id="RemoveApplicationProgramsFolder" On="uninstall" />
+                    <RegistryValue Root="HKLM" Key="Software\SolidRecords\Installer" Name="Installed" Type="integer" Value="1" KeyPath="yes" />
+                </Component>
+            </Directory>
+        </StandardDirectory>
+        <Feature Id="Main" Title="SolidRecords" Level="1">
+            <ComponentGroupRef Id="ApplicationFiles" />
+            <ComponentRef Id="StartMenuShortcut" />
+        </Feature>
+    </Package>
+    <Fragment>
+        <ComponentGroup Id="ApplicationFiles" Directory="INSTALLFOLDER">
+            <Files Include="$(var.PublishDirectory)\**" />
+        </ComponentGroup>
+    </Fragment>
+</Wix>

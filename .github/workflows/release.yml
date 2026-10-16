@@ -1,0 +1,101 @@
+name: Release
+
+on:
+    push:
+        tags:
+            - 'v[0-9]*.[0-9]*.[0-9]*'
+
+permissions:
+    contents: read
+
+concurrency:
+    group: release-${{ github.ref }}
+    cancel-in-progress: false
+
+jobs:
+    build:
+        runs-on: windows-2025
+        timeout-minutes: 30
+        outputs:
+            version: ${{ steps.metadata.outputs.version }}
+        defaults:
+            run:
+                shell: pwsh
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-dotnet@v4
+              with:
+                  dotnet-version: '10.0.x'
+            - name: Validate tag and extract changelog
+              id: metadata
+              env:
+                  RELEASE_TAG: ${{ github.ref_name }}
+              run: |
+                  $metadata = ./tools/Get-ReleaseMetadata.ps1 -Tag $env:RELEASE_TAG
+                  "version=$($metadata.Version)" >> $env:GITHUB_OUTPUT
+            - name: Check release scripts
+              run: ./tools/Test-ReleaseMetadata.ps1
+            - name: Restore
+              run: dotnet restore SolidRecords.slnx
+            - name: Build
+              env:
+                  RELEASE_VERSION: ${{ steps.metadata.outputs.version }}
+              run: dotnet build SolidRecords.slnx -c Release --no-restore -p:Version=$env:RELEASE_VERSION
+            - name: Test
+              run: dotnet test tests/SolidRecords.Tests -c Release --no-build --no-restore --logger trx --results-directory artifacts/test-results
+            - name: Check WPF previews
+              run: dotnet run --project tests/SolidRecords.DesktopChecks -c Release --no-build --no-restore -- --preview-only
+            - name: Publish self-contained application
+              env:
+                  RELEASE_VERSION: ${{ steps.metadata.outputs.version }}
+              run: dotnet publish src/SolidRecords.App -c Release -r win-x64 --self-contained true -p:Version=$env:RELEASE_VERSION -p:PublishSingleFile=false -p:PublishTrimmed=false -o artifacts/publish/win-x64
+            - name: Install WiX
+              run: dotnet tool install wix --version 5.0.2 --tool-path artifacts/wix
+            - name: Build MSI and portable archive
+              env:
+                  RELEASE_VERSION: ${{ steps.metadata.outputs.version }}
+              run: |
+                  ./tools/Build-Installer.ps1 -Version $env:RELEASE_VERSION
+                  Compress-Archive -Path artifacts/publish/win-x64/* -DestinationPath "artifacts/release/SolidRecords-$env:RELEASE_VERSION-win-x64.zip"
+            - name: Save release files
+              uses: actions/upload-artifact@v4
+              with:
+                  name: release
+                  path: artifacts/release/*
+                  if-no-files-found: error
+                  retention-days: 1
+            - name: Save test diagnostics
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: test-diagnostics
+                  path: |
+                      artifacts/test-results/
+                      artifacts/desktop-checks/*.png
+                  if-no-files-found: ignore
+                  retention-days: 3
+
+    release:
+        needs: build
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        permissions:
+            contents: write
+        steps:
+            - uses: actions/download-artifact@v4
+              with:
+                  name: release
+                  path: release
+            - name: Create GitHub Release
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  GH_REPO: ${{ github.repository }}
+                  RELEASE_TAG: ${{ github.ref_name }}
+                  RELEASE_VERSION: ${{ needs.build.outputs.version }}
+              shell: bash
+              run: |
+                  gh release create "$RELEASE_TAG" \
+                    "release/SolidRecords-$RELEASE_VERSION-win-x64.msi" \
+                    "release/SolidRecords-$RELEASE_VERSION-win-x64.zip" \
+                    --verify-tag --title "SolidRecords $RELEASE_VERSION" \
+                    --notes-file release/release-notes.md
