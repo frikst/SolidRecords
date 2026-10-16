@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:p="clr-namespace:SolidRecords.App.Presentation"
         Title="SolidRecords · Záznam práce" Width="1100" Height="650" MinWidth="760" MinHeight="420"
-        WindowStartupLocation="CenterScreen" Background="#F5F7FB" Foreground="#202D42"
+        WindowStartupLocation="CenterScreen" Background="#F5F7FB" Foreground="#202D42" Icon="Assets/SolidRecords.ico"
         FontFamily="Segoe UI" FontSize="12" UseLayoutRounding="True">
   <Grid Margin="8">
     <Grid.RowDefinitions>

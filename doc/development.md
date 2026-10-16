@@ -37,6 +37,8 @@ Ručne podľa zmeny over: systray a skrytie/opätovné otvorenie GUI, start/stop
 
 ## Spúšťanie a publikácia
 
+Ikona aplikácie používa monogram S v modrom štvorci. Vektorový zdroj je `src/SolidRecords.App/Assets/SolidRecords.xaml`; po úprave spusti `powershell -NoProfile -ExecutionPolicy Bypass -STA -File tools/Generate-AppIcon.ps1`. Skript vytvorí `SolidRecords.ico` s veľkosťami 16, 20, 24, 32, 40, 48, 64, 96, 128 a 256 px a náhľady v `artifacts/icon-preview/`. Rovnaké ICO používa EXE, hlavné okno aj systémová lišta.
+
 ```powershell
 dotnet run --project src/SolidRecords.App -- --show
 dotnet publish src/SolidRecords.App -c Release -r win-x64 --self-contained true -o artifacts/publish/win-x64

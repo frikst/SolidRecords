@@ -1,0 +1,13 @@
+<DrawingImage xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+  <DrawingImage.Drawing>
+    <DrawingGroup>
+      <GeometryDrawing Brush="#246BFD">
+        <GeometryDrawing.Geometry>
+          <RectangleGeometry Rect="1,1,30,30" RadiusX="5" RadiusY="5" />
+        </GeometryDrawing.Geometry>
+      </GeometryDrawing>
+      <GeometryDrawing Brush="White" Geometry="M25,10 H11 V16 H18 V19 H11 Q7,19 7,15 V11 Q7,6 12,6 H23 Q25,6 25,8 Z" />
+      <GeometryDrawing Brush="White" Geometry="M14,12 H21 Q25,12 25,16 V21 Q25,26 20,26 H9 Q7,26 7,24 V22 H21 V15 H14 Z" />
+    </DrawingGroup>
+  </DrawingImage.Drawing>
+</DrawingImage>

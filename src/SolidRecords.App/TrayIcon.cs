@@ -9,6 +9,7 @@ namespace SolidRecords.App;
 internal sealed class TrayIcon : IDisposable
 {
     private readonly NotifyIcon _icon;
+    private readonly Icon _applicationIcon;
     private readonly ContextMenuStrip _menu;
     private readonly ToolStripMenuItem _toggle;
     private readonly ToolStripMenuItem _startup;
@@ -37,7 +38,12 @@ internal sealed class TrayIcon : IDisposable
             _toggle.Enabled = viewModel.ToggleRecordingCommand.CanExecute(null);
             _startup.Checked = StartupRegistration.IsEnabled;
         };
-        _icon = new NotifyIcon { Icon = SystemIcons.Application, Text = "SolidRecords", ContextMenuStrip = _menu, Visible = true };
+        using (var resource = System.Windows.Application.GetResourceStream(
+            new Uri("pack://application:,,,/SolidRecords.App;component/Assets/SolidRecords.ico")).Stream)
+        {
+            _applicationIcon = new Icon(resource, SystemInformation.SmallIconSize);
+        }
+        _icon = new NotifyIcon { Icon = _applicationIcon, Text = "SolidRecords", ContextMenuStrip = _menu, Visible = true };
         _icon.DoubleClick += (_, _) => showWindow();
         _viewModel.PropertyChanged += ViewModelChanged;
         UpdateStatus();
@@ -54,6 +60,7 @@ internal sealed class TrayIcon : IDisposable
         _viewModel.PropertyChanged -= ViewModelChanged;
         _icon.Visible = false;
         _icon.Dispose();
+        _applicationIcon.Dispose();
         _menu.Dispose();
     }
 }
