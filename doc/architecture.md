@@ -21,6 +21,7 @@ WindowsActivitySource → CaptureSignal → Recorder (Channel, jeden reader)
 ```
 
 - Zdroj má vlastné STA vlákno, dispatcher a skryté `HwndSource`. WinEvent hooky sledujú foreground, názov a zánik okna; WTS a power správy sledujú reláciu a uspatie. Sekundový timer overuje stav, okná, žiada URL a vydáva heartbeat.
+- `ApplicationIconReader` na vlákne zberu získava ikonu okna cez časovo obmedzené `WM_GETICON`, prípadne z EXE cez Windows Shell. Výsledok vrátane nedostupnosti cacheuje podľa názvu aplikácie do zastavenia zberu; získané shell ikony uvoľňuje. PNG ide cez `CaptureSignal` a `RecordingBatch` do samostatnej tabuľky. Nie je súčasťou identity `WindowInfo` ani časových pravidiel. Pri čítaní sa pripojí k aktivitám; prezentácia ho dekóduje mimo UI vlákna, zmrazí a zdieľa medzi riadkami. Zoznam zobrazuje ikonu v 16 logických bodoch vedľa názvu aplikácie.
 - `BrowserUrlReader` číta adresný riadok cez UI Automation na samostatnom MTA vlákne. Pomalý externý provider tak neblokuje GUI ani message loop zberu.
 - `RecordingEngine.Apply` je synchrónny stavový automat bez I/O. `Recorder` serializuje signály cez Channel, aplikuje politiku a zapisuje dávky. `StopAsync` zastaví zdroj a dopíše prijaté signály. Chyba zberu/zápisu vypne stav zaznamenávania; zotavenie vyžaduje reštart.
 - `RecordsChanged` sa vyvolá až po úspešnom uložení. View model prenesie notifikáciu na UI dispatcher a zoskupí požiadavky na obnovu cez 150 ms timer. Čítanie reportu beží cez `Task.Run`, pretože SQLite vykonáva časť async API synchrónne.

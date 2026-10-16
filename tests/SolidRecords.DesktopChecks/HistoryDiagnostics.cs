@@ -61,9 +61,9 @@ internal static class HistoryDiagnostics
             Console.Error.WriteLine("This database view failed integrity validation; cause is undetermined. No repairs or data changes were performed.");
             return 2;
         }
-        if (schemaVersion is not (2 or 3))
+        if (schemaVersion is not (2 or 3 or 4))
         {
-            Console.WriteLine("Integrity is OK. Activity inspection skipped: this is not the version-2 schema used by the current application.");
+            Console.WriteLine("Integrity is OK. Activity inspection skipped: unsupported schema version.");
             return 0;
         }
         command.CommandText = """

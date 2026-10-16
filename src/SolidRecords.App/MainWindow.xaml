@@ -163,7 +163,17 @@
         <Grid Grid.Row="1">
           <p:ActivityDataGrid Style="{StaticResource {x:Type DataGrid}}" ItemsSource="{Binding Activities}">
             <p:ActivityDataGrid.Columns>
-              <DataGridTextColumn Header="Aplikácia" Binding="{Binding Application}" Width="130" ElementStyle="{StaticResource CellText}" />
+              <DataGridTemplateColumn Header="Aplikácia" SortMemberPath="Application" Width="130">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <Grid VerticalAlignment="Center" Margin="4,0">
+                      <Grid.ColumnDefinitions><ColumnDefinition Width="22" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                      <Image Source="{Binding Icon}" Width="16" Height="16" HorizontalAlignment="Left" VerticalAlignment="Center" />
+                      <TextBlock Grid.Column="1" Text="{Binding Application}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip="{Binding Application}" />
+                    </Grid>
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
               <DataGridTextColumn Header="PID" Binding="{Binding ProcessId}" Width="52" />
               <DataGridTextColumn Header="Dokument / názov okna" Binding="{Binding Description}" Width="2*" MinWidth="130" ElementStyle="{StaticResource CellText}" />
               <DataGridTextColumn Header="URL" Binding="{Binding Url}" Width="1.5*" MinWidth="110" ElementStyle="{StaticResource CellText}" />

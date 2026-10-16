@@ -56,6 +56,12 @@ public sealed class SqliteActivityStore : IActivityStore
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
 
+        foreach (var icon in batch.ApplicationIcons)
+            await Execute("""
+                INSERT INTO application_icons(application,png) VALUES($app,$png)
+                ON CONFLICT(application) DO UPDATE SET png=excluded.png;
+                """, ("$app", icon.Application), ("$png", Convert.FromBase64String(icon.PngBase64)));
+
         foreach (var process in batch.Processes)
             await Execute("""
                 INSERT INTO process_activities(id,recording_id,process_id,application,process_start_ticks,start,end,is_open)
@@ -138,7 +144,13 @@ public sealed class SqliteActivityStore : IActivityStore
                     Time(reader.GetInt64(4)), Time(reader.GetInt64(5)), reader.GetBoolean(6));
                 windows.Add(window.Id, window);
             }
-        command.CommandText = "SELECT * FROM activity_leaves WHERE start < $to AND end >= $from ORDER BY start;";
+        command.CommandText = """
+            SELECT a.*,i.png FROM activity_leaves a
+            JOIN window_activities w ON w.id=a.window_activity_id
+            JOIN process_activities p ON p.id=w.process_activity_id
+            LEFT JOIN application_icons i ON i.application=p.application
+            WHERE a.start < $to AND a.end >= $from ORDER BY a.start;
+            """;
         var activities = new List<ActivityInterval>();
         using (var reader = await command.ExecuteReaderAsync(cancellationToken))
             while (await reader.ReadAsync(cancellationToken))
@@ -151,7 +163,10 @@ public sealed class SqliteActivityStore : IActivityStore
                 activities.Add(new(Guid.Parse(reader.GetString(0)), process.RecordingId,
                     new(window.Handle, process.ProcessId, process.Application, reader.GetString(2),
                         reader.IsDBNull(3) ? null : reader.GetString(3), process.ProcessStartTicks),
-                    start, end, reader.GetBoolean(6), process.Id, window.Id));
+                    start, end, reader.GetBoolean(6), process.Id, window.Id)
+                {
+                    ApplicationIconPngBase64 = reader.IsDBNull(7) ? null : Convert.ToBase64String((byte[])reader.GetValue(7))
+                });
             }
         command.CommandText = """
             SELECT s.id,s.activity_id,s.start,s.end FROM activity_spans s

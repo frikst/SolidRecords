@@ -106,7 +106,8 @@ public sealed class Recorder : IAsyncDisposable
                 if (work.Signal.Kind == SignalKind.CaptureFailed)
                     throw new InvalidOperationException(work.Signal.Reason ?? "Zber udalostí zlyhal.");
                 var batch = _activityLog.Apply(_engine.Apply(work.Signal));
-                if (batch.Events.Count > 0 || batch.Intervals.Count > 0 || batch.Processes.Count > 0 || batch.Windows.Count > 0 || batch.RemovedIntervalIds.Count > 0)
+                if (work.Signal.Icon is { } icon) batch = batch with { ApplicationIcons = [icon] };
+                if (batch.ApplicationIcons.Count > 0 || batch.Events.Count > 0 || batch.Intervals.Count > 0 || batch.Processes.Count > 0 || batch.Windows.Count > 0 || batch.RemovedIntervalIds.Count > 0)
                 {
                     await _store.SaveAsync(batch);
                     RecordsChanged?.Invoke(this, EventArgs.Empty);

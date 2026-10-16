@@ -1,11 +1,14 @@
 using System.Collections.ObjectModel;
 using System.Windows.Threading;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using SolidRecords.Core;
 
 namespace SolidRecords.App.Presentation;
 
 public sealed class MainViewModel : ObservableObject, IDisposable
 {
+    private Dictionary<string, ImageSource?> _icons = [];
     private readonly Recorder _recorder;
     private readonly DailyReportService _reports;
     private readonly Dispatcher _dispatcher;
@@ -90,9 +93,34 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 _reloadRequested = false;
                 var date = (_selectedDate ?? DateTime.Today).Date;
                 // SQLite executes much of its work synchronously. Keep reads off the UI thread.
-                var report = await Task.Run(() => _reports.ReadAsync(DateOnly.FromDateTime(date)));
+                var icons = new Dictionary<string, ImageSource?>(_icons);
+                var report = await Task.Run(async () =>
+                {
+                    var result = await _reports.ReadAsync(DateOnly.FromDateTime(date));
+                    foreach (var png in result.Intervals.Select(x => x.ApplicationIconPngBase64).OfType<string>().Distinct())
+                    {
+                        if (icons.ContainsKey(png)) continue;
+                        ImageSource? image = null;
+                        try
+                        {
+                            using var stream = new MemoryStream(Convert.FromBase64String(png));
+                            var bitmap = new BitmapImage();
+                            bitmap.BeginInit();
+                            bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                            bitmap.DecodePixelWidth = 32;
+                            bitmap.StreamSource = stream;
+                            bitmap.EndInit();
+                            bitmap.Freeze();
+                            image = bitmap;
+                        }
+                        catch (Exception ex) when (ex is FormatException or IOException or NotSupportedException or ArgumentException or InvalidOperationException) { }
+                        icons[png] = image;
+                    }
+                    return result;
+                });
                 if (_disposed) return;
                 if (date != (_selectedDate ?? DateTime.Today).Date) { _reloadRequested = true; continue; }
+                _icons = icons;
                 _report = report;
                 FilterRows();
                 foreach (var name in new[] { nameof(Timeline), nameof(Started), nameof(Finished), nameof(TotalDuration), nameof(Count) }) Changed(name);
@@ -122,15 +150,21 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             var interval = desired[i];
             if (!existing.TryGetValue(interval.Id, out var row))
             {
-                Activities.Insert(i, new(interval));
+                row = new(interval);
+                row.UpdateIcon(GetIcon(interval));
+                Activities.Insert(i, row);
                 continue;
             }
             row.Update(interval);
+            row.UpdateIcon(GetIcon(interval));
             if (!ReferenceEquals(Activities[i], row)) Activities.Move(Activities.IndexOf(row), i);
         }
         Changed(nameof(Details));
         Changed(nameof(IsEmpty));
     }
+
+    private ImageSource? GetIcon(ActivityInterval interval) => interval.ApplicationIconPngBase64 is { } png
+        && _icons.TryGetValue(png, out var icon) ? icon : null;
 
     public void ShowError(Exception exception)
     {

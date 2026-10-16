@@ -10,12 +10,14 @@ internal static class SqliteSchema
         using var command = connection.CreateCommand();
         command.CommandText = "PRAGMA user_version;";
         var version = Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken));
-        if (version > 3) throw new InvalidOperationException("Databázu vytvorila novšia verzia SolidRecords.");
+        if (version > 4) throw new InvalidOperationException("Databázu vytvorila novšia verzia SolidRecords.");
         command.CommandText = "PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;";
         await command.ExecuteNonQueryAsync(cancellationToken);
         using var transaction = connection.BeginTransaction();
         command.Transaction = transaction;
         command.CommandText = """
+            CREATE TABLE IF NOT EXISTS application_icons (
+                application TEXT PRIMARY KEY COLLATE NOCASE, png BLOB NOT NULL);
             CREATE TABLE IF NOT EXISTS events (
                 id TEXT PRIMARY KEY, recording_id TEXT NOT NULL, kind TEXT NOT NULL,
                 timestamp INTEGER NOT NULL, process_id INTEGER, application TEXT,
@@ -54,7 +56,7 @@ internal static class SqliteSchema
             UPDATE activity_leaves SET is_open=0 WHERE is_open=1;
             UPDATE window_activities SET is_open=0 WHERE is_open=1;
             UPDATE process_activities SET is_open=0 WHERE is_open=1;
-            PRAGMA user_version=3;
+            PRAGMA user_version=4;
             """;
         await command.ExecuteNonQueryAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);

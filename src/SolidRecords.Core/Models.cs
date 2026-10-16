@@ -16,8 +16,12 @@ public enum EventKind
 public sealed record WindowInfo(long Handle, int ProcessId, string Application, string Title, string? Url = null,
     long? ProcessStartTicks = null);
 
+/// <summary>PNG metadata, independent of activity identity and timing.</summary>
+public sealed record ApplicationIcon(string Application, string PngBase64);
+
 public sealed record CaptureSignal(SignalKind Kind, DateTimeOffset Timestamp,
-    WindowInfo? Window = null, int? ProcessId = null, string? Application = null, string? Reason = null);
+    WindowInfo? Window = null, int? ProcessId = null, string? Application = null, string? Reason = null,
+    ApplicationIcon? Icon = null);
 
 public sealed record ActivityEvent(Guid Id, Guid RecordingId, EventKind Kind, DateTimeOffset Timestamp,
     WindowInfo? Window = null, int? ProcessId = null, string? Application = null, string? Reason = null);
@@ -28,6 +32,7 @@ public sealed record ActivityInterval(Guid Id, Guid RecordingId, WindowInfo Wind
     DateTimeOffset Start, DateTimeOffset End, bool IsOpen,
     Guid ProcessActivityId = default, Guid WindowActivityId = default)
 {
+    public string? ApplicationIconPngBase64 { get; init; }
     public IReadOnlyList<ActivitySpan> Spans { get; init; } = [];
     public TimeSpan Duration => Spans.Count == 0 ? End - Start : TimeSpan.FromTicks(Spans.Sum(span => (span.End - span.Start).Ticks));
 }
@@ -54,6 +59,7 @@ public sealed record RecordingBatch(IReadOnlyList<ActivityEvent> Events, IReadOn
 {
     public IReadOnlyList<ProcessActivity> Processes { get; init; } = [];
     public IReadOnlyList<WindowActivity> Windows { get; init; } = [];
+    public IReadOnlyList<ApplicationIcon> ApplicationIcons { get; init; } = [];
     public IReadOnlyList<Guid> RemovedIntervalIds { get; init; } = [];
 }
 

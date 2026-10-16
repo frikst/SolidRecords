@@ -143,6 +143,12 @@ internal static class Program
             ("devenv", "MainWindow.xaml – SolidRecords", (string?)null, 165, 55),
             ("notepad", "Poznámky k projektu.txt", (string?)null, 220, 8)
         };
+        var previewIcon = new ApplicationIconReader().Read(new(0, Environment.ProcessId, "preview", "Preview"));
+        Require(previewIcon is not null, "The executable icon could not be collected");
+        store.SaveAsync(new([], [])
+        {
+            ApplicationIcons = samples.Select(x => x.Item1).Distinct().Select(name => previewIcon! with { Application = name }).ToArray()
+        }).GetAwaiter().GetResult();
         var engine = new RecordingEngine();
         void Save(CaptureSignal signal) => store.SaveAsync(engine.Apply(signal)).GetAwaiter().GetResult();
         Save(new(SignalKind.RecordingStarted, day));
@@ -164,6 +170,7 @@ internal static class Program
             CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.FromCurrentSynchronizationContext());
         Dispatcher.PushFrame(frame);
         refresh.GetAwaiter().GetResult();
+        Require(vm.Activities.All(row => row.Icon is { IsFrozen: true }), "Stored icons were not decoded and frozen");
         var window = new SolidRecords.App.MainWindow(vm);
         var content = (FrameworkElement)window.Content;
         void Render(string name, double width, double height, double scale)
@@ -434,6 +441,11 @@ internal static class Program
         source.Publish(new(SignalKind.Heartbeat, at.AddSeconds(15)));
         await Until(() => State(() => vm.Activities.Count == 1));
         var row = vm.Activities[0];
+        var icon = new ApplicationIconReader().Read(new(0, Environment.ProcessId, "editor", "Preview"));
+        Require(icon is not null, "Missing sample application icon");
+        await store.SaveAsync(new([], []) { ApplicationIcons = [icon!] });
+        await vm.RefreshAsync();
+        Require(ReferenceEquals(row, vm.Activities[0]) && row.Icon is { IsFrozen: true }, "An icon update replaced the live row or did not display");
         Require(row.Interval.Start == at, "The threshold changed the original start time");
         source.Publish(new(SignalKind.ForegroundChanged, at.AddSeconds(20), document with { Title = "Brief other document" }));
         source.Publish(new(SignalKind.ForegroundChanged, at.AddSeconds(25), document));

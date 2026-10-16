@@ -7,7 +7,7 @@ namespace SolidRecords.Tests;
 
 public sealed class SqliteActivityStoreTests : IDisposable
 {
-    private readonly string _directory = Path.Combine(Path.GetTempPath(), "SolidRecords.Tests", Guid.NewGuid().ToString());
+    private readonly string _directory = Path.GetFullPath(Path.Combine("artifacts", "storage-tests", Guid.NewGuid().ToString()));
     private SqliteActivityStore CreateStore() => new(Path.Combine(_directory, "activity.db"));
 
     [Fact]
@@ -259,6 +259,83 @@ public sealed class SqliteActivityStoreTests : IDisposable
         var interval = Assert.Single(await migrated.ReadIntervalsAsync(at, at.AddDays(1)));
         Assert.Single(interval.Spans);
         Assert.Equal(TimeSpan.FromSeconds(20), interval.Duration);
+    }
+
+    [Fact]
+    public async Task VersionThreeMigrationPreservesHistoryAndAddsPersistentIcons()
+    {
+        var store = CreateStore();
+        var at = new DateTimeOffset(2026, 10, 16, 8, 0, 0, TimeSpan.Zero);
+        var leaf = new ActivityInterval(Guid.NewGuid(), Guid.NewGuid(), new(1, 2, "editor", "Document"),
+            at, at.AddSeconds(20), false);
+        await store.SaveAsync(Composite(leaf));
+        await using (var connection = new SqliteConnection($"Data Source={store.DatabasePath}"))
+        {
+            await connection.OpenAsync();
+            using var command = connection.CreateCommand();
+            command.CommandText = "DROP TABLE application_icons; PRAGMA user_version=3;";
+            await command.ExecuteNonQueryAsync();
+        }
+        var migrated = CreateStore();
+        var before = Assert.Single(await migrated.ReadIntervalsAsync(at, at.AddDays(1)));
+        Assert.Null(before.ApplicationIconPngBase64);
+        Assert.Equal(leaf.Id, before.Id);
+        Assert.Single(before.Spans);
+        var png = Convert.ToBase64String([137, 80, 78, 71]);
+        await migrated.SaveAsync(new([], []) { ApplicationIcons = [new("EDITOR", png)] });
+        var after = Assert.Single(await CreateStore().ReadIntervalsAsync(at, at.AddDays(1)));
+        Assert.Equal(png, after.ApplicationIconPngBase64);
+        Assert.Equal(before.Window, after.Window);
+        Assert.Equal(before.Id, after.Id);
+        Assert.Equal(before.Duration, after.Duration);
+        Assert.Equal(before.Spans, after.Spans);
+        // No icon in a later batch must not erase the collected icon.
+        await migrated.SaveAsync(new([], []));
+        Assert.Equal(png, Assert.Single((await new DailyReportService(migrated, TimeZoneInfo.Utc)
+            .ReadAsync(new(2026, 10, 16))).Intervals).ApplicationIconPngBase64);
+        await using var check = new SqliteConnection($"Data Source={store.DatabasePath}");
+        await check.OpenAsync();
+        using var version = check.CreateCommand();
+        version.CommandText = "PRAGMA user_version;";
+        Assert.Equal(4L, await version.ExecuteScalarAsync());
+    }
+
+    [Fact]
+    public async Task RecorderPersistsIconBeforeActivityMeetsMinimumAndKeepsItAfterRestart()
+    {
+        var store = CreateStore();
+        var source = new IconSource();
+        var at = new DateTimeOffset(2026, 10, 16, 8, 0, 0, TimeSpan.Zero);
+        var png = Convert.ToBase64String([137, 80, 78, 71]);
+        await using (var recorder = new Recorder(store, source, new IconClock(at)))
+        {
+            await recorder.StartAsync();
+            source.Publish!(new(SignalKind.SessionActive, at));
+            source.Publish!(new(SignalKind.ForegroundChanged, at, new(1, 2, "editor", "Document"),
+                Icon: new("editor", png)));
+            source.Publish!(new(SignalKind.ForegroundChanged, at.AddSeconds(20)));
+            await recorder.StopAsync();
+        }
+        var interval = Assert.Single(await CreateStore().ReadIntervalsAsync(at, at.AddDays(1)));
+        Assert.Equal(png, interval.ApplicationIconPngBase64);
+        Assert.Equal(TimeSpan.FromSeconds(20), interval.Duration);
+    }
+
+    private sealed class IconClock(DateTimeOffset at) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => at;
+    }
+
+    private sealed class IconSource : IActivitySource
+    {
+        public Action<CaptureSignal>? Publish { get; private set; }
+        public Task StartAsync(Action<CaptureSignal> publish, CancellationToken cancellationToken = default)
+        {
+            Publish = publish;
+            return Task.CompletedTask;
+        }
+        public Task StopAsync() => Task.CompletedTask;
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
     private static RecordingBatch Composite(ActivityInterval leaf)

@@ -8,6 +8,8 @@ Všetky doterajšie funkcie sú zatiaľ nevydané a patria do sekcie `Unreleased
 
 ### Added
 
+- Ikony aplikácií vedľa ich názvov v zozname záznamov. Získané ikony zostávajú dostupné aj po zatvorení sledovaných aplikácií.
+
 - Záznam používaných aplikácií, názvov otvorených dokumentov a času stráveného v jednotlivých oknách. Rozhranie je v slovenčine a údaje zostávajú iba vo vašom počítači, nikam sa neposielajú.
 - Denný prehľad s farebnou časovou osou, celkovým časom v aktívnych oknách a časom prvej a poslednej aktivity. Prehľad sa priebežne aktualizuje a umožňuje prezerať aj predchádzajúce dni.
 - Vyhľadávanie záznamov podľa aplikácie, názvu dokumentu alebo webovej adresy. Denný súčet a časová os aj pri vyhľadávaní zobrazujú celý deň.

@@ -8,6 +8,7 @@ SQLite používa Microsoft.Data.Sqlite, WAL, `synchronous=FULL`, cudzie kľúče
 
 | Tabuľka | Význam |
 | --- | --- |
+| `application_icons` | Posledná dostupná PNG ikona podľa názvu aplikácie (bez rozlíšenia veľkosti písmen), spoločná aj pre staršie záznamy. |
 | `process_activities` | Pozorovaná životnosť procesu a identita v rámci záznamu. |
 | `window_activities` | Životnosť okna, FK na proces. |
 | `activity_leaves` | Prijatá aktivita, historický názov a voliteľná URL, FK na okno. Začiatok/koniec sú obálka aktívnych úsekov. |
@@ -21,10 +22,11 @@ Pri zmene zlúčenia sa najprv zapíšu rodičia/listy, potom sa upsertnú a pri
 
 ## Migrácie a obnova
 
-Aktuálna verzia je `PRAGMA user_version=3`, spravovaná v `SqliteSchema.cs`. Inicializácia je v rámci inštancie store jednorazová a zamknutá semaforom.
+Aktuálna verzia je `PRAGMA user_version=4`, spravovaná v `SqliteSchema.cs`. Inicializácia je v rámci inštancie store jednorazová a zamknutá semaforom.
 
 - Verzia 1: intervaly sa prenesú pod nové procesy a okná, ID listov, názvy, URL a časy zostávajú. Pôvodná tabuľka sa nemaže. Rodičovské životnosti sú odvodené z histórie, skutočný zánik starých okien nie je známy.
 - Verzia 2: doplnia sa `activity_spans`, každý pôvodný list dostane jeden úsek.
+- Verzia 3: pridá sa samostatná tabuľka ikon bez zmeny ID, časov a aktívnych úsekov histórie. Ikony sa dopĺňajú pri ďalšom pozorovaní aplikácií; bez dostupnej ikony zostáva miesto vedľa názvu prázdne. PNG sa ukladá raz na názov aplikácie ako BLOB, nie pri každej aktivite.
 - Migrácia aj uzavretie otvorených procesov/okien/listov prebiehajú v transakcii. Po páde sa nemení posledný potvrdený koniec, iba sa zruší `is_open`, aby prestoj nevytvoril pracovný čas.
 - Novšia neznáma verzia sa odmietne otvoriť. Staršiu aplikáciu nepoužívaj na zápis po migrácii. Zmeny schémy musia mať test migrácie s izolovanou databázou.
 

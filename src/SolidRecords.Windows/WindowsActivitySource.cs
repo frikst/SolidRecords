@@ -11,6 +11,7 @@ namespace SolidRecords.Windows;
 public sealed class WindowsActivitySource : IActivitySource
 {
     private readonly BrowserUrlReader _browser = new();
+    private readonly ApplicationIconReader _icons = new();
     private readonly NativeMethods.WinEventCallback _callback;
     private Dispatcher? _dispatcher;
     private Thread? _thread;
@@ -154,7 +155,8 @@ public sealed class WindowsActivitySource : IActivitySource
         }
         if (_foreground == next) return;
         _foreground = next;
-        _publish(new(SignalKind.ForegroundChanged, DateTimeOffset.UtcNow, next));
+        var icon = next is null ? null : _icons.Read(next);
+        _publish(new(SignalKind.ForegroundChanged, DateTimeOffset.UtcNow, next, Icon: icon));
         if (next is not null) _windows?.ObserveForeground(next);
     }
 
@@ -242,6 +244,7 @@ public sealed class WindowsActivitySource : IActivitySource
         _publish = null;
         _foreground = null;
         _windows = null;
+        _icons.Clear();
     }
 
     public async ValueTask DisposeAsync()
