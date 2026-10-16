@@ -20,6 +20,8 @@ internal static class Program
     {
         try
         {
+            if (args.Contains("--startup-only", StringComparer.Ordinal))
+                return StartupChecks.Run(args.Contains("--paused", StringComparer.Ordinal));
             if (args.Contains("--inspect-history", StringComparer.Ordinal)) return HistoryDiagnostics.Run();
             var directory = Path.GetFullPath(args.FirstOrDefault(x => !x.StartsWith("--", StringComparison.Ordinal)) ?? "artifacts/desktop-checks");
             Directory.CreateDirectory(directory);

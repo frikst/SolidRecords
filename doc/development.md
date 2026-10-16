@@ -10,6 +10,8 @@ Z koreňa repozitára:
 dotnet restore SolidRecords.slnx
 dotnet build SolidRecords.slnx -c Release --no-restore
 dotnet test tests/SolidRecords.Tests -c Release --no-restore
+dotnet run --project tests/SolidRecords.DesktopChecks -c Release --no-restore -- --startup-only
+dotnet run --project tests/SolidRecords.DesktopChecks -c Release --no-restore -- --startup-only --paused
 dotnet run --project tests/SolidRecords.DesktopChecks -c Release --no-restore -- --preview-only
 git diff --check
 ```
@@ -21,6 +23,7 @@ git diff --check
 | Kontrola | Čo overuje |
 | --- | --- |
 | `SolidRecords.Tests` | Stavový automat, životnosti rodičov, PID/URL zmeny, Recorder start/stop a chyby, SQLite perzistenciu a migrácie, prahy, zlúčenie/rozdelenie úsekov a hranice dňa. |
+| DesktopChecks `--startup-only` (aj s `--paused`) | Samostatný proces overí skutočný životný cyklus `App` s validovaným DI kontajnerom: spoločné inštancie okna a view modelu, štart so zapnutým/vypnutým záznamom, otvorenie a skrytie okna, uloženie preferencie a ukončenie s jediným uvoľnením zdroja. Používa izolovanú SQLite DB v `artifacts/startup-checks/` a prázdny zdroj bez natívneho zberu. Vytvorí dočasnú systray ikonu; nemení register ani používateľské dáta. |
 | DesktopChecks `--preview-only` | Filter okien, číselné triedenie trvania, trojkrokové triedenie všetkých stĺpcov a návrat k pôvodnému poradiu, živé aktualizácie WPF zoznamu vrátane predvolených časových pravidiel a doplnenia uloženej ikony bez výmeny riadka, vykreslenie svetlej a tmavej témy do `artifacts/desktop-checks/main-window*.png` pri 100 % a 150 % mierke, prepnutie témy na existujúcom okne so zachovaním výberu a binding chyby. Vzorky zoznamu obsahujú ikonu testovacieho EXE získanú cez Shell, aby náhľad nezávisel od nainštalovaných aplikácií. Vykresľuje aj dialóg O aplikácii v oboch témach a mierkach (`about-*.png`) a vypíše jeho skutočné DPI. Samostatné systray menu vykreslí pre oba stavy záznamu/autostartu v oboch témach (`tray-menu-*.png`), bez vytvorenia NotifyIcon a zásahu do registra. Otvorí aj skutočné natívne menu, overí `GUI_INMENUMODE`, zhodnú polohu prvého/opakovaného otvorenia, zrušenie a klávesovú akciu vykonanú až po opustení menu slučky. Jeho izolovaný živý snímok uloží ako `tray-native-*.png`. Pomocný WinForms náhľad má navyše kontrolu šípok, Enter, Esc a kliknutia mimo cez WPF filter správ. Správanie panelu skrytých ikon Windows vyžaduje ručnú kontrolu. Menu sa otvorí pri skutočnom DPI monitora; exporty `-150.png` sú prepočítané na 150 % a nenahrádzajú živú kontrolu pri tomto DPI. Nespúšťa natívny zber ani test životnosti skutočných okien. |
 | DesktopChecks bez prepínača | Navyše krátky reálny zber v aktuálnej relácii a test posledného pracovného okna procesu s pomocným oknom. Používa izolované DB, neotvára používateľskú históriu. |
 | DesktopChecks `--inspect-history` | Samostatná read-only diagnostika používateľskej DB; podrobnosti v [storage.md](storage.md). Nie je súčasťou bežného testovania. |

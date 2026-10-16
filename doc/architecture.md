@@ -7,7 +7,7 @@
 | `src/SolidRecords.Core` | Čisté modely a kontrakty (`Models.cs`), stavový automat (`RecordingEngine.cs`), pravidlá prijatia a zlúčenia (`ActivityLogPolicy.cs`), koordinácia (`Recorder.cs`), denné reporty (`DailyReport.cs`). Target `net10.0`, bez externých balíkov. |
 | `src/SolidRecords.Storage` | `SqliteActivityStore.cs`, `ActivityDbContext.cs`, `SqliteSchema.cs`, `Migrations/`; Entity Framework Core SQLite 10.0.12. Závisí len od Core. |
 | `src/SolidRecords.Windows` | `WindowsActivitySource.cs`, `ObservedWindowRegistry.cs`, `WindowFilter.cs`, `BrowserUrlReader.cs`, `StartupRegistration.cs`, Win32 interop. Target `net10.0-windows`, WPF pre natívne message window; závisí len od Core. |
-| `src/SolidRecords.App` | WPF/MVVM, vlastné príkazy a observable modely, WinForms NotifyIcon. `App.xaml.cs` skladá služby a riadi životný cyklus; `Presentation/` obsahuje view model, riadky a časovú os. Závisí od troch implementačných projektov. |
+| `src/SolidRecords.App` | WPF/MVVM, vlastné príkazy a observable modely, WinForms NotifyIcon. `Program.cs` spúšťa aplikáciu, `ServiceRegistration.cs` registruje DI služby a `App.xaml.cs` riadi životný cyklus; `Presentation/` obsahuje view model, riadky a časovú os. Závisí od troch implementačných projektov. |
 | `tests/SolidRecords.Tests` | xUnit testy Core a SQLite, target `net10.0`. |
 | `tests/SolidRecords.DesktopChecks` | STA konzolový program pre Windows integráciu, klasifikáciu okien, živé GUI a WPF náhľad; referencuje App. |
 
@@ -29,9 +29,9 @@ WindowsActivitySource → CaptureSignal → Recorder (Channel, jeden reader)
 
 ## Životný cyklus aplikácie
 
-`App` vytvorí jeden store, Recorder, report service, view model, hlavné okno a systray. Recorder aj report dostanú spoločné `ActivityTrackingOptions`. Bez `--show` zostane aplikácia v systray. Zatvorenie okna ho skryje; ukončenie cez systray uvoľní view model, dopíše Recorder a zavrie aplikáciu.
+`Program.Main` s atribútom `[STAThread]` je vstupný bod aplikácie. Na hlavnom STA vlákne overí jednu inštanciu a zostaví kontajner Microsoft.Extensions.DependencyInjection s validáciou registrácií. `ServiceRegistration.AddSolidRecords` registruje singleton store, Recorder, report service, view model, hlavné okno, nastavenia a aplikáciu. Recorder aj report dostanú tú istú inštanciu `ActivityTrackingOptions`; natívny zdroj vlastní a uvoľňuje Recorder. `App` dostáva závislosti konštruktorom, inicializuje store mimo UI vlákna a až po načítaní WPF zdrojov vytvorí okno cez odloženú DI factory. `TrayIconFactory` pripojí systray k akciám životného cyklu. Bez `--show` zostane aplikácia v systray. Zatvorenie okna ho skryje; ukončenie cez systray zastaví a dopíše Recorder a zavrie aplikáciu. Po návrate z WPF slučky Program asynchrónne uvoľní kontajner vrátane odhlásenia view modelu a uvoľnenia Recorderu.
 
-Globálny mutex podľa používateľského SID povoľuje jednu inštanciu naprieč reláciami; druhé spustenie signalizuje otvorenie existujúceho okna cez EventWaitHandle. Debug zostava pridáva k názvom oboch objektov vývojovú príponu s hashom dátového priečinka, takže môže bežať súčasne s Release zostavou aj s Debug zostavou z iného repozitára. `settings.json` uchováva iba `RecordOnLaunch`, predvolene true. Spúšťanie po prihlásení spravuje `StartupRegistration` cez HKCU Run pre aktuálnu cestu aplikácie.
+`SingleInstance` spravuje mutex, signalizačnú udalosť a odhlásenie callbacku. Druhá inštancia končí ešte pred vytvorením DI služieb alebo prístupom do databázy. Globálny mutex podľa používateľského SID povoľuje jednu inštanciu naprieč reláciami; druhé spustenie signalizuje otvorenie existujúceho okna cez EventWaitHandle. Debug zostava pridáva k názvom oboch objektov vývojovú príponu s hashom dátového priečinka, takže môže bežať súčasne s Release zostavou aj s Debug zostavou z iného repozitára. `PreferencesStore` číta a atómovým nahradením zapisuje `settings.json`, ktorý uchováva iba `RecordOnLaunch`, predvolene true. Spúšťanie po prihlásení spravuje `StartupRegistration` cez HKCU Run pre aktuálnu cestu aplikácie.
 
 ## Vzhľad
 
