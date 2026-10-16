@@ -1,6 +1,6 @@
 # Changelog
 
-Významné zmeny projektu SolidRecords sú zaznamenané v tomto súbore.
+Novinky a zmeny v aplikácii SolidRecords pre používateľov.
 Formát vychádza z [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 Všetky doterajšie funkcie sú zatiaľ nevydané a patria do sekcie `Unreleased`.
 
@@ -8,18 +8,15 @@ Všetky doterajšie funkcie sú zatiaľ nevydané a patria do sekcie `Unreleased
 
 ### Added
 
-- Automatické vydanie pri tagu vX.Y.Z: testy, self-contained aplikácia pre Windows x64, MSI inštalátor a prenosný ZIP v GitHub Release s poznámkami z príslušnej verzie changelogu.
-- Lokálny záznam práce pre Windows v slovenčine, s ukladaním udalostí a aktivít do SQLite bez odosielania údajov na sieť.
-- Beh v systémovej lište aj pri zatvorenom hlavnom okne, ovládanie záznamu z okna aj menu lišty a zapamätanie stavu záznamu pri ďalšom spustení.
-- Voliteľné spúšťanie po prihlásení a ochrana pred spustením viacerých inštancií; opätovné spustenie otvorí okno bežiacej aplikácie.
-- Zber zmien používateľskej relácie vrátane zamknutia, odomknutia, pripojenia a odpojenia RDP, uspania a obnovenia počítača.
-- Evidencia procesov a okien s aktívnymi úsekmi, názvami okien a dostupnými URL. Životnosť procesu sa odvodzuje od jeho evidovaných okien.
-- Zisťovanie URL z adresného riadka Chrome, Edge, Firefoxu, Brave, Opery a Vivaldi podľa dostupnosti UI Automation; obsah počas písania do adresného riadka sa neukladá.
-- Vynechávanie systémových a pomocných okien zo záznamu. Zamknutie, odpojenie relácie a uspatie uzatvoria aktívny úsek.
-- Prijímanie aktivít od 15 sekúnd a zlučovanie susedných totožných aktivít s medzerou kratšou než 15 sekúnd. Zlúčené záznamy zachovávajú skutočné aktívne úseky a nezapočítavajú prestávky.
-- Živý denný zoznam aktivít s aplikáciou, PID, názvom okna, URL a časmi, s výberom dňa a textovým vyhľadávaním podľa aplikácie, dokumentu alebo URL.
-- Denná časová os s farbami aplikácií, súčet aktívneho času a prvá a posledná aktivita. Report započítava iba aktívne úseky a rešpektuje miestnu polnoc aj zmeny letného času.
-- Kompaktné WPF rozhranie s vlastnou hlavičkou, ikonou aplikácie a automatickým prepínaním svetlej a tmavej témy podľa Windows, vrátane menu systémovej lišty.
-- Automatické migrácie databázy a uzavretie otvorených záznamov po páde na poslednom potvrdenom čase, aby sa prestoj nezapočítal do práce.
-- Read-only diagnostika histórie s konzistentnou SQLite zálohou a kontrolou integrity, izolované testy pravidiel a migrácií a WPF náhľady pri 100 % a 150 % mierke.
-- Prenosná publikácia pre Windows x64 s pribaleným .NET runtime, bez potreby inštalátora.
+- Záznam používaných aplikácií, názvov otvorených dokumentov a času stráveného v jednotlivých oknách. Rozhranie je v slovenčine a údaje zostávajú iba vo vašom počítači, nikam sa neposielajú.
+- Denný prehľad s farebnou časovou osou, celkovým časom v aktívnych oknách a časom prvej a poslednej aktivity. Prehľad sa priebežne aktualizuje a umožňuje prezerať aj predchádzajúce dni.
+- Vyhľadávanie záznamov podľa aplikácie, názvu dokumentu alebo webovej adresy. Denný súčet a časová os aj pri vyhľadávaní zobrazujú celý deň.
+- Zaznamenávanie navštívených webových adries v prehliadačoch Chrome, Edge, Firefox, Brave, Opera a Vivaldi, ak ich prehliadač sprístupní. Ak adresu nemožno zistiť, zostane názov okna. Text počas písania do adresného riadka sa neukladá.
+- Zaznamenávanie pokračuje aj po zatvorení hlavného okna. Aplikáciu môžete znova otvoriť cez ikonu pri hodinách a záznam spustiť alebo zastaviť v okne aj cez túto ikonu. Zvolený stav si pamätá aj pri ďalšom spustení.
+- Voliteľné automatické spustenie po prihlásení do Windows. Ak aplikáciu spustíte znova, otvorí sa okno už bežiacej aplikácie.
+- Do celkového času sa počíta iba čas v aktívnom okne, nie čas aplikácií na pozadí. Zamknutie počítača, uspatie alebo odpojenie vzdialenej plochy zaznamenávanie aktivity prerušia. Pohyb myši ani písanie na klávesnici sa na rozpoznávanie nečinnosti zatiaľ nepoužívajú.
+- Krátke prepnutia do iného okna kratšie než 15 sekúnd sa do prehľadu neukladajú. Po ich vynechaní sa susedné záznamy tej istej aktivity spoja, ak je medzi nimi prestávka kratšia než 15 sekúnd. Prestávka sa do celkového času nezapočíta a zostane viditeľná na časovej osi.
+- Systémové a pomocné okná, napríklad ponuka Štart či prepínač okien, sa do záznamu práce nezahŕňajú.
+- Kompaktné okno so svetlým a tmavým vzhľadom, ktorý sa automaticky prispôsobuje nastaveniu Windows.
+- Po páde aplikácie alebo výpadku napájania sa pri ďalšom spustení posledná aktivita ukončí podľa posledného uloženého času. Obdobie, keď aplikácia nebežala, sa tak nepripočíta k práci.
+- Inštalátor a prenosný ZIP pre 64-bitový Windows. Potrebné súčasti sú pribalené, takže netreba samostatne inštalovať .NET. Prenosnú verziu stačí rozbaliť a spustiť.
