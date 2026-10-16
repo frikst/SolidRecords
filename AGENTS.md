@@ -24,6 +24,7 @@ SolidRecords je lokálny Windows tracker (.NET 10, WPF, SQLite). Rozhranie a dok
 ## Pracovný postup
 
 - Pred zmenou prečítaj príslušný dokument a implementáciu. Pri zmene správania, schémy alebo postupov aktualizuj aj príslušný dokument; nekopíruj rovnaký popis na viac miest.
+- Pri významnej zmene funkcií, správania, oprave chyby alebo zmene dôležitej pre používateľa aktualizuj aj sekciu `Unreleased` v [CHANGELOG.md](CHANGELOG.md). Dodržuj [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/): používaj relevantné kategórie `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed` a `Security`, stručné slovenské popisy dopadu a nepridávaj prázdne kategórie ani mechanický výpis commitov. Nové zmeny zostávajú v `Unreleased`, kým sa nepripravuje vydanie.
 - Overuj podľa rozsahu zmeny postupmi v `doc/development.md`. Regresie časových pravidiel a migrácií pokrývaj izolovanými testami; zmenu vzhľadu over aj WPF náhľadom a pri 150 % DPI.
 - Testy a náhľady používajú izolované databázy v `artifacts/`. Pri diagnostike používateľskej histórie nepoužívaj `SqliteActivityStore.InitializeAsync`: migruje schému a uzatvára otvorené záznamy.
 - Používateľskú databázu neopravuj, nemaž ani nemigruj ako vedľajší efekt kontroly. Použi read-only diagnostiku a konzistentný SQLite backup; samotná kópia živého `.db` nemusí obsahovať WAL.
