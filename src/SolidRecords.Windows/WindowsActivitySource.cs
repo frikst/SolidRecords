@@ -25,7 +25,6 @@ public sealed class WindowsActivitySource : IActivitySource
     private bool _active;
     private bool _suspended;
     private long _generation;
-    private int _ticks;
 
     public WindowsActivitySource() => _callback = OnWinEvent;
 
@@ -42,7 +41,6 @@ public sealed class WindowsActivitySource : IActivitySource
                 _publish = publish;
                 _windows = new ObservedWindowRegistry(publish);
                 _generation++;
-                _ticks = 0;
                 _suspended = false;
                 _messageWindow = new HwndSource(new HwndSourceParameters("SolidRecords capture")
                 {
@@ -111,7 +109,7 @@ public sealed class WindowsActivitySource : IActivitySource
                 });
             });
         }
-        if (++_ticks % 5 == 0) Emit(SignalKind.Heartbeat);
+        Emit(SignalKind.Heartbeat);
     }
 
     private void OnWinEvent(nint hook, uint kind, nint window, int objectId, int childId, uint threadId, uint eventTime)
@@ -127,6 +125,11 @@ public sealed class WindowsActivitySource : IActivitySource
     private void CaptureForeground()
     {
         if (!_active || _suspended || _publish is null) return;
+        if (!NativeMethods.IsDesktopActive())
+        {
+            SetSession(false, "SecureDesktop");
+            return;
+        }
         var handle = NativeMethods.GetForegroundWindow();
         WindowInfo? next = null;
         if (handle != 0)
@@ -135,14 +138,17 @@ public sealed class WindowsActivitySource : IActivitySource
             try
             {
                 using var process = Process.GetProcessById((int)pid);
-                var title = new StringBuilder(2048);
-                NativeMethods.GetWindowText(handle, title, title.Capacity);
-                long? startTicks = null;
-                try { startTicks = process.StartTime.ToUniversalTime().Ticks; }
-                catch (Win32Exception) { }
-                next = new(handle, (int)pid, process.ProcessName, title.ToString(), ProcessStartTicks: startTicks);
-                if (_foreground is not null && next == _foreground with { Url = null })
-                    next = next with { Url = _foreground.Url };
+                var application = process.ProcessName;
+                var candidate = WindowFilter.Inspect(handle, application);
+                if (WindowFilter.CanTrackForeground(candidate))
+                {
+                    long? startTicks = null;
+                    try { startTicks = process.StartTime.ToUniversalTime().Ticks; }
+                    catch (Win32Exception) { }
+                    next = new(handle, (int)pid, application, candidate.Title, ProcessStartTicks: startTicks);
+                    if (_foreground is not null && next == _foreground with { Url = null })
+                        next = next with { Url = _foreground.Url };
+                }
             }
             catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or Win32Exception) { }
         }

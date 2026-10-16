@@ -63,7 +63,7 @@ public partial class App : Application
         _window.Show();
         if (_window.WindowState == WindowState.Minimized) _window.WindowState = WindowState.Normal;
         _window.Activate();
-        _viewModel?.RefreshCommand.Execute(null);
+        _viewModel?.RequestRefresh();
     }
 
     private Preferences ReadPreferences()

@@ -28,6 +28,8 @@ public sealed class Recorder : IAsyncDisposable
     public bool IsRecording => _isRecording;
     public string? Error => _failure?.Message;
     public event EventHandler? StateChanged;
+    /// <summary>Raised after changed records have been committed and can be read by report consumers.</summary>
+    public event EventHandler? RecordsChanged;
 
     public async Task StartAsync()
     {
@@ -103,7 +105,10 @@ public sealed class Recorder : IAsyncDisposable
                     throw new InvalidOperationException(work.Signal.Reason ?? "Zber udalostí zlyhal.");
                 var batch = _engine.Apply(work.Signal);
                 if (batch.Events.Count > 0 || batch.Intervals.Count > 0 || batch.Processes.Count > 0 || batch.Windows.Count > 0)
+                {
                     await _store.SaveAsync(batch);
+                    RecordsChanged?.Invoke(this, EventArgs.Empty);
+                }
                 work.Completion?.SetResult();
             }
             catch (Exception ex)

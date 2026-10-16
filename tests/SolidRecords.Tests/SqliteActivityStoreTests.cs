@@ -137,6 +137,27 @@ public sealed class SqliteActivityStoreTests : IDisposable
         Assert.Single(await CreateStore().ReadIntervalsAsync(DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddDays(1)));
     }
 
+    [Fact]
+    public async Task LateUrlResolutionUpdatesStoredLeafInsteadOfLeavingAUrlLessDuplicate()
+    {
+        var store = CreateStore();
+        var engine = new RecordingEngine();
+        var at = new DateTimeOffset(2026, 10, 15, 8, 0, 0, TimeSpan.Zero);
+        var window = new WindowInfo(1, 2, "chrome", "Document");
+        foreach (var signal in new CaptureSignal[]
+        {
+            new(SignalKind.RecordingStarted, at), new(SignalKind.SessionActive, at),
+            new(SignalKind.ForegroundChanged, at, window), new(SignalKind.Heartbeat, at.AddSeconds(1)),
+            new(SignalKind.ForegroundChanged, at.AddSeconds(2), window with { Url = "https://example.com" }),
+            new(SignalKind.ForegroundChanged, at.AddSeconds(5))
+        }) await store.SaveAsync(engine.Apply(signal));
+        var leaf = Assert.Single(await store.ReadIntervalsAsync(at, at.AddDays(1)));
+        Assert.Equal("https://example.com", leaf.Window.Url);
+        Assert.Equal(at, leaf.Start);
+        Assert.Equal(TimeSpan.FromSeconds(5), leaf.Duration);
+        Assert.False(leaf.IsOpen);
+    }
+
     private static RecordingBatch Composite(ActivityInterval leaf)
     {
         var process = new ProcessActivity(leaf.Id, leaf.RecordingId, leaf.Window.ProcessId,

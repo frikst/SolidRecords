@@ -78,7 +78,7 @@ public sealed class SqliteActivityStore : IActivityStore
             await Execute("""
                 INSERT INTO activity_leaves(id,window_activity_id,title,url,start,end,is_open)
                 VALUES($id,$parent,$title,$url,$start,$end,$open)
-                ON CONFLICT(id) DO UPDATE SET end=excluded.end,is_open=excluded.is_open;
+                ON CONFLICT(id) DO UPDATE SET url=excluded.url,end=excluded.end,is_open=excluded.is_open;
                 """, ("$id", interval.Id.ToString()), ("$parent", interval.WindowActivityId.ToString()),
                 ("$title", interval.Window.Title), ("$url", interval.Window.Url), ("$start", Millis(interval.Start)),
                 ("$end", Millis(interval.End)), ("$open", interval.IsOpen));

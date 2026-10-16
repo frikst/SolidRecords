@@ -12,6 +12,17 @@ internal static class NativeMethods
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool IsWindowVisible(nint window);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    internal static extern int GetClassName(nint window, StringBuilder className, int count);
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongW")]
+    internal static extern uint GetWindowStyle(nint window, int index);
+    [DllImport("user32.dll")]
+    internal static extern nint GetAncestor(nint window, uint flags);
+    [DllImport("dwmapi.dll")]
+    internal static extern int DwmGetWindowAttribute(nint window, uint attribute, out int value, int size);
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool ShowWindow(nint window, int command);
     internal delegate void WinEventCallback(nint hook, uint kind, nint window, int objectId,
         int childId, uint threadId, uint eventTime);
 

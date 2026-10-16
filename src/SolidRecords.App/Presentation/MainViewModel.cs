@@ -17,6 +17,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private DailyReport _report = new([]);
     private bool _loading;
     private bool _reloadRequested;
+    private volatile bool _disposed;
+    private int _refreshPending;
 
     public MainViewModel(Recorder recorder, DailyReportService reports, Func<bool, Task> savePreference)
     {
@@ -25,17 +27,20 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _savePreference = savePreference;
         _dispatcher = Dispatcher.CurrentDispatcher;
         ToggleRecordingCommand = new(ToggleRecordingAsync, ShowError);
-        RefreshCommand = new(RefreshAsync, ShowError);
         PreviousDayCommand = new(() => SelectedDate = (SelectedDate ?? DateTime.Today).AddDays(-1));
         NextDayCommand = new(() => SelectedDate = (SelectedDate ?? DateTime.Today).AddDays(1));
         TodayCommand = new(() => SelectedDate = DateTime.Today);
         _recorder.StateChanged += RecorderChanged;
-        _refresh = new DispatcherTimer(TimeSpan.FromSeconds(5), DispatcherPriority.Background,
-            (_, _) => RefreshCommand.Execute(null), _dispatcher);
+        _recorder.RecordsChanged += RecordsChanged;
+        // Coalesce bursts of window events; a continuous event stream cannot postpone a refresh.
+        _refresh = new DispatcherTimer(DispatcherPriority.Background, _dispatcher)
+        {
+            Interval = TimeSpan.FromMilliseconds(150)
+        };
+        _refresh.Tick += RefreshTick;
     }
 
     public AsyncCommand ToggleRecordingCommand { get; }
-    public AsyncCommand RefreshCommand { get; }
     public RelayCommand PreviousDayCommand { get; }
     public RelayCommand NextDayCommand { get; }
     public RelayCommand TodayCommand { get; }
@@ -74,6 +79,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public async Task RefreshAsync()
     {
+        if (_disposed) return;
         _reloadRequested = true;
         if (_loading) return;
         _loading = true;
@@ -85,11 +91,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 var date = (_selectedDate ?? DateTime.Today).Date;
                 // SQLite executes much of its work synchronously. Keep reads off the UI thread.
                 var report = await Task.Run(() => _reports.ReadAsync(DateOnly.FromDateTime(date)));
+                if (_disposed) return;
                 if (date != (_selectedDate ?? DateTime.Today).Date) { _reloadRequested = true; continue; }
                 _report = report;
                 FilterRows();
                 foreach (var name in new[] { nameof(Timeline), nameof(Started), nameof(Finished), nameof(TotalDuration), nameof(Count) }) Changed(name);
-            } while (_reloadRequested);
+            } while (_reloadRequested && !_disposed);
         }
         finally { _loading = false; }
     }
@@ -104,9 +111,23 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         bool Matches(params string?[] values) => string.IsNullOrWhiteSpace(_search) || values.Any(v =>
             v?.Contains(_search, StringComparison.CurrentCultureIgnoreCase) == true);
-        Activities.Clear();
-        foreach (var interval in _report.Intervals.Reverse())
-            if (Matches(interval.Window.Application, interval.Window.Title, interval.Window.Url)) Activities.Add(new(interval));
+        var desired = _report.Intervals.Reverse()
+            .Where(interval => Matches(interval.Window.Application, interval.Window.Title, interval.Window.Url)).ToArray();
+        var ids = desired.Select(interval => interval.Id).ToHashSet();
+        for (var i = Activities.Count - 1; i >= 0; i--)
+            if (!ids.Contains(Activities[i].Interval.Id)) Activities.RemoveAt(i);
+        var existing = Activities.ToDictionary(row => row.Interval.Id);
+        for (var i = 0; i < desired.Length; i++)
+        {
+            var interval = desired[i];
+            if (!existing.TryGetValue(interval.Id, out var row))
+            {
+                Activities.Insert(i, new(interval));
+                continue;
+            }
+            row.Update(interval);
+            if (!ReferenceEquals(Activities[i], row)) Activities.Move(Activities.IndexOf(row), i);
+        }
         Changed(nameof(Details));
         Changed(nameof(IsEmpty));
     }
@@ -117,7 +138,32 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Changed(nameof(Notice));
     }
 
-    private void RecorderChanged(object? sender, EventArgs e) => _dispatcher.BeginInvoke(NotifyState);
+    public void RequestRefresh()
+    {
+        if (!_disposed && !_refresh.IsEnabled) _refresh.Start();
+    }
+
+    private void RefreshTick(object? sender, EventArgs e)
+    {
+        _refresh.Stop();
+        _ = RefreshSafelyAsync();
+    }
+
+    private void RecordsChanged(object? sender, EventArgs e)
+    {
+        if (_disposed || _dispatcher.HasShutdownStarted || Interlocked.Exchange(ref _refreshPending, 1) != 0) return;
+        _dispatcher.BeginInvoke(() =>
+        {
+            Interlocked.Exchange(ref _refreshPending, 0);
+            RequestRefresh();
+        });
+    }
+
+    private void RecorderChanged(object? sender, EventArgs e)
+    {
+        if (_disposed || _dispatcher.HasShutdownStarted) return;
+        _dispatcher.BeginInvoke(() => { if (!_disposed) NotifyState(); });
+    }
     private void NotifyState()
     {
         foreach (var name in new[] { nameof(ToggleLabel), nameof(Status), nameof(StatusColor), nameof(Notice) }) Changed(name);
@@ -125,7 +171,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        _disposed = true;
         _refresh.Stop();
+        _refresh.Tick -= RefreshTick;
         _recorder.StateChanged -= RecorderChanged;
+        _recorder.RecordsChanged -= RecordsChanged;
     }
 }

@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.Text;
 using SolidRecords.Core;
 
 namespace SolidRecords.Windows;
@@ -29,10 +28,14 @@ internal sealed class ObservedWindowRegistry(Action<CaptureSignal> publish)
             if ((long)handle == destroyedHandle) return true;
             NativeMethods.GetWindowThreadProcessId(handle, out var pid);
             if (!_owners.TryGetValue((int)pid, out var owner)) return true;
-            if (!NativeMethods.IsWindowVisible(handle) && !_windows.ContainsKey(handle)) return true;
-            var title = new StringBuilder(2048);
-            NativeMethods.GetWindowText(handle, title, title.Capacity);
-            current[handle] = owner with { Handle = handle, Title = title.ToString(), Url = null };
+            var candidate = WindowFilter.Inspect(handle, owner.Application);
+            var alreadyKnown = _windows.TryGetValue(handle, out var previous) &&
+                previous.ProcessId == owner.ProcessId && previous.ProcessStartTicks == owner.ProcessStartTicks;
+            // An admitted document window remains alive while minimized, hidden or on
+            // another virtual desktop. Helpers never enter the registry in the first place.
+            if (!alreadyKnown && (!candidate.IsVisible || !WindowFilter.IsUserWindow(candidate))) return true;
+            var title = string.IsNullOrWhiteSpace(candidate.Title) && alreadyKnown ? previous!.Title : candidate.Title;
+            current[handle] = owner with { Handle = handle, Title = title, Url = null };
             return true;
         }, 0);
         if (!success) throw new Win32Exception(System.Runtime.InteropServices.Marshal.GetLastWin32Error());

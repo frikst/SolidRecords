@@ -20,12 +20,17 @@ internal static class Program
     {
         try
         {
-            var directory = Path.GetFullPath(args.FirstOrDefault() ?? "artifacts/desktop-checks");
+            if (args.Contains("--inspect-history", StringComparer.Ordinal)) return HistoryDiagnostics.Run();
+            var directory = Path.GetFullPath(args.FirstOrDefault(x => !x.StartsWith("--", StringComparison.Ordinal)) ?? "artifacts/desktop-checks");
             Directory.CreateDirectory(directory);
-            CheckCaptureAsync(directory).GetAwaiter().GetResult();
-            CheckWindowRegistry();
+            CheckWindowFilter();
+            if (!args.Contains("--preview-only", StringComparer.Ordinal))
+            {
+                CheckCaptureAsync(directory).GetAwaiter().GetResult();
+                CheckWindowRegistry();
+            }
             RenderWindow(directory);
-            Console.WriteLine("PASS: Window capture without WMI, composite persistence and WPF rendering.");
+            Console.WriteLine("PASS: Requested desktop checks and WPF rendering.");
             return 0;
         }
         catch (Exception ex) { Console.Error.WriteLine(ex); return 1; }
@@ -107,20 +112,31 @@ internal static class Program
         refresh.GetAwaiter().GetResult();
         var window = new SolidRecords.App.MainWindow(vm);
         var content = (FrameworkElement)window.Content;
-        content.Measure(new Size(1188, 720));
-        content.Arrange(new Rect(0, 0, 1188, 720));
-        content.UpdateLayout();
-        var image = new RenderTargetBitmap(1188, 720, 96, 96, PixelFormats.Pbgra32);
-        var background = new DrawingVisual();
-        using (var drawing = background.RenderOpen()) drawing.DrawRectangle(window.Background, null, new Rect(0, 0, 1188, 720));
-        image.Render(background);
-        image.Render(content);
-        using (var file = File.Create(Path.Combine(directory, "main-window.png")))
+        void Render(string name, double width, double height, double scale)
         {
+            content.Measure(new Size(width, height));
+            content.Arrange(new Rect(0, 0, width, height));
+            content.UpdateLayout();
+            var image = new RenderTargetBitmap((int)(width * scale), (int)(height * scale),
+                96 * scale, 96 * scale, PixelFormats.Pbgra32);
+            var background = new DrawingVisual();
+            using (var drawing = background.RenderOpen()) drawing.DrawRectangle(window.Background, null, new Rect(0, 0, width, height));
+            image.Render(background);
+            image.Render(content);
+            using var file = File.Create(Path.Combine(directory, name));
             var encoder = new PngBitmapEncoder();
             encoder.Frames.Add(BitmapFrame.Create(image));
             encoder.Save(file);
         }
+        Render("main-window.png", 1084, 600, 1);
+        Render("main-window-150.png", 1000, 600, 1.5);
+        Render("main-window-small-150.png", 744, 380, 1.5);
+        var liveCheck = CheckLiveViewAsync(directory);
+        var liveFrame = new DispatcherFrame();
+        liveCheck.ContinueWith(_ => Dispatcher.CurrentDispatcher.BeginInvoke(() => liveFrame.Continue = false),
+            CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.FromCurrentSynchronizationContext());
+        Dispatcher.PushFrame(liveFrame);
+        liveCheck.GetAwaiter().GetResult();
         PresentationTraceSources.DataBindingSource.Flush();
         Require(string.IsNullOrWhiteSpace(bindings.ToString()), "WPF binding errors: " + bindings);
         vm.Dispose();
@@ -130,15 +146,25 @@ internal static class Program
 
     private static void CheckWindowRegistry()
     {
-        // Offscreen, nonactivating native windows exercise actual EnumWindows behavior
-        // without taking focus or putting test windows on the user's taskbar.
-        HwndSource CreateWindow(string name) => new(new HwndSourceParameters(name)
+        // Show ordinary test windows offscreen without activating them. They must have
+        // regular document-window styles to pass the production window filter.
+        HwndSource CreateWindow(string name)
+        {
+            var source = new HwndSource(new HwndSourceParameters(name)
+            {
+                PositionX = -32000, PositionY = -32000, Width = 100, Height = 50,
+                WindowStyle = 0x00CF0000
+            });
+            NativeMethods.ShowWindow(source.Handle, 4); // SW_SHOWNOACTIVATE
+            return source;
+        }
+        using var first = CreateWindow("SolidRecords check first");
+        using var second = CreateWindow("SolidRecords check second");
+        using var helper = new HwndSource(new HwndSourceParameters("SolidRecords helper menu")
         {
             PositionX = -32000, PositionY = -32000, Width = 100, Height = 50,
             WindowStyle = unchecked((int)0x90000000), ExtendedWindowStyle = 0x08000080
         });
-        using var first = CreateWindow("SolidRecords check first");
-        using var second = CreateWindow("SolidRecords check second");
         using var self = Process.GetCurrentProcess();
         var info = new WindowInfo(first.Handle, self.Id, self.ProcessName, "SolidRecords check first",
             ProcessStartTicks: self.StartTime.ToUniversalTime().Ticks);
@@ -154,13 +180,124 @@ internal static class Program
         });
         registry.ObserveForeground(info);
         Require(registry.Contains(first.Handle) && registry.Contains(second.Handle), "Native window discovery missed a window");
+        Require(!registry.Contains(helper.Handle), "A tool/menu window entered the process lifetime registry");
         first.Dispose();
         registry.Refresh();
         Require(current.IsOpen, "Process ended while another window remained open");
         second.Dispose();
         registry.Refresh();
-        Require(!current.IsOpen, "Process remained open after its last native window closed");
+        Require(!current.IsOpen, "A remaining helper kept the process open after its last document window closed");
         Console.WriteLine("Native window registry: first closure preserved process; last closure ended it.");
+    }
+
+    private static async Task CheckLiveViewAsync(string directory)
+    {
+        var store = new SqliteActivityStore(Path.Combine(directory, $"live-{Guid.NewGuid():N}.db"));
+        var source = new ManualSource();
+        var at = new DateTimeOffset(DateTime.Today.AddHours(12));
+        await using var recorder = new Recorder(store, source, new FixedClock(at));
+        using var viewModel = new MainViewModel(recorder, new DailyReportService(store), _ => Task.CompletedTask);
+        await viewModel.RefreshAsync();
+        var resets = 0;
+        viewModel.Activities.CollectionChanged += (_, e) =>
+        {
+            if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset) resets++;
+        };
+        async Task Until(Func<bool> condition)
+        {
+            var timeout = Stopwatch.StartNew();
+            while (!condition())
+            {
+                if (timeout.Elapsed > TimeSpan.FromSeconds(5)) throw new InvalidOperationException("Live view did not update automatically");
+                await Task.Delay(25);
+            }
+        }
+        await recorder.StartAsync();
+        var window = new WindowInfo(101, 42, "browser", "Live tab", "https://example.com/one");
+        source.Publish(new(SignalKind.SessionActive, at));
+        source.Publish(new(SignalKind.ForegroundChanged, at, window with { Url = null }));
+        source.Publish(new(SignalKind.Heartbeat, at.AddSeconds(1)));
+        await Until(() => viewModel.Activities.Count == 1);
+        var existing = viewModel.Activities[0];
+        Require(existing.End == "-" && existing.Duration == "-", "An open activity displays a final end or duration");
+        source.Publish(new(SignalKind.ForegroundChanged, at.AddMilliseconds(1500), window));
+        await Until(() => existing.Url == window.Url);
+        Require(viewModel.Activities.Count == 1 && ReferenceEquals(existing, viewModel.Activities[0]),
+            "Late URL resolution created a duplicate row");
+        source.Publish(new(SignalKind.Heartbeat, at.AddSeconds(2)));
+        await Until(() => existing.Interval.Duration == TimeSpan.FromSeconds(2));
+        Require(ReferenceEquals(existing, viewModel.Activities[0]), "Live duration replaced an existing row");
+        source.Publish(new(SignalKind.ForegroundChanged, at.AddSeconds(3), window with { Url = "https://example.com/two" }));
+        source.Publish(new(SignalKind.Heartbeat, at.AddSeconds(4)));
+        await Until(() => viewModel.Activities.Count == 2);
+        Require(viewModel.Activities[0].Url.EndsWith("/two", StringComparison.Ordinal), "A new URL did not appear live");
+        Require(ReferenceEquals(existing, viewModel.Activities[1]), "Adding a URL replaced the previous row");
+        Require(existing.End != "-" && existing.Duration != "-", "A closed activity did not display final times");
+        Require(viewModel.Activities[0].End == "-" && viewModel.Activities[0].Duration == "-",
+            "The new open URL displays a final end or duration");
+        await recorder.StopAsync();
+        await Until(() => viewModel.Activities.All(row => !row.Interval.IsOpen));
+        viewModel.SelectedDate = DateTime.Today.AddDays(-1);
+        await Until(() => viewModel.Activities.Count == 0);
+        viewModel.SelectedDate = DateTime.Today;
+        await Until(() => viewModel.Activities.Count == 2);
+        Require(resets == 0, "Live updates reset the collection and lost row selection");
+        Console.WriteLine("Live view: automatic insert, duration update, URL change, recording stop and date navigation passed without collection resets.");
+    }
+
+    private static void CheckWindowFilter()
+    {
+        var document = new WindowCandidate("editor", "Document", "EditorWindow", 0, true, true, false);
+        var ignored = new[]
+        {
+            document with { ClassName = "#32768" },
+            document with { Application = "SolidRecords.App", ClassName = "WindowsForms10.Window", ExtendedStyle = 0x80 },
+            document with { ExtendedStyle = 0x08000000 },
+            document with { Application = "explorer", ClassName = "Shell_TrayWnd", Title = "Taskbar" },
+            document with { Application = "explorer", ClassName = "MultitaskingViewFrame", Title = "Task switching" },
+            document with { Application = "explorer", ClassName = "Windows.UI.Core.CoreWindow" },
+            document with { Application = "explorer", ClassName = "WorkerW", Title = "" },
+            document with { Application = "LockApp", Title = "Windows lock screen" },
+            document with { Application = "LogonUI", Title = "Windows sign-in" },
+            document with { Application = "SearchHost", Title = "Search" },
+            document with { Title = "" }, document with { IsRoot = false },
+            document with { IsVisible = false }, document with { IsCloaked = true }
+        };
+        foreach (var candidate in ignored)
+            Require(!WindowFilter.CanTrackForeground(candidate), "Window filter admitted shell/helper UI: " + candidate);
+        var accepted = new[]
+        {
+            document,
+            document with { Application = "explorer", ClassName = "CabinetWClass", Title = "Documents" },
+            document with { Application = "explorer", ClassName = "#32770", Title = "Copying files" },
+            document with { Application = "explorer", ClassName = "OperationStatusWindow", Title = "Moving files" },
+            document with { Application = "ApplicationFrameHost", ClassName = "ApplicationFrameWindow", Title = "Calculator" },
+            document with { ClassName = "#32770", Title = "Save as" },
+            document with { Application = "SolidRecords.App", ClassName = "HwndWrapper", Title = "SolidRecords · Záznam práce" },
+            document with { Application = "chrome", ClassName = "Chrome_WidgetWin_1", Title = "Web page" }
+        };
+        foreach (var candidate in accepted)
+            Require(WindowFilter.CanTrackForeground(candidate), "Window filter rejected a document/dialog: " + candidate);
+        Require(WindowFilter.IsUserWindow(document with { IsCloaked = true }), "A window on another desktop lost its lifetime");
+        Console.WriteLine($"Window filter: {ignored.Length} shell/helper cases excluded; {accepted.Length} document/dialog cases preserved.");
+    }
+
+    private sealed class FixedClock(DateTimeOffset at) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => at.ToUniversalTime();
+    }
+
+    private sealed class ManualSource : IActivitySource
+    {
+        private Action<CaptureSignal>? _publish;
+        public void Publish(CaptureSignal signal) => _publish!(signal);
+        public Task StartAsync(Action<CaptureSignal> publish, CancellationToken cancellationToken = default)
+        {
+            _publish = publish;
+            return Task.CompletedTask;
+        }
+        public Task StopAsync() => Task.CompletedTask;
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
     private static void Require(bool condition, string message)

@@ -9,6 +9,12 @@ public partial class MainWindow : Window
     public MainWindow(MainViewModel viewModel)
     {
         InitializeComponent();
+        // WPF uses logical units; fit the initial size to the available desktop at its DPI scale.
+        var workArea = SystemParameters.WorkArea;
+        MinWidth = System.Math.Min(MinWidth, workArea.Width);
+        MinHeight = System.Math.Min(MinHeight, workArea.Height);
+        Width = System.Math.Min(Width, workArea.Width);
+        Height = System.Math.Min(Height, workArea.Height);
         DataContext = viewModel;
     }
 

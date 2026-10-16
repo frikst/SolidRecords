@@ -111,6 +111,17 @@ public sealed class RecordingEngine
                 if (_current?.Window == signal.Window) break;
                 var sameWindow = _current is not null && signal.Window is not null &&
                     _current.Window.Handle == signal.Window.Handle && Key(_current.Window) == Key(signal.Window);
+                // The address bar is read asynchronously after the window title. Its first
+                // successful result enriches the current visit instead of splitting it.
+                if (sameWindow && _current!.Window.Title == signal.Window!.Title &&
+                    string.IsNullOrEmpty(_current.Window.Url) && !string.IsNullOrEmpty(signal.Window.Url))
+                {
+                    _current = _current with { Window = signal.Window, End = at };
+                    Observe(signal.Window, false);
+                    intervals.Add(_current);
+                    Emit(EventKind.DocumentChanged, signal.Window, "UrlResolved");
+                    break;
+                }
                 CloseActivity(sameWindow);
                 if (signal.Window is not null)
                 {

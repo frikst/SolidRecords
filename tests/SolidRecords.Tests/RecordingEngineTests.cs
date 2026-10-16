@@ -160,6 +160,35 @@ public sealed class RecordingEngineTests
     }
 
     [Fact]
+    public void LateUrlResolutionEnrichesExistingActivityWithoutChangingItsStartOrIdentity()
+    {
+        var engine = Start();
+        var first = Assert.Single(engine.Apply(new(SignalKind.ForegroundChanged, Origin, Browser with { Url = null })).Intervals);
+        engine.Apply(new(SignalKind.Heartbeat, Origin.AddSeconds(1)));
+        var resolved = engine.Apply(new(SignalKind.ForegroundChanged, Origin.AddSeconds(2), Browser));
+        var enriched = Assert.Single(resolved.Intervals);
+        Assert.Equal(first.Id, enriched.Id);
+        Assert.Equal(first.Start, enriched.Start);
+        Assert.Equal(first.WindowActivityId, enriched.WindowActivityId);
+        Assert.Equal(Browser.Url, enriched.Window.Url);
+        Assert.True(enriched.IsOpen);
+        Assert.DoesNotContain(resolved.Events, e => e.Kind == EventKind.WindowDeactivated);
+    }
+
+    [Theory]
+    [InlineData(100, "Another document")]
+    [InlineData(101, "Document A")]
+    public void UrlResolutionCannotMergeDifferentDocumentsOrWindows(long handle, string title)
+    {
+        var engine = Start();
+        var first = Assert.Single(engine.Apply(new(SignalKind.ForegroundChanged, Origin, Browser with { Url = null })).Intervals);
+        var next = engine.Apply(new(SignalKind.ForegroundChanged, Origin.AddSeconds(1), Browser with { Handle = handle, Title = title }));
+        Assert.Equal(2, next.Intervals.Count);
+        Assert.False(next.Intervals[0].IsOpen);
+        Assert.NotEqual(first.Id, next.Intervals[1].Id);
+    }
+
+    [Fact]
     public void ReusedPidDoesNotMergeDistinctProcessInstances()
     {
         var engine = Start();
