@@ -21,7 +21,7 @@ git diff --check
 | Kontrola | Čo overuje |
 | --- | --- |
 | `SolidRecords.Tests` | Stavový automat, životnosti rodičov, PID/URL zmeny, Recorder start/stop a chyby, SQLite perzistenciu a migrácie, prahy, zlúčenie/rozdelenie úsekov a hranice dňa. |
-| DesktopChecks `--preview-only` | Filter okien, živé aktualizácie WPF zoznamu vrátane predvolených časových pravidiel, vykreslenie `artifacts/desktop-checks/main-window.png` a binding chyby. Nespúšťa natívny zber ani test životnosti skutočných okien. |
+| DesktopChecks `--preview-only` | Filter okien, živé aktualizácie WPF zoznamu vrátane predvolených časových pravidiel, vykreslenie svetlej a tmavej témy do `artifacts/desktop-checks/main-window*.png` pri 100 % a 150 % mierke, prepnutie témy na existujúcom okne so zachovaním výberu a binding chyby. Nespúšťa natívny zber ani test životnosti skutočných okien. |
 | DesktopChecks bez prepínača | Navyše krátky reálny zber v aktuálnej relácii a test posledného pracovného okna procesu s pomocným oknom. Používa izolované DB, neotvára používateľskú históriu. |
 | DesktopChecks `--inspect-history` | Samostatná read-only diagnostika používateľskej DB; podrobnosti v [storage.md](storage.md). Nie je súčasťou bežného testovania. |
 
@@ -33,7 +33,7 @@ dotnet run --project tests/SolidRecords.DesktopChecks -c Release --no-restore
 
 Náhľad nespúšťa reálne `App.OnStartup`, takže neinicializuje používateľskú DB ani single-instance mechanizmus. Vygenerovaný obrázok vizuálne prezri pri zmene layoutu; render nenahrádza kontrolu skutočného 150 % DPI. Testy nevytvárajú dôkaz podpory všetkých verzií prehliadačov ani všetkých Windows shell okien.
 
-Na ručné overenie titulkového riadka použi `--preview-only --interactive-preview`: po kontrolách otvorí okno s ukážkovými dátami a prázdnym zdrojom zberu. Over presúvanie, dvojklik na voľnú plochu hlavičky, zmenu veľkosti, minimalizáciu, maximalizáciu a kalendár. Konzola vypíše skutočné DPI okna; tento režim zatvorením ukončí náhľad.
+Na ručné overenie titulkového riadka použi `--preview-only --interactive-preview`: po kontrolách otvorí okno s ukážkovými dátami a prázdnym zdrojom zberu. Over presúvanie, dvojklik na voľnú plochu hlavičky, zmenu veľkosti, minimalizáciu, maximalizáciu a kalendár. Konzola vypíše skutočné DPI okna; tento režim zatvorením ukončí náhľad. Náhľad sleduje systémovú tému: v Nastaveniach Windows → Prispôsobenie → Farby prepni režim aplikácií medzi svetlým a tmavým, aj pri skrytom okne. Over text, výber riadka, vyhľadávanie, otvorený kalendár, tooltipy a rám. Menu systémovej lišty over v bežiacej aplikácii. Prepínač `--preview-only --search-preview` krátko zobrazí izolované okno a vytvorí aj náhľady vyhľadávania so skutočným klávesovým fokusom v oboch témach (`main-window-search-*-150.png`); konzola vypíše DPI okna.
 
 Ručne podľa zmeny over: systray a skrytie/opätovné otvorenie GUI, start/stop z oboch miest, prepínanie okien a kariet, zamknutie/odomknutie a prestávku v časovej osi, uspatie/RDP, posledné okno procesu, dostupné prehliadače, navigáciu medzi dňami a rozloženie pri 150 % DPI. Pri testovaní prahov drž návštevu aspoň 15 s; kratšia aktivita má chýbať.
 

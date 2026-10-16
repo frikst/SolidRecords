@@ -14,6 +14,38 @@ public sealed class TimelineControl : FrameworkElement
         typeof(IReadOnlyList<ActivityInterval>), typeof(TimelineControl),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
 
+    public static readonly DependencyProperty TrackBrushProperty = DependencyProperty.Register(nameof(TrackBrush),
+        typeof(Brush), typeof(TimelineControl), new FrameworkPropertyMetadata(Brushes.Transparent, FrameworkPropertyMetadataOptions.AffectsRender));
+    public static readonly DependencyProperty TickBrushProperty = DependencyProperty.Register(nameof(TickBrush),
+        typeof(Brush), typeof(TimelineControl), new FrameworkPropertyMetadata(Brushes.Gray, FrameworkPropertyMetadataOptions.AffectsRender));
+    public static readonly DependencyProperty LabelBrushProperty = DependencyProperty.Register(nameof(LabelBrush),
+        typeof(Brush), typeof(TimelineControl), new FrameworkPropertyMetadata(Brushes.Gray, FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public TimelineControl()
+    {
+        SetResourceReference(TrackBrushProperty, "ControlAltFillColorTertiaryBrush");
+        SetResourceReference(TickBrushProperty, "ControlStrokeColorSecondaryBrush");
+        SetResourceReference(LabelBrushProperty, "TextFillColorSecondaryBrush");
+    }
+
+    public Brush TrackBrush
+    {
+        get => (Brush)GetValue(TrackBrushProperty);
+        set => SetValue(TrackBrushProperty, value);
+    }
+
+    public Brush TickBrush
+    {
+        get => (Brush)GetValue(TickBrushProperty);
+        set => SetValue(TickBrushProperty, value);
+    }
+
+    public Brush LabelBrush
+    {
+        get => (Brush)GetValue(LabelBrushProperty);
+        set => SetValue(LabelBrushProperty, value);
+    }
+
     public IReadOnlyList<ActivityInterval>? Items
     {
         get => (IReadOnlyList<ActivityInterval>?)GetValue(ItemsProperty);
@@ -33,7 +65,7 @@ public sealed class TimelineControl : FrameworkElement
         var to = end.AddHours(1).AddMinutes(-end.Minute).AddSeconds(-end.Second).AddMilliseconds(-end.Millisecond);
         if (to - from < TimeSpan.FromHours(2)) to = from.AddHours(2);
         var seconds = (to - from).TotalSeconds;
-        drawing.DrawRoundedRectangle(new SolidColorBrush(Color.FromRgb(242, 245, 250)), null, new Rect(0, 2, width, 16), 3, 3);
+        drawing.DrawRoundedRectangle(TrackBrush, null, new Rect(0, 2, width, 16), 3, 3);
         foreach (var item in items)
         foreach (var span in ActivityLogPolicy.GetSpans(item))
         {
@@ -47,10 +79,10 @@ public sealed class TimelineControl : FrameworkElement
         for (var tick = from; tick <= to; tick = tick.AddHours(step))
         {
             var x = (tick - from).TotalSeconds / seconds * width;
-            drawing.DrawLine(new Pen(new SolidColorBrush(Color.FromRgb(221, 228, 238)), 1), new(x, 20), new(x, 24));
+            drawing.DrawLine(new Pen(TickBrush, 1), new(x, 20), new(x, 24));
             var text = new FormattedText(tick.ToString("HH:mm"), CultureInfo.CurrentCulture,
                 FlowDirection.LeftToRight, new Typeface("Segoe UI"), 10,
-                new SolidColorBrush(Color.FromRgb(104, 117, 138)), VisualTreeHelper.GetDpi(this).PixelsPerDip);
+                LabelBrush, VisualTreeHelper.GetDpi(this).PixelsPerDip);
             drawing.DrawText(text, new(Math.Clamp(x - text.Width / 2, 0, Math.Max(0, width - text.Width)), 27));
         }
     }

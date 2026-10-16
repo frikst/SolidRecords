@@ -29,7 +29,8 @@ internal static class Program
                 CheckCaptureAsync(directory).GetAwaiter().GetResult();
                 CheckWindowRegistry();
             }
-            RenderWindow(directory, args.Contains("--interactive-preview", StringComparer.Ordinal));
+            RenderWindow(directory, args.Contains("--interactive-preview", StringComparer.Ordinal),
+                args.Contains("--search-preview", StringComparer.Ordinal));
             Console.WriteLine("PASS: Requested desktop checks and WPF rendering.");
             return 0;
         }
@@ -65,14 +66,15 @@ internal static class Program
         await recorder.StopAsync();
     }
 
-    private static void RenderWindow(string directory, bool interactive)
+    private static void RenderWindow(string directory, bool interactive, bool searchPreview)
     {
         var bindings = new StringWriter();
         PresentationTraceSources.DataBindingSource.Listeners.Add(new TextWriterTraceListener(bindings));
         PresentationTraceSources.DataBindingSource.Switch.Level = SourceLevels.Error;
         // Load only the view resources. Never run the real application's startup,
         // single-instance registration or user database initialization from a preview.
-        var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+#pragma warning disable WPF0001 // Exercise the same built-in Fluent theme mode as App.xaml.
+        var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown, ThemeMode = ThemeMode.Light };
         app.Resources.MergedDictionaries.Add(new ResourceDictionary
         {
             Source = new Uri("pack://application:,,,/SolidRecords.App;component/Resources/Styles.xaml")
@@ -128,9 +130,62 @@ internal static class Program
             encoder.Frames.Add(BitmapFrame.Create(image));
             encoder.Save(file);
         }
+        void RenderFocusedSearch(string name)
+        {
+            if (!searchPreview) return;
+            window.Show();
+            window.Activate();
+            var search = Descendants<System.Windows.Controls.TextBox>(content)
+                .Single(x => System.Windows.Automation.AutomationProperties.GetName(x) == "Hľadať aktivity");
+            search.Focus();
+            window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+            Require(search.IsKeyboardFocusWithin, "Search preview did not receive keyboard focus");
+            var bounds = new Rect(0, 0, search.ActualWidth, search.ActualHeight);
+            var visual = new DrawingVisual();
+            using (var drawing = visual.RenderOpen())
+            {
+                drawing.DrawRectangle((Brush)app.FindResource("ControlSolidFillColorDefaultBrush"), null, bounds);
+                drawing.DrawRectangle(new VisualBrush(search) { Stretch = Stretch.Fill }, null, bounds);
+            }
+            var image = new RenderTargetBitmap((int)Math.Ceiling(bounds.Width * 1.5),
+                (int)Math.Ceiling(bounds.Height * 1.5), 144, 144, PixelFormats.Pbgra32);
+            image.Render(visual);
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(image));
+            using var file = File.Create(Path.Combine(directory, name));
+            encoder.Save(file);
+            Console.WriteLine($"Focused search preview DPI: {VisualTreeHelper.GetDpi(window).PixelsPerInchX}");
+        }
         Render("main-window.png", 1084, 600, 1);
         Render("main-window-150.png", 1000, 600, 1.5);
         Render("main-window-small-150.png", 744, 380, 1.5);
+        var timeline = Descendants<TimelineControl>(content).Single();
+        var grid = Descendants<System.Windows.Controls.DataGrid>(content).Single();
+        grid.SelectedIndex = 0;
+        var selected = grid.SelectedItem;
+        var lightBackground = ((SolidColorBrush)window.Background).Color;
+        var lightLabel = ((SolidColorBrush)timeline.LabelBrush).Color;
+        app.ThemeMode = ThemeMode.Dark;
+        Render("main-window-dark.png", 1084, 600, 1);
+        Render("main-window-dark-150.png", 1000, 600, 1.5);
+        Render("main-window-dark-small-150.png", 744, 380, 1.5);
+        Require(((SolidColorBrush)window.Background).Color != lightBackground, "Theme switch did not update the window background");
+        Require(((SolidColorBrush)timeline.LabelBrush).Color != lightLabel, "Theme switch did not update timeline labels");
+        Require(ReferenceEquals(selected, grid.SelectedItem), "Theme switch lost row selection");
+        app.ThemeMode = ThemeMode.Light;
+        Render("main-window-light-restored.png", 1084, 600, 1);
+        Require(((SolidColorBrush)window.Background).Color == lightBackground, "Switching back did not restore the light theme");
+        Require(((SolidColorBrush)timeline.LabelBrush).Color == lightLabel, "Switching back did not restore timeline labels");
+        if (searchPreview)
+        {
+            RenderFocusedSearch("main-window-search-light-150.png");
+            app.ThemeMode = ThemeMode.Dark;
+            RenderFocusedSearch("main-window-search-dark-150.png");
+            window.Hide();
+        }
+        app.ThemeMode = ThemeMode.System;
+#pragma warning restore WPF0001
+        Console.WriteLine("Themes: light/dark/light switched on the existing window; timeline colors and selection verified; 100% and 150% previews rendered.");
         var liveCheck = CheckLiveViewAsync(directory);
         var liveFrame = new DispatcherFrame();
         liveCheck.ContinueWith(_ => Dispatcher.CurrentDispatcher.BeginInvoke(() => liveFrame.Continue = false),
@@ -149,6 +204,16 @@ internal static class Program
         vm.Dispose();
         Task.Run(async () => await recorder.DisposeAsync()).GetAwaiter().GetResult();
         Console.WriteLine("WPF preview: " + Path.Combine(directory, "main-window.png"));
+    }
+
+    private static IEnumerable<T> Descendants<T>(DependencyObject parent) where T : DependencyObject
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T match) yield return match;
+            foreach (var descendant in Descendants<T>(child)) yield return descendant;
+        }
     }
 
     private static void CheckWindowRegistry()

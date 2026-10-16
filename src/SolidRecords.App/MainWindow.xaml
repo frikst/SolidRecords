@@ -4,7 +4,7 @@
         xmlns:p="clr-namespace:SolidRecords.App.Presentation"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="SolidRecords · Záznam práce" Width="1100" Height="650" MinWidth="760" MinHeight="420"
-        WindowStartupLocation="CenterScreen" Background="#F5F7FB" Foreground="#202D42" Icon="Assets/SolidRecords.ico"
+        WindowStartupLocation="CenterScreen" Background="{DynamicResource ApplicationBackgroundBrush}" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Icon="Assets/SolidRecords.ico"
         FontFamily="Segoe UI" FontSize="12" UseLayoutRounding="True">
   <shell:WindowChrome.WindowChrome>
     <shell:WindowChrome CaptionHeight="48" ResizeBorderThickness="6" GlassFrameThickness="1"
@@ -17,7 +17,7 @@
       <Setter Property="Margin" Value="0" />
       <Setter Property="Padding" Value="0" />
       <Setter Property="Background" Value="Transparent" />
-      <Setter Property="Foreground" Value="#526077" />
+      <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
       <Setter Property="shell:WindowChrome.IsHitTestVisibleInChrome" Value="True" />
       <Setter Property="Template">
         <Setter.Value>
@@ -27,10 +27,10 @@
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="Surface" Property="Background" Value="#E8EDF5" />
+                <Setter TargetName="Surface" Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
               </Trigger>
               <Trigger Property="IsPressed" Value="True">
-                <Setter TargetName="Surface" Property="Background" Value="#DCE3EE" />
+                <Setter TargetName="Surface" Property="Background" Value="{DynamicResource ControlStrokeColorSecondaryBrush}" />
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -83,7 +83,7 @@
               </Grid>
               <Button Grid.Column="1" Content="{Binding ToggleLabel}" Command="{Binding ToggleRecordingCommand}"
                       shell:WindowChrome.IsHitTestVisibleInChrome="True" VerticalAlignment="Center"
-                      Background="Transparent" Foreground="{StaticResource Muted}" BorderBrush="#DCE3EE" Margin="0" />
+                      Background="Transparent" Foreground="{DynamicResource TextFillColorSecondaryBrush}" BorderBrush="{DynamicResource ControlStrokeColorSecondaryBrush}" Margin="0" />
             </Grid>
             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0"
                         shell:WindowChrome.IsHitTestVisibleInChrome="True">
@@ -126,43 +126,39 @@
 
         <UniformGrid Grid.Row="1" Columns="4" Margin="0,0,12,8">
           <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-            <TextBlock Text="Prvá aktivita" Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,6,0" />
+            <TextBlock Text="Prvá aktivita" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
             <TextBlock Text="{Binding Started}" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center" />
           </StackPanel>
           <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-            <TextBlock Text="Posledná aktivita" Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,6,0" />
+            <TextBlock Text="Posledná aktivita" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
             <TextBlock Text="{Binding Finished}" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center" />
           </StackPanel>
           <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-            <TextBlock Text="Aktívny čas" Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,6,0" />
+            <TextBlock Text="Aktívny čas" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
             <TextBlock Text="{Binding TotalDuration}" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center" />
           </StackPanel>
           <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-            <TextBlock Text="Aktivity" Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,6,0" />
+            <TextBlock Text="Aktivity" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
             <TextBlock Text="{Binding Count}" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center" />
           </StackPanel>
         </UniformGrid>
       </Grid>
     </Grid>
 
-    <Border Grid.Row="1" Background="White" CornerRadius="5" BorderBrush="#E4EAF3" BorderThickness="1" Padding="8,4" Margin="8,0,8,6">
+    <Border Grid.Row="1" Background="{DynamicResource ControlSolidFillColorDefaultBrush}" CornerRadius="5" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" Padding="8,4" Margin="8,0,8,6">
       <StackPanel>
-        <TextBlock Text="Časová os" FontSize="11" Foreground="{StaticResource Muted}" />
+        <TextBlock Text="Časová os" FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
         <p:TimelineControl Items="{Binding Timeline}" Height="44" />
       </StackPanel>
     </Border>
 
-    <Border Grid.Row="2" Background="White" CornerRadius="5" BorderBrush="#E4EAF3" BorderThickness="1" Margin="8,0">
+    <Border Grid.Row="2" Background="{DynamicResource ControlSolidFillColorDefaultBrush}" CornerRadius="5" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" Margin="8,0">
       <Grid>
         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
         <DockPanel Margin="6,5">
-          <Border BorderBrush="#DCE3EE" BorderThickness="1" CornerRadius="4" Padding="6,3" HorizontalAlignment="Left">
-            <DockPanel>
-              <TextBlock Text="⌕" Foreground="{StaticResource Muted}" Margin="0,0,6,0" VerticalAlignment="Center" />
-              <TextBox Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}" BorderThickness="0" Width="250"
-                       VerticalContentAlignment="Center" ToolTip="Hľadať aplikáciu, názov okna alebo URL" AutomationProperties.Name="Hľadať aktivity" />
-            </DockPanel>
-          </Border>
+          <TextBox Style="{StaticResource SearchTextBox}" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}"
+                   Width="280" HorizontalAlignment="Left" ToolTip="Hľadať aplikáciu, názov okna alebo URL"
+                   AutomationProperties.Name="Hľadať aktivity" />
         </DockPanel>
         <Grid Grid.Row="1">
           <DataGrid ItemsSource="{Binding Activities}">
@@ -177,7 +173,7 @@
             </DataGrid.Columns>
           </DataGrid>
           <TextBlock Text="Žiadne aktivity pre vybraný deň alebo vyhľadávanie." HorizontalAlignment="Center" VerticalAlignment="Center"
-                     Foreground="{StaticResource Muted}" IsHitTestVisible="False">
+                     Foreground="{DynamicResource TextFillColorSecondaryBrush}" IsHitTestVisible="False">
             <TextBlock.Style>
               <Style TargetType="TextBlock">
                 <Setter Property="Visibility" Value="Collapsed" />
@@ -191,8 +187,8 @@
 
     <Grid Grid.Row="3" Margin="10,4,10,8">
       <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-      <TextBlock Text="{Binding Details}" Foreground="{StaticResource Muted}" FontSize="10" />
-      <TextBlock Grid.Column="1" Text="{Binding Notice}" Foreground="{StaticResource Muted}" FontSize="10" Margin="12,0,0,0"
+      <TextBlock Text="{Binding Details}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="10" />
+      <TextBlock Grid.Column="1" Text="{Binding Notice}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="10" Margin="12,0,0,0"
                  TextTrimming="CharacterEllipsis" HorizontalAlignment="Right" ToolTip="{Binding Notice}" />
     </Grid>
   </Grid>

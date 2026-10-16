@@ -31,3 +31,7 @@ WindowsActivitySource → CaptureSignal → Recorder (Channel, jeden reader)
 `App` vytvorí jeden store, Recorder, report service, view model, hlavné okno a systray. Recorder aj report dostanú spoločné `ActivityTrackingOptions`. Bez `--show` zostane aplikácia v systray. Zatvorenie okna ho skryje; ukončenie cez systray uvoľní view model, dopíše Recorder a zavrie aplikáciu.
 
 Globálny mutex podľa používateľského SID povoľuje jednu inštanciu naprieč reláciami; druhé spustenie signalizuje otvorenie existujúceho okna cez EventWaitHandle. `settings.json` uchováva iba `RecordOnLaunch`, predvolene true. Spúšťanie po prihlásení spravuje `StartupRegistration` cez HKCU Run pre aktuálnu cestu aplikácie.
+
+## Vzhľad
+
+`App.xaml` nastavuje WPF Fluent `ThemeMode="System"`, ktorý sleduje režim aplikácií vo Windows aj počas behu. Vlastné štýly a hlavné okno používajú `DynamicResource` na štetce Fluent; `TimelineControl` ich viaže cez dependency properties s `AffectsRender`, aby sa pri prepnutí prekreslil. Natívne WPF ovládacie prvky vrátane kalendára a posuvníkov preberajú tému Fluent. WinForms menu systémovej lišty pri každom otvorení preberá aktuálne štetce Fluent cez vlastný `ProfessionalColorTable`, aj po zmene témy pri skrytom okne. Vyhľadávanie používa vlastnú šablónu `SearchTextBox` so spoločným rámom pre ikonu a text; klávesový fokus zvýrazní celý rám. Voľba témy sa neukladá do nastavení.
