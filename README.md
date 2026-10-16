@@ -22,30 +22,22 @@ Záznam sa spúšťa a zastavuje tlačidlom v okne alebo položkou kontextového
 - Aktivovanie a deaktivovanie okna, zmena názvu okna a zmena dostupnej URL.
 - Kompozitná evidencia proces → okná → aktívne úseky okna alebo URL. GUI zobrazuje plochý zoznam listových aktivít s PID, názvom okna, URL a časmi. Udalosti sa v GUI nezobrazujú.
 - Denná časová os s farbami aplikácií, denný súčet času v aktívnych oknách, prvá a posledná aktivita.
-- Výber dňa a pôvodné textové vyhľadávanie podľa aplikácie, dokumentu alebo URL. Okno je živé: po zápise zmien sa aktualizuje zoznam, súhrn aj časová os. Otvorená aktivita má pri konci a trvaní pomlčku; hodnoty sa zobrazia až po jej ukončení. Denný súčet a časová os sa priebežne aktualizujú aj počas aktivity. Zmeny upravujú existujúce riadky bez resetovania zoznamu. Tlačidlo na manuálne obnovenie nie je potrebné. Ďalšie filtre zatiaľ nie sú pridané.
+- Výber dňa a textové vyhľadávanie podľa aplikácie, dokumentu alebo URL. Okno je živé: po zápise zmien sa aktualizuje zoznam, súhrn aj časová os. Otvorená aktivita má pri konci a trvaní pomlčku; hodnoty sa zobrazia až po jej ukončení. Denný súčet a časová os sa priebežne aktualizujú aj počas aktivity. Tlačidlo na manuálne obnovenie nie je potrebné. Ďalšie filtre zatiaľ nie sú pridané.
 - Žiadny skupinový pohľad, zaškrtávacie políčka ani pridávanie, zlučovanie a mazanie položiek timetrackingu.
 
 Súčet sa počíta výhradne z listových aktivít: v každom okamihu sa započíta aktívne okno alebo jeho aktívna URL, nikdy oba súčasne. Životnosť procesu a otvoreného okna sa nesčítava. Aplikácia na pozadí, minimalizované okno a čas medzi opakovanými aktiváciami nepridávajú pracovný čas. Nie je to detekcia nečinnosti podľa klávesnice a myši. Zamknutie, odpojenie a uspatie aktívny úsek uzatvoria; rodičovské záznamy môžu zostať otvorené. Intervaly sa v dennom prehľade orežú na miestnu polnoc vrátane prechodov letného času. Vyhľadávanie filtruje zoznam; denný súčet a časová os zobrazujú celý deň.
 
 Aktivita kratšia než **15 sekúnd** sa do pracovného logu neuloží a nezobrazí. Otvorená aktivita sa objaví až po dosiahnutí tejto hranice, so zachovaním pôvodného začiatku. Každý samostatný aktívny úsek musí hranicu dosiahnuť; viac krátkych návštev sa nesčítava na splnenie minima. Ak po vyradení krátkych aktivít zostanú dve totožné aktivity priamo po sebe a medzera medzi nimi je **menšia než 15 sekúnd**, uložia sa ako jedna aktivita. Presne 15-sekundová aktivita sa prijme, presne 15-sekundová medzera sa nezlúči. Identita zahŕňa záznam procesu a okna, názov dokumentu aj URL; dve rôzne inštancie programu sa nezlúčia.
 
-Zlúčenie zachová skutočné aktívne úseky: 20 s práce + 5 s prestávka + 20 s práce = jeden záznam s trvaním 40 s. Časová os naďalej zobrazuje prestávku. Rovnaké pravidlá sa používajú aj pri zobrazení pôvodnej histórie bez jej hromadného mazania. Minima sa posudzujú pred orezaním na deň, aby sa nestratila platná aktivita zasahujúca cez polnoc. Predvolené hodnoty sú na jednom mieste v `SolidRecords.Core/ActivityTrackingOptions.cs`; minimum a maximálna medzera sú samostatné parametre pripravené na budúcu konfiguráciu. Nastavenie cez GUI zatiaľ nie je pridané.
+Zlúčenie zachová skutočné aktívne úseky: 20 s práce + 5 s prestávka + 20 s práce = jeden záznam s trvaním 40 s. Časová os naďalej zobrazuje prestávku. Rovnaké pravidlá sa používajú aj pri zobrazení pôvodnej histórie bez jej hromadného mazania. Minima sa posudzujú pred orezaním na deň, aby sa nestratila platná aktivita zasahujúca cez polnoc. Oba prahy sú zatiaľ pevné; nastavenie cez GUI nie je pridané.
 
-## Zber vo Windows a jeho hranice
+## Hranice zberu
 
-`SetWinEventHook` sleduje zmenu okna v popredí a názvov okien. Skrytá natívna správa cez vlastný STA message loop prijíma `WM_WTSSESSION_CHANGE` a správy o napájaní. Raz za sekundu sa stav overí aj kontrolným čítaním. Zber funguje aj pri zatvorenom hlavnom okne.
+Aplikácia funguje bez administrátorských práv. Sleduje iba reláciu, v ktorej beží, a iba počas zapnutého záznamu. Druhé spustenie otvorí okno už bežiacej inštancie. Systémové a pomocné okná (menu, taskbar, prepínač úloh, zamykacia obrazovka) sa vynechávajú; čas v nich tvorí prestávku.
 
-Pred zaznamenaním okna sa kontroluje jeho natívna trieda a štýl. Kontextové menu, tooltipy, taskbar, plocha, prepínač úloh, prihlasovacia a zamykacia obrazovka, pomocné okná s `WS_EX_TOOLWINDOW` / `WS_EX_NOACTIVATE`, vnorené okná, okná bez názvu a neviditeľné či cloaked okná sa do aktivít nezaraďujú. Pri procese `explorer` sa pripúšťajú okná priečinkov a bežné dialógy operácií so súbormi; celý proces sa nevylučuje. Štandardné dialógy ako Uložiť ako aj bežné UWP aplikácie zostávajú povolené. Ignorované okno uzatvorí doterajšiu aktívnu položku a vytvorí prestávku, nepridáva svoj čas pôvodnej aplikácii. Pomocné okná sa nezaraďujú ani medzi okná udržiavajúce životnosť procesu. Už evidované pracovné okno zostáva otvorené pri minimalizovaní, skrytí alebo presune na inú virtuálnu plochu.
+URL sa zisťuje približne raz za sekundu z adresného riadka Chrome, Edge, Firefoxu, Brave, Opery a Vivaldi. Dostupnosť závisí od verzie, jazyka, accessibility podpory a oprávnení. Pri nedostupnej URL zostane názov okna. Počas písania do adresného riadka sa jeho obsah neukladá. Veľmi krátke návštevy nemusia byť zachytené; nejde o úplnú históriu prehliadača.
 
-Procesy sa priamo nemonitorujú: aplikácia nepoužíva WMI, zoznam procesov ani kontrolu ich ukončenia. Keď sa okno prvýkrát dostane do popredia, založí sa rodičovský proces a cez `EnumWindows` sa zistia jeho ďalšie viditeľné okná. Okná tohto procesu sa ďalej overujú raz za sekundu a zánik okna sa zisťuje aj cez `EVENT_OBJECT_DESTROY`. Minimalizované okná zostávajú evidované. Už evidované skryté okno zostáva otvorené až do zániku jeho HWND; nikdy nezobrazené pomocné okná sa nezaraďujú. Po zatvorení posledného evidovaného okna sa ukončí rodičovský proces. Nové okno na pozadí, ktoré vznikne a zanikne medzi kontrolami bez aktivácie, môže uniknúť detekcii.
-
-Ide o pozorovanú životnosť podľa okien, nie skutočný čas štartu a ukončenia OS procesu. Samostatné inštancie sa rozlišujú podľa PID a dostupného času vytvorenia, čítaného iba ako identifikačný údaj procesu aktívneho okna. Pri pauze, ukončení aplikácie alebo obnove po páde sa uzatvorí hranica pozorovania. Ďalšie spustenie záznamu založí nové kompozity. Aplikácia beží bez administrátorských práv a nevyžaduje zmenu systémových oprávnení.
-
-URL sa zisťuje raz za sekundu cez UI Automation adresného riadka v Chrome, Edge, Firefoxe, Brave, Opere a Vivaldi. Dostupnosť závisí od verzie, jazyka a accessibility podpory konkrétneho prehliadača. Číta sa len rozpoznaný adresný riadok; obsah webových dokumentov sa neprechádza. Počas písania do adresného riadka sa jeho obsah neukladá. Rozpoznávanie je pripravené pre bežné anglické, slovenské, české a nemecké označenia a známe automation ID. Pri nedostupnej URL zostáva zaznamenaný názov okna. Ak sa prvá URL zistí neskôr pre stále aktívny záznam s rovnakým názvom, oknom a procesom, doplní sa do existujúceho listu so zachovaním jeho ID a začiatku. Zmena medzi dvoma známymi URL vytvorí nový list. Nejde o garantovanú históriu každej navigácie: veľmi krátka návšteva, rovnaký názov karty alebo prehliadač bez dostupného adresného riadka môžu uniknúť detekcii.
-
-UI Automation má vlastné MTA vlákno, aby pomalý externý provider neblokoval GUI ani natívne notifikácie. Čítanie okien spustených s vyššími oprávneniami môže Windows obmedziť. Aplikácia sleduje reláciu, v ktorej bola spustená; iné používateľské účty nesleduje. Pre jedného používateľa sa povoľuje jedna inštancia naprieč reláciami. Druhé spustenie požiada už bežiacu inštanciu o otvorenie okna.
-
-Udalosti sa zaznamenávajú iba počas behu aplikácie so zapnutým záznamom. Pri spustení sa uloží zistený stav relácie, nie spätne vymyslené prihlásenie. Automatické spúšťanie po prihlásení je potrebné zapnúť pre každodenný zber. Pri vynútenom ukončení Windows alebo výpadku napájania nemusia byť doručené posledné udalosti.
+Pri vynútenom ukončení alebo výpadku napájania nemusia byť uložené posledné udalosti. Po ďalšom štarte sa otvorená aktivita uzavrie na poslednom potvrdenom čase, takže prestoj nevytvorí pracovný čas. Pri chybe zápisu aplikácia zobrazí chybu a prestane hlásiť zaznamenávanie; po odstránení príčiny ju treba reštartovať.
 
 ## Údaje
 
@@ -56,35 +48,11 @@ Udalosti sa zaznamenávajú iba počas behu aplikácie so zapnutým záznamom. P
 
 Údaje zostávajú lokálne; aplikácia ich nikam neposiela. Databáza nie je šifrovaná a nemá automatické mazanie ani limit retencie. Názvy dokumentov a celé dostupné URL vrátane query parametrov sú súčasťou záznamu.
 
-SQLite používa WAL, transakcie, parametrizované príkazy, cudzie kľúče a indexy podľa času. `process_activities` obsahuje rodičovské procesy, `window_activities` ich okná a `activity_leaves` prijaté pracovné aktivity s historickým názvom okna a voliteľnou URL. `activity_spans` uchováva jednotlivé aktívne úseky každej aktivity, takže zlúčenie nepripočíta prestávky. Každý list patrí práve jednému oknu a každé okno práve jednému procesu. Interná tabuľka `events` zostáva pre diagnostiku, GUI ju nečíta. Časy sú UTC Unix milisekundy, prezentácia ich prevádza na miestne pásmo.
+Pred súborovou zálohou aplikáciu ukončite. Databáza sa pri spustení automaticky aktualizuje na aktuálnu schému; po migrácii do nej nezapisujte staršou verziou aplikácie.
 
-Verzia schémy je `PRAGMA user_version=3`. Verzia 1 sa automaticky migruje v transakcii: pôvodné intervaly sa prenesú pod procesy a okná so zachovaním ID listov, názvov, URL a trvania. Pôvodná tabuľka `intervals` ostáva zachovaná. Verzia 2 sa doplní o `activity_spans`, pôvodné aktivity získajú po jednom úseku. Staré dáta nemajú informáciu o skutočnom zániku okien, preto sú ich rodičovské hranice odvodené z historických intervalov. Novšia neznáma verzia sa odmietne otvoriť. Staršiu aplikáciu po migrácii nepoužívajte na zápis do tejto databázy.
+## Pre vývojárov
 
-Otvorený interval má posledný potvrdený koniec aktualizovaný heartbeat udalosťou každú sekundu. Pri ďalšom štarte sa uzatvorí na tomto čase, takže pád nevytvorí falošnú aktivitu až do nového spustenia. Pri chybe zápisu sa aplikácia prestane hlásiť ako zaznamenávajúca a zobrazí chybu; po odstránení príčiny treba aplikáciu reštartovať. Pre konzistentnú súborovú zálohu najprv aplikáciu ukončite.
-
-## Štruktúra
-
-| Projekt | Zodpovednosť |
-| --- | --- |
-| `SolidRecords.Core` | Modely, rozhrania, čistý stavový automat, serializácia záznamu a denné reporty. Bez WPF, SQLite a Windows API. |
-| `SolidRecords.Storage` | SQLite implementácia úložiska. Závisí len od jadra. |
-| `SolidRecords.Windows` | Win32, WTS, evidencia okien, UI Automation a voliteľné spúšťanie po prihlásení. Závisí len od jadra. |
-| `SolidRecords.App` | WPF pohľady, MVVM, príkazy, systray a kompozícia služieb. Code-behind rieši len životný cyklus okna. |
-| `SolidRecords.Tests` | Testy stavového automatu, SQLite, časových hraníc a riadenia záznamu. |
-| `SolidRecords.DesktopChecks` | Voliteľný integračný test živého Windows zberu a vykreslenie WPF náhľadu. |
-
-## Overenie
-
-```powershell
-dotnet test tests/SolidRecords.Tests
-dotnet run --project tests/SolidRecords.DesktopChecks
-```
-
-Voliteľná diagnostika histórie len na čítanie: `dotnet run --project tests/SolidRecords.DesktopChecks -- --inspect-history`. Používa rovnaký SQLite provider ako aplikácia, vykoná kontrolu integrity a vypíše skupiny potenciálne nežiaducich aktivít bez načítania URL. Nevykonáva inicializáciu, migráciu, obnovu ani mazanie údajov.
-
-Integračný test používa izolované databázy v `artifacts/desktop-checks`, krátko zapne zber v aktuálnej relácii a overí, že pomocný proces bez okna nie je zaznamenaný. Overí dopísanie záznamov, kompozitnú evidenciu aj opätovný štart zberu. Vygeneruje `main-window.png` s ukážkovými dátami a kontroluje WPF binding chyby. Používateľskú databázu nemení. Testy jadra overujú posledné otvorené okno, opakovanú aktiváciu, zmeny URL, viac okien procesu, čas na pozadí, recyklovanie PID a migráciu verzie 1.
-
-Ručné overenie: otvoriť GUI cez systray; prepnúť medzi dvoma oknami; zmeniť dokument a kartu prehliadača; zamknúť a odomknúť počítač; overiť medzeru v časovej osi; zastaviť záznam a overiť, že nepribúdajú udalosti; zavrieť a znovu otvoriť GUI; ukončiť aplikáciu cez systray a overiť ďalší štart. Otestovať aj uspatie, odpojenie RDP a URL na konkrétnych nainštalovaných prehliadačoch.
+Vstupným bodom sú [AGENTS.md](AGENTS.md), [architektúra](doc/architecture.md), [pravidlá záznamu](doc/recording.md), [úložisko a diagnostika](doc/storage.md) a [vývojový postup](doc/development.md).
 
 ## Publikovanie
 
@@ -95,5 +63,3 @@ dotnet publish src/SolidRecords.App -c Release -r win-x64 --self-contained true 
 ```
 
 Spúšťa sa `artifacts/publish/win-x64/SolidRecords.App.exe`. Inštalátor nie je potrebný. Automatické spúšťanie sa zapína až z cieľového priečinka.
-
-Referencie Windows API: [SetWinEventHook](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwineventhook), [WM_WTSSESSION_CHANGE](https://learn.microsoft.com/en-us/windows/win32/termserv/wm-wtssession-change), [Microsoft.Data.Sqlite](https://learn.microsoft.com/en-us/dotnet/standard/data/sqlite/).
