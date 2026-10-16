@@ -1,81 +1,56 @@
-using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using SolidRecords.Core;
 
 namespace SolidRecords.Storage;
 
 internal static class SqliteSchema
 {
-    public static async Task InitializeAsync(SqliteConnection connection, CancellationToken cancellationToken)
+    public static async Task InitializeAsync(ActivityDbContext db, CancellationToken cancellationToken)
     {
-        using var command = connection.CreateCommand();
-        command.CommandText = "PRAGMA user_version;";
-        var version = Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken));
+        // Keep this connection open: synchronous and other PRAGMAs are connection scoped.
+        await db.Database.OpenConnectionAsync(cancellationToken);
+        var versions = await db.Database.SqlQueryRaw<long>("PRAGMA user_version;").ToArrayAsync(cancellationToken);
+        var version = versions.Single();
         if (version > 4) throw new InvalidOperationException("Databázu vytvorila novšia verzia SolidRecords.");
-        command.CommandText = "PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;";
-        await command.ExecuteNonQueryAsync(cancellationToken);
-        using var transaction = connection.BeginTransaction();
-        command.Transaction = transaction;
-        command.CommandText = """
-            CREATE TABLE IF NOT EXISTS application_icons (
-                application TEXT PRIMARY KEY COLLATE NOCASE, png BLOB NOT NULL);
-            CREATE TABLE IF NOT EXISTS events (
-                id TEXT PRIMARY KEY, recording_id TEXT NOT NULL, kind TEXT NOT NULL,
-                timestamp INTEGER NOT NULL, process_id INTEGER, application TEXT,
-                window_handle INTEGER, title TEXT, url TEXT, reason TEXT);
-            CREATE INDEX IF NOT EXISTS ix_events_timestamp ON events(timestamp);
-            CREATE TABLE IF NOT EXISTS process_activities (
-                id TEXT PRIMARY KEY, recording_id TEXT NOT NULL, process_id INTEGER NOT NULL,
-                application TEXT NOT NULL, process_start_ticks INTEGER, start INTEGER NOT NULL,
-                end INTEGER NOT NULL, is_open INTEGER NOT NULL, CHECK(end >= start));
-            CREATE TABLE IF NOT EXISTS window_activities (
-                id TEXT PRIMARY KEY, process_activity_id TEXT NOT NULL REFERENCES process_activities(id),
-                handle INTEGER NOT NULL, title TEXT NOT NULL, start INTEGER NOT NULL,
-                end INTEGER NOT NULL, is_open INTEGER NOT NULL, CHECK(end >= start));
-            CREATE TABLE IF NOT EXISTS activity_leaves (
-                id TEXT PRIMARY KEY, window_activity_id TEXT NOT NULL REFERENCES window_activities(id),
-                title TEXT NOT NULL, url TEXT, start INTEGER NOT NULL,
-                end INTEGER NOT NULL, is_open INTEGER NOT NULL, CHECK(end >= start));
-            CREATE INDEX IF NOT EXISTS ix_process_time ON process_activities(start,end);
-            CREATE INDEX IF NOT EXISTS ix_window_time ON window_activities(start,end);
-            CREATE INDEX IF NOT EXISTS ix_window_parent ON window_activities(process_activity_id);
-            CREATE INDEX IF NOT EXISTS ix_leaf_time ON activity_leaves(start,end);
-            CREATE INDEX IF NOT EXISTS ix_leaf_parent ON activity_leaves(window_activity_id);
-            CREATE TABLE IF NOT EXISTS activity_spans (
-                id TEXT PRIMARY KEY,activity_id TEXT NOT NULL REFERENCES activity_leaves(id) ON DELETE CASCADE,
-                start INTEGER NOT NULL,end INTEGER NOT NULL,CHECK(end >= start));
-            CREATE INDEX IF NOT EXISTS ix_span_parent ON activity_spans(activity_id);
-            """;
-        await command.ExecuteNonQueryAsync(cancellationToken);
-        if (version == 1) await MigrateLegacyAsync(connection, transaction, cancellationToken);
-        if (version < 3)
+        var known = db.Database.GetMigrations().ToHashSet(StringComparer.Ordinal);
+        var applied = (await db.Database.GetAppliedMigrationsAsync(cancellationToken)).ToArray();
+        if (applied.Any(x => !known.Contains(x)))
+            throw new InvalidOperationException("Databázu vytvorila novšia verzia SolidRecords.");
+        await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;", cancellationToken);
+        if (version < 4)
         {
-            command.CommandText = "INSERT OR IGNORE INTO activity_spans(id,activity_id,start,end) SELECT id,id,start,end FROM activity_leaves;";
-            await command.ExecuteNonQueryAsync(cancellationToken);
+            // Finish legacy conversion against the original layout before applying future EF migrations.
+            // An interrupted conversion can be retried: schema adoption and data conversion are separate commits.
+            if (applied.Length == 0)
+                await db.GetService<IMigrator>().MigrateAsync(known.Order(StringComparer.Ordinal).First(), cancellationToken);
+            await using var upgrade = await db.Database.BeginTransactionAsync(cancellationToken);
+            if (version == 1) await MigrateLegacyAsync(db, cancellationToken);
+            if (version < 3)
+                await db.Database.ExecuteSqlRawAsync("INSERT OR IGNORE INTO activity_spans(id,activity_id,start,end) SELECT id,id,start,end FROM activity_leaves;", cancellationToken);
+            await db.Database.ExecuteSqlRawAsync("PRAGMA user_version=4;", cancellationToken);
+            await upgrade.CommitAsync(cancellationToken);
         }
-        command.CommandText = """
-            UPDATE activity_leaves SET is_open=0 WHERE is_open=1;
-            UPDATE window_activities SET is_open=0 WHERE is_open=1;
-            UPDATE process_activities SET is_open=0 WHERE is_open=1;
-            PRAGMA user_version=4;
-            """;
-        await command.ExecuteNonQueryAsync(cancellationToken);
+        await db.Database.MigrateAsync(cancellationToken);
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await db.Leaves.Where(x => x.IsOpen).ExecuteUpdateAsync(s => s.SetProperty(x => x.IsOpen, false), cancellationToken);
+        await db.Windows.Where(x => x.IsOpen).ExecuteUpdateAsync(s => s.SetProperty(x => x.IsOpen, false), cancellationToken);
+        await db.Processes.Where(x => x.IsOpen).ExecuteUpdateAsync(s => s.SetProperty(x => x.IsOpen, false), cancellationToken);
+
         await transaction.CommitAsync(cancellationToken);
     }
 
-    private static async Task MigrateLegacyAsync(SqliteConnection connection, SqliteTransaction transaction,
-        CancellationToken cancellationToken)
+    private static async Task MigrateLegacyAsync(ActivityDbContext db, CancellationToken cancellationToken)
     {
-        using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.CommandText = "SELECT * FROM intervals ORDER BY start;";
-        var legacy = new List<ActivityInterval>();
-        using (var reader = await command.ExecuteReaderAsync(cancellationToken))
-            while (await reader.ReadAsync(cancellationToken))
-                legacy.Add(new(Guid.Parse(reader.GetString(0)), Guid.Parse(reader.GetString(1)),
-                    new(reader.GetInt64(4), reader.GetInt32(2), reader.GetString(3), reader.GetString(5),
-                        reader.IsDBNull(6) ? null : reader.GetString(6)),
-                    DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(7)),
-                    DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(8)), false));
+        var rows = await db.Database.SqlQueryRaw<LegacyIntervalRow>("""
+            SELECT id AS Id, recording_id AS RecordingId, process_id AS ProcessId, application AS Application,
+                window_handle AS WindowHandle, title AS Title, url AS Url, start AS Start, end AS End
+            FROM intervals ORDER BY start
+            """).ToArrayAsync(cancellationToken);
+        var legacy = rows.Select(x => new ActivityInterval(Guid.Parse(x.Id), Guid.Parse(x.RecordingId),
+            new(x.WindowHandle, x.ProcessId, x.Application, x.Title, x.Url),
+            DateTimeOffset.FromUnixTimeMilliseconds(x.Start), DateTimeOffset.FromUnixTimeMilliseconds(x.End), false));
         var processes = new List<ProcessActivity>();
         var windows = new List<WindowActivity>();
         var leaves = new List<ActivityInterval>();
@@ -93,8 +68,21 @@ internal static class SqliteSchema
                 leaves.AddRange(windowGroup.Select(x => x with { ProcessActivityId = process.Id, WindowActivityId = window.Id }));
             }
         }
-        await SqliteActivityStore.WriteBatchAsync(connection, transaction,
+        await SqliteActivityStore.WriteBatchAsync(db,
             new([], leaves) { Processes = processes, Windows = windows }, cancellationToken);
         // The original intervals table is preserved; migration is transactional and never deletes history.
     }
+}
+
+internal sealed class LegacyIntervalRow
+{
+    public string Id { get; set; } = "";
+    public string RecordingId { get; set; } = "";
+    public int ProcessId { get; set; }
+    public string Application { get; set; } = "";
+    public long WindowHandle { get; set; }
+    public string Title { get; set; } = "";
+    public string? Url { get; set; }
+    public long Start { get; set; }
+    public long End { get; set; }
 }

@@ -5,7 +5,7 @@
 | Projekt | Zodpovednosť a vstupné súbory |
 | --- | --- |
 | `src/SolidRecords.Core` | Čisté modely a kontrakty (`Models.cs`), stavový automat (`RecordingEngine.cs`), pravidlá prijatia a zlúčenia (`ActivityLogPolicy.cs`), koordinácia (`Recorder.cs`), denné reporty (`DailyReport.cs`). Target `net10.0`, bez externých balíkov. |
-| `src/SolidRecords.Storage` | `SqliteActivityStore.cs`, `SqliteSchema.cs`; Microsoft.Data.Sqlite 10.0.12. Závisí len od Core. |
+| `src/SolidRecords.Storage` | `SqliteActivityStore.cs`, `ActivityDbContext.cs`, `SqliteSchema.cs`, `Migrations/`; Entity Framework Core SQLite 10.0.12. Závisí len od Core. |
 | `src/SolidRecords.Windows` | `WindowsActivitySource.cs`, `ObservedWindowRegistry.cs`, `WindowFilter.cs`, `BrowserUrlReader.cs`, `StartupRegistration.cs`, Win32 interop. Target `net10.0-windows`, WPF pre natívne message window; závisí len od Core. |
 | `src/SolidRecords.App` | WPF/MVVM, vlastné príkazy a observable modely, WinForms NotifyIcon. `App.xaml.cs` skladá služby a riadi životný cyklus; `Presentation/` obsahuje view model, riadky a časovú os. Závisí od troch implementačných projektov. |
 | `tests/SolidRecords.Tests` | xUnit testy Core a SQLite, target `net10.0`. |

@@ -35,7 +35,7 @@ public partial class App : Application
             _dataDirectory = AppEnvironment.DataDirectory;
             Directory.CreateDirectory(_dataDirectory);
             var store = new SqliteActivityStore(Path.Combine(_dataDirectory, "activity.db"));
-            await store.InitializeAsync();
+            await Task.Run(() => store.InitializeAsync());
             var trackingOptions = ActivityTrackingOptions.Default;
             _recorder = new Recorder(store, new WindowsActivitySource(), options: trackingOptions);
             _viewModel = new MainViewModel(_recorder, new DailyReportService(store, options: trackingOptions), SavePreferenceAsync);

@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using SolidRecords.Core;
 using SolidRecords.Storage;
 using Xunit;
@@ -63,7 +64,7 @@ public sealed class SqliteActivityStoreTests : IDisposable
         var store = CreateStore();
         var at = DateTimeOffset.UtcNow;
         var entry = new ActivityEvent(Guid.NewGuid(), Guid.NewGuid(), EventKind.RecordingStarted, at);
-        await Assert.ThrowsAsync<SqliteException>(() => store.SaveAsync(new([entry, entry], [])));
+        await Assert.ThrowsAsync<DbUpdateException>(() => store.SaveAsync(new([entry, entry], [])));
         Assert.Empty(await store.ReadEventsAsync(at.AddDays(-1), at.AddDays(1)));
     }
 
@@ -252,7 +253,7 @@ public sealed class SqliteActivityStoreTests : IDisposable
         {
             await connection.OpenAsync();
             using var command = connection.CreateCommand();
-            command.CommandText = "DROP TABLE activity_spans; PRAGMA user_version=2;";
+            command.CommandText = "DROP TABLE activity_spans; DELETE FROM __EFMigrationsHistory; PRAGMA user_version=2;";
             await command.ExecuteNonQueryAsync();
         }
         var migrated = CreateStore();
@@ -273,7 +274,7 @@ public sealed class SqliteActivityStoreTests : IDisposable
         {
             await connection.OpenAsync();
             using var command = connection.CreateCommand();
-            command.CommandText = "DROP TABLE application_icons; PRAGMA user_version=3;";
+            command.CommandText = "DROP TABLE application_icons; DELETE FROM __EFMigrationsHistory; PRAGMA user_version=3;";
             await command.ExecuteNonQueryAsync();
         }
         var migrated = CreateStore();
@@ -319,6 +320,136 @@ public sealed class SqliteActivityStoreTests : IDisposable
         var interval = Assert.Single(await CreateStore().ReadIntervalsAsync(at, at.AddDays(1)));
         Assert.Equal(png, interval.ApplicationIconPngBase64);
         Assert.Equal(TimeSpan.FromSeconds(20), interval.Duration);
+    }
+
+    [Fact]
+    public async Task FreshDatabaseAppliesEfMigrationsAndRepeatedInitializationKeepsLiveActivityOpen()
+    {
+        var store = CreateStore();
+        await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => store.InitializeAsync()));
+        var options = new DbContextOptionsBuilder<ActivityDbContext>().UseSqlite($"Data Source={store.DatabasePath}").Options;
+        await using var db = new ActivityDbContext(options);
+        Assert.Single(await db.Database.GetAppliedMigrationsAsync());
+        Assert.Empty(await db.Database.GetPendingMigrationsAsync());
+        Assert.False(db.Database.HasPendingModelChanges());
+        var at = DateTimeOffset.UnixEpoch;
+        await store.SaveAsync(Composite(new(Guid.NewGuid(), Guid.NewGuid(), new(1, 2, "app", "live"),
+            at, at.AddSeconds(20), true)));
+        await store.InitializeAsync();
+        Assert.True(Assert.Single(await store.ReadIntervalsAsync(at, at.AddDays(1))).IsOpen);
+    }
+
+    [Fact]
+    public async Task AdoptsVersionFourWithoutChangingIdsSpansIconsOrEventOrder()
+    {
+        var store = CreateStore();
+        var at = DateTimeOffset.UnixEpoch;
+        var id = Guid.NewGuid();
+        var recording = Guid.NewGuid();
+        var spans = new ActivitySpan[] { new(Guid.NewGuid(), at, at.AddSeconds(20)),
+            new(Guid.NewGuid(), at.AddSeconds(25), at.AddSeconds(45)) };
+        var png = Convert.ToBase64String([137, 80, 78, 71]);
+        var first = new ActivityEvent(Guid.NewGuid(), recording, EventKind.RecordingStarted, at);
+        var second = new ActivityEvent(Guid.NewGuid(), recording, EventKind.Heartbeat, at);
+        await store.SaveAsync(Composite(new(id, recording, new(1, 2, "editor", "Document"), at, at.AddSeconds(45), false)
+        { Spans = spans }) with { Events = [first, second], ApplicationIcons = [new("EDITOR", png)] });
+        // A pre-EF database has the same tables, but no EF migration history.
+        await using (var connection = new SqliteConnection($"Data Source={store.DatabasePath}"))
+        {
+            await connection.OpenAsync();
+            using var command = connection.CreateCommand();
+            command.CommandText = "DROP TABLE __EFMigrationsHistory;";
+            await command.ExecuteNonQueryAsync();
+        }
+        var adopted = CreateStore();
+        await adopted.InitializeAsync();
+        var leaf = Assert.Single(await adopted.ReadIntervalsAsync(at, at.AddDays(1)));
+        Assert.Equal(id, leaf.Id);
+        Assert.Equal(spans, leaf.Spans);
+        Assert.Equal(png, leaf.ApplicationIconPngBase64);
+        Assert.Equal(new[] { first, second }, await adopted.ReadEventsAsync(at, at.AddDays(1)));
+        await adopted.SaveAsync(new([], []) { ApplicationIcons = [new("editor", Convert.ToBase64String([1, 2, 3]))] });
+        Assert.Equal(Convert.ToBase64String([1, 2, 3]),
+            Assert.Single(await adopted.ReadIntervalsAsync(at, at.AddDays(1))).ApplicationIconPngBase64);
+        Assert.Equal(spans, Assert.Single(await CreateStore().ReadIntervalsAsync(at, at.AddDays(1))).Spans);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RejectsUnknownSchemaBeforeRecoveryOrSchemaChanges(bool unknownEfMigration)
+    {
+        var store = CreateStore();
+        var at = DateTimeOffset.UnixEpoch;
+        await store.SaveAsync(Composite(new(Guid.NewGuid(), Guid.NewGuid(), new(1, 2, "app", "live"),
+            at, at.AddSeconds(20), true)));
+        await using var connection = new SqliteConnection($"Data Source={store.DatabasePath}");
+        await connection.OpenAsync();
+        using var command = connection.CreateCommand();
+        command.CommandText = unknownEfMigration
+            ? "INSERT INTO __EFMigrationsHistory VALUES('20990101000000_Future','10.0.12');"
+            : "PRAGMA user_version=5;";
+        await command.ExecuteNonQueryAsync();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => CreateStore().InitializeAsync());
+        command.CommandText = "SELECT is_open FROM activity_leaves;";
+        Assert.Equal(1L, await command.ExecuteScalarAsync());
+        command.CommandText = "PRAGMA user_version;";
+        Assert.Equal(unknownEfMigration ? 4L : 5L, await command.ExecuteScalarAsync());
+    }
+
+    [Fact]
+    public async Task FailedBatchRollsBackParentsLeavesSpansAndIcons()
+    {
+        var store = CreateStore();
+        var at = DateTimeOffset.UnixEpoch;
+        var leaf = new ActivityInterval(Guid.NewGuid(), Guid.NewGuid(), new(1, 2, "app", "title"),
+            at, at.AddSeconds(20), false);
+        var entry = new ActivityEvent(Guid.NewGuid(), leaf.RecordingId, EventKind.RecordingStarted, at);
+        await Assert.ThrowsAsync<DbUpdateException>(() => store.SaveAsync(Composite(leaf) with
+        { Events = [entry, entry], ApplicationIcons = [new("app", Convert.ToBase64String([1, 2, 3]))] }));
+        Assert.Empty(await store.ReadProcessesAsync(at, at.AddDays(1)));
+        Assert.Empty(await store.ReadEventsAsync(at, at.AddDays(1)));
+        await using var connection = new SqliteConnection($"Data Source={store.DatabasePath}");
+        await connection.OpenAsync();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT (SELECT COUNT(*) FROM window_activities) + (SELECT COUNT(*) FROM activity_leaves) + (SELECT COUNT(*) FROM activity_spans) + (SELECT COUNT(*) FROM application_icons);";
+        Assert.Equal(0L, await command.ExecuteScalarAsync());
+    }
+
+    [Fact]
+    public async Task InterruptedLegacyConversionCanBeRetriedWithoutDuplicatingHistory()
+    {
+        Directory.CreateDirectory(_directory);
+        var store = CreateStore();
+        var id = Guid.NewGuid();
+        var recording = Guid.NewGuid();
+        await using var connection = new SqliteConnection($"Data Source={store.DatabasePath}");
+        await connection.OpenAsync();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            CREATE TABLE intervals(id TEXT PRIMARY KEY,recording_id TEXT,process_id INTEGER,
+                application TEXT,window_handle INTEGER,title TEXT,url TEXT,start INTEGER,end INTEGER,is_open INTEGER);
+            INSERT INTO intervals VALUES($id,$recording,42,'editor',100,'Document',NULL,1000,0,1);
+            PRAGMA user_version=1;
+            """;
+        command.Parameters.AddWithValue("$id", id.ToString());
+        command.Parameters.AddWithValue("$recording", recording.ToString());
+        await command.ExecuteNonQueryAsync();
+        await Assert.ThrowsAsync<DbUpdateException>(() => store.InitializeAsync());
+        command.CommandText = "PRAGMA user_version;";
+        Assert.Equal(1L, await command.ExecuteScalarAsync());
+        command.CommandText = "SELECT COUNT(*) FROM process_activities;";
+        Assert.Equal(0L, await command.ExecuteScalarAsync());
+        command.CommandText = "UPDATE intervals SET end=61000;";
+        await command.ExecuteNonQueryAsync();
+        await store.InitializeAsync();
+        var result = Assert.Single(await store.ReadIntervalsAsync(DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddDays(1)));
+        Assert.Equal(id, result.Id);
+        Assert.Equal(TimeSpan.FromMinutes(1), result.Duration);
+        Assert.Single(result.Spans);
+        Assert.Single(await CreateStore().ReadProcessesAsync(DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddDays(1)));
+        command.CommandText = "SELECT COUNT(*) FROM intervals;";
+        Assert.Equal(1L, await command.ExecuteScalarAsync());
     }
 
     private sealed class IconClock(DateTimeOffset at) : TimeProvider

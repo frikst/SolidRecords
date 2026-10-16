@@ -37,6 +37,16 @@ Na ručné overenie titulkového riadka použi `--preview-only --interactive-pre
 
 Ručne podľa zmeny over: systray a skrytie/opätovné otvorenie GUI, start/stop z oboch miest, prepínanie okien a kariet, zamknutie/odomknutie a prestávku v časovej osi, uspatie/RDP, posledné okno procesu, dostupné prehliadače, navigáciu medzi dňami a rozloženie pri 150 % DPI. Pri testovaní prahov drž návštevu aspoň 15 s; kratšia aktivita má chýbať.
 
+## Zmeny databázovej schémy
+
+Mapovanie a EF migrácie patria do Storage. Po zmene `ActivityDbContext` vytvor migráciu z koreňa repozitára (nástroj `dotnet-ef` používaj vo verzii 10.0.12):
+
+```powershell
+dotnet ef migrations add NazovZmeny --project src/SolidRecords.Storage --output-dir Migrations
+```
+
+`ActivityDbContextFactory` používa iba návrhovú cestu `artifacts/ef-design.db`; nástroj nesmie cieliť na používateľskú históriu. Commitni migráciu, designer aj model snapshot a over upgrade na izolovanej DB v `artifacts/`. Test `FreshDatabaseAppliesEfMigrationsAndRepeatedInitializationKeepsLiveActivityOpen` kontroluje aj zhodu snapshotu s modelom. Migrácie pri štarte aplikuje aplikácia automaticky; `EnsureCreated` sa nepoužíva. Prevzatie starých verzií a transakčné hranice opisuje [storage.md](storage.md).
+
 ## Spúšťanie a publikácia
 
 Ikona aplikácie používa monogram S v modrom štvorci. Vektorový zdroj je `src/SolidRecords.App/Assets/SolidRecords.xaml`; hlavička ho načítava priamo ako `DrawingImage` vo veľkosti 48 logických bodov cez titulkový a štatistický riadok. Po úprave zdroja spusti `powershell -NoProfile -ExecutionPolicy Bypass -STA -File tools/Generate-AppIcon.ps1`. Skript vytvorí `SolidRecords.ico` s veľkosťami 16, 20, 24, 32, 40, 48, 64, 96, 128 a 256 px a náhľady v `artifacts/icon-preview/`. Rovnaké ICO používa EXE, systémová ikona okna aj systémová lišta.

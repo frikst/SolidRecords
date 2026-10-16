@@ -1,22 +1,23 @@
 using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using SolidRecords.Core;
 
 namespace SolidRecords.Storage;
 
 public sealed class SqliteActivityStore : IActivityStore
 {
-    private readonly string _connectionString;
+    private readonly DbContextOptions<ActivityDbContext> _options;
     private readonly SemaphoreSlim _initialize = new(1, 1);
     private bool _initialized;
 
     public SqliteActivityStore(string databasePath)
     {
         DatabasePath = Path.GetFullPath(databasePath);
-        _connectionString = new SqliteConnectionStringBuilder
+        _options = new DbContextOptionsBuilder<ActivityDbContext>().UseSqlite(new SqliteConnectionStringBuilder
         {
             DataSource = DatabasePath, Mode = SqliteOpenMode.ReadWriteCreate,
             DefaultTimeout = 5, Pooling = true, ForeignKeys = true
-        }.ToString();
+        }.ToString()).Options;
     }
 
     public string DatabasePath { get; }
@@ -28,8 +29,8 @@ public sealed class SqliteActivityStore : IActivityStore
         {
             if (_initialized) return;
             Directory.CreateDirectory(Path.GetDirectoryName(DatabasePath)!);
-            await using var connection = await OpenAsync(cancellationToken);
-            await SqliteSchema.InitializeAsync(connection, cancellationToken);
+            await using var db = new ActivityDbContext(_options);
+            await SqliteSchema.InitializeAsync(db, cancellationToken);
             _initialized = true;
         }
         finally { _initialize.Release(); }
@@ -38,152 +39,136 @@ public sealed class SqliteActivityStore : IActivityStore
     public async Task SaveAsync(RecordingBatch batch, CancellationToken cancellationToken = default)
     {
         await InitializeAsync(cancellationToken);
-        await using var connection = await OpenAsync(cancellationToken);
-        using var transaction = connection.BeginTransaction();
-        await WriteBatchAsync(connection, transaction, batch, cancellationToken);
+        await using var db = new ActivityDbContext(_options);
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await WriteBatchAsync(db, batch, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }
 
-    internal static async Task WriteBatchAsync(SqliteConnection connection, SqliteTransaction transaction,
-        RecordingBatch batch, CancellationToken cancellationToken)
+    internal static async Task WriteBatchAsync(ActivityDbContext db, RecordingBatch batch, CancellationToken cancellationToken)
     {
-        async Task Execute(string sql, params (string Name, object? Value)[] parameters)
-        {
-            using var command = connection.CreateCommand();
-            command.Transaction = transaction;
-            command.CommandText = sql;
-            foreach (var (name, value) in parameters) Add(command, name, value);
-            await command.ExecuteNonQueryAsync(cancellationToken);
-        }
-
         foreach (var icon in batch.ApplicationIcons)
-            await Execute("""
-                INSERT INTO application_icons(application,png) VALUES($app,$png)
-                ON CONFLICT(application) DO UPDATE SET png=excluded.png;
-                """, ("$app", icon.Application), ("$png", Convert.FromBase64String(icon.PngBase64)));
-
+        {
+            // The database's NOCASE collation is authoritative, including for existing casing.
+            var row = await db.Icons.FirstOrDefaultAsync(x => x.Application == icon.Application, cancellationToken);
+            if (row is null) db.Icons.Add(new() { Application = icon.Application, Png = Convert.FromBase64String(icon.PngBase64) });
+            else row.Png = Convert.FromBase64String(icon.PngBase64);
+            await db.SaveChangesAsync(cancellationToken);
+        }
         foreach (var process in batch.Processes)
-            await Execute("""
-                INSERT INTO process_activities(id,recording_id,process_id,application,process_start_ticks,start,end,is_open)
-                VALUES($id,$recording,$pid,$app,$ticks,$start,$end,$open)
-                ON CONFLICT(id) DO UPDATE SET end=excluded.end, is_open=excluded.is_open;
-                """, ("$id", process.Id.ToString()), ("$recording", process.RecordingId.ToString()),
-                ("$pid", process.ProcessId), ("$app", process.Application), ("$ticks", process.ProcessStartTicks),
-                ("$start", Millis(process.Start)), ("$end", Millis(process.End)), ("$open", process.IsOpen));
-
+        {
+            var row = await db.Processes.FindAsync([process.Id.ToString()], cancellationToken);
+            if (row is null)
+            {
+                row = new() { Id = process.Id.ToString(), RecordingId = process.RecordingId.ToString(),
+                    ProcessId = process.ProcessId, Application = process.Application, ProcessStartTicks = process.ProcessStartTicks,
+                    Start = Millis(process.Start) };
+                db.Processes.Add(row);
+            }
+            row.End = Millis(process.End);
+            row.IsOpen = process.IsOpen;
+        }
         foreach (var window in batch.Windows)
-            await Execute("""
-                INSERT INTO window_activities(id,process_activity_id,handle,title,start,end,is_open)
-                VALUES($id,$parent,$handle,$title,$start,$end,$open)
-                ON CONFLICT(id) DO UPDATE SET title=excluded.title,end=excluded.end,is_open=excluded.is_open;
-                """, ("$id", window.Id.ToString()), ("$parent", window.ProcessActivityId.ToString()),
-                ("$handle", window.Handle), ("$title", window.Title), ("$start", Millis(window.Start)),
-                ("$end", Millis(window.End)), ("$open", window.IsOpen));
-
+        {
+            var row = await db.Windows.FindAsync([window.Id.ToString()], cancellationToken);
+            if (row is null)
+            {
+                row = new() { Id = window.Id.ToString(), ProcessActivityId = window.ProcessActivityId.ToString(),
+                    Handle = window.Handle, Start = Millis(window.Start) };
+                db.Windows.Add(row);
+            }
+            row.Title = window.Title;
+            row.End = Millis(window.End);
+            row.IsOpen = window.IsOpen;
+        }
         foreach (var interval in batch.Intervals)
         {
-            await Execute("""
-                INSERT INTO activity_leaves(id,window_activity_id,title,url,start,end,is_open)
-                VALUES($id,$parent,$title,$url,$start,$end,$open)
-                ON CONFLICT(id) DO UPDATE SET url=excluded.url,end=excluded.end,is_open=excluded.is_open;
-                """, ("$id", interval.Id.ToString()), ("$parent", interval.WindowActivityId.ToString()),
-                ("$title", interval.Window.Title), ("$url", interval.Window.Url), ("$start", Millis(interval.Start)),
-                ("$end", Millis(interval.End)), ("$open", interval.IsOpen));
+            var row = await db.Leaves.FindAsync([interval.Id.ToString()], cancellationToken);
+            if (row is null)
+            {
+                row = new() { Id = interval.Id.ToString(), WindowActivityId = interval.WindowActivityId.ToString(),
+                    Title = interval.Window.Title, Start = Millis(interval.Start) };
+                db.Leaves.Add(row);
+            }
+            row.Url = interval.Window.Url;
+            row.End = Millis(interval.End);
+            row.IsOpen = interval.IsOpen;
         }
-        // Move spans before deleting superseded leaves. Late URL resolution can alter
-        // merge groups after a visit has already been retained.
+        await db.SaveChangesAsync(cancellationToken);
+        // Persist reassigned spans before deleting leaves with cascading children.
         foreach (var interval in batch.Intervals)
         foreach (var span in ActivityLogPolicy.GetSpans(interval))
-            await Execute("""
-                INSERT INTO activity_spans(id,activity_id,start,end) VALUES($id,$activity,$start,$end)
-                ON CONFLICT(id) DO UPDATE SET activity_id=excluded.activity_id,start=excluded.start,end=excluded.end;
-                """, ("$id", span.Id.ToString()), ("$activity", interval.Id.ToString()),
-                ("$start", Millis(span.Start)), ("$end", Millis(span.End)));
-        foreach (var id in batch.RemovedIntervalIds)
-            await Execute("DELETE FROM activity_leaves WHERE id=$id;", ("$id", id.ToString()));
-
+        {
+            var row = await db.Spans.FindAsync([span.Id.ToString()], cancellationToken);
+            if (row is null)
+            {
+                row = new() { Id = span.Id.ToString() };
+                db.Spans.Add(row);
+            }
+            row.ActivityId = interval.Id.ToString();
+            row.Start = Millis(span.Start);
+            row.End = Millis(span.End);
+        }
+        await db.SaveChangesAsync(cancellationToken);
+        var removed = batch.RemovedIntervalIds.Select(x => x.ToString()).ToArray();
+        if (removed.Length > 0)
+            await db.Leaves.Where(x => removed.Contains(x.Id)).ExecuteDeleteAsync(cancellationToken);
         foreach (var entry in batch.Events)
-            await Execute("""
-                INSERT INTO events(id,recording_id,kind,timestamp,process_id,application,window_handle,title,url,reason)
-                VALUES($id,$recording,$kind,$timestamp,$pid,$app,$handle,$title,$url,$reason);
-                """, ("$id", entry.Id.ToString()), ("$recording", entry.RecordingId.ToString()),
-                ("$kind", entry.Kind.ToString()), ("$timestamp", Millis(entry.Timestamp)), ("$pid", entry.ProcessId),
-                ("$app", entry.Application), ("$handle", entry.Window?.Handle), ("$title", entry.Window?.Title),
-                ("$url", entry.Window?.Url), ("$reason", entry.Reason));
+        {
+            db.Events.Add(new() { Id = entry.Id.ToString(), RecordingId = entry.RecordingId.ToString(),
+                Kind = entry.Kind.ToString(), Timestamp = Millis(entry.Timestamp), ProcessId = entry.ProcessId,
+                Application = entry.Application, WindowHandle = entry.Window?.Handle, Title = entry.Window?.Title,
+                Url = entry.Window?.Url, Reason = entry.Reason });
+            // Keep insertion order for events with the same timestamp, and let the database reject duplicates.
+            await db.SaveChangesAsync(cancellationToken);
+            db.ChangeTracker.Clear();
+        }
     }
 
     public async Task<IReadOnlyList<ProcessActivity>> ReadProcessesAsync(DateTimeOffset from, DateTimeOffset to,
         CancellationToken cancellationToken = default)
     {
         await InitializeAsync(cancellationToken);
-        await using var connection = await OpenAsync(cancellationToken);
-        // One read transaction prevents a heartbeat between queries producing inconsistent composites.
-        using var transaction = connection.BeginTransaction(deferred: true);
-        using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        Add(command, "$from", Millis(from));
-        Add(command, "$to", Millis(to));
-        command.CommandText = "SELECT * FROM process_activities WHERE start < $to AND end >= $from ORDER BY start;";
-        var processes = new Dictionary<Guid, ProcessActivity>();
-        using (var reader = await command.ExecuteReaderAsync(cancellationToken))
-            while (await reader.ReadAsync(cancellationToken))
-            {
-                var process = new ProcessActivity(Guid.Parse(reader.GetString(0)), Guid.Parse(reader.GetString(1)),
-                    reader.GetInt32(2), reader.GetString(3), reader.IsDBNull(4) ? null : reader.GetInt64(4),
-                    Time(reader.GetInt64(5)), Time(reader.GetInt64(6)), reader.GetBoolean(7));
-                processes.Add(process.Id, process);
-            }
-        command.CommandText = "SELECT * FROM window_activities WHERE start < $to AND end >= $from ORDER BY start;";
-        var windows = new Dictionary<Guid, WindowActivity>();
-        using (var reader = await command.ExecuteReaderAsync(cancellationToken))
-            while (await reader.ReadAsync(cancellationToken))
-            {
-                var parent = Guid.Parse(reader.GetString(1));
-                if (!processes.ContainsKey(parent)) continue;
-                var window = new WindowActivity(Guid.Parse(reader.GetString(0)), parent, reader.GetInt64(2), reader.GetString(3),
-                    Time(reader.GetInt64(4)), Time(reader.GetInt64(5)), reader.GetBoolean(6));
-                windows.Add(window.Id, window);
-            }
-        command.CommandText = """
-            SELECT a.*,i.png FROM activity_leaves a
-            JOIN window_activities w ON w.id=a.window_activity_id
-            JOIN process_activities p ON p.id=w.process_activity_id
-            LEFT JOIN application_icons i ON i.application=p.application
-            WHERE a.start < $to AND a.end >= $from ORDER BY a.start;
-            """;
-        var activities = new List<ActivityInterval>();
-        using (var reader = await command.ExecuteReaderAsync(cancellationToken))
-            while (await reader.ReadAsync(cancellationToken))
-            {
-                var parent = Guid.Parse(reader.GetString(1));
-                if (!windows.TryGetValue(parent, out var window)) continue;
-                var process = processes[window.ProcessActivityId];
-                var start = Time(reader.GetInt64(4));
-                var end = Time(reader.GetInt64(5));
-                activities.Add(new(Guid.Parse(reader.GetString(0)), process.RecordingId,
-                    new(window.Handle, process.ProcessId, process.Application, reader.GetString(2),
-                        reader.IsDBNull(3) ? null : reader.GetString(3), process.ProcessStartTicks),
-                    start, end, reader.GetBoolean(6), process.Id, window.Id)
-                {
-                    ApplicationIconPngBase64 = reader.IsDBNull(7) ? null : Convert.ToBase64String((byte[])reader.GetValue(7))
-                });
-            }
-        command.CommandText = """
-            SELECT s.id,s.activity_id,s.start,s.end FROM activity_spans s
-            JOIN activity_leaves a ON a.id=s.activity_id
-            WHERE a.start < $to AND a.end >= $from ORDER BY s.start;
-            """;
-        var spans = new List<(Guid Activity, ActivitySpan Span)>();
-        using (var reader = await command.ExecuteReaderAsync(cancellationToken))
-            while (await reader.ReadAsync(cancellationToken))
-                spans.Add((Guid.Parse(reader.GetString(1)), new(Guid.Parse(reader.GetString(0)),
-                    Time(reader.GetInt64(2)), Time(reader.GetInt64(3)))));
-        var spansByActivity = spans.ToLookup(x => x.Activity, x => x.Span);
-        var leavesByWindow = activities.Select(activity => activity with { Spans = spansByActivity[activity.Id].ToArray() })
-            .ToLookup(x => x.WindowActivityId);
-        var windowsByProcess = windows.Values.Select(w => w with { Activities = leavesByWindow[w.Id].ToArray() })
-            .ToLookup(w => w.ProcessActivityId);
-        return processes.Values.Select(p => p with { Windows = windowsByProcess[p.Id].ToArray() }).ToArray();
+        await using var db = new ActivityDbContext(_options);
+        db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+        // All component queries see the same committed snapshot without reserving the writer lock.
+        await db.Database.OpenConnectionAsync(cancellationToken);
+        await using var transaction = ((SqliteConnection)db.Database.GetDbConnection()).BeginTransaction(deferred: true);
+        await db.Database.UseTransactionAsync(transaction, cancellationToken);
+        var start = Millis(from);
+        var end = Millis(to);
+        var processQuery = db.Processes.Where(x => x.Start < end && x.End >= start);
+        var windowQuery = db.Windows.Where(x => x.Start < end && x.End >= start);
+        var leafQuery = db.Leaves.Where(x => x.Start < end && x.End >= start);
+        var processes = await processQuery.OrderBy(x => x.Start).ToArrayAsync(cancellationToken);
+        var windows = await windowQuery.OrderBy(x => x.Start).ToArrayAsync(cancellationToken);
+        var leaves = await (from leaf in leafQuery
+                            join window in windowQuery on leaf.WindowActivityId equals window.Id
+                            join process in processQuery on window.ProcessActivityId equals process.Id
+                            join icon in db.Icons on EF.Functions.Collate(process.Application, "NOCASE") equals icon.Application into icons
+                            from icon in icons.DefaultIfEmpty()
+                            orderby leaf.Start
+                            select new { Leaf = leaf, Process = process, Window = window, Png = icon == null ? null : icon.Png })
+            .ToArrayAsync(cancellationToken);
+        var spans = await (from span in db.Spans
+                           join leaf in leafQuery on span.ActivityId equals leaf.Id
+                           orderby span.Start
+                           select span).ToArrayAsync(cancellationToken);
+        var spansByActivity = spans.ToLookup(x => x.ActivityId,
+            x => new ActivitySpan(Guid.Parse(x.Id), Time(x.Start), Time(x.End)));
+        var leavesByWindow = leaves.Select(x => new ActivityInterval(Guid.Parse(x.Leaf.Id), Guid.Parse(x.Process.RecordingId),
+            new(x.Window.Handle, x.Process.ProcessId, x.Process.Application, x.Leaf.Title, x.Leaf.Url, x.Process.ProcessStartTicks),
+            Time(x.Leaf.Start), Time(x.Leaf.End), x.Leaf.IsOpen, Guid.Parse(x.Process.Id), Guid.Parse(x.Window.Id))
+        {
+            Spans = spansByActivity[x.Leaf.Id].ToArray(),
+            ApplicationIconPngBase64 = x.Png is null ? null : Convert.ToBase64String(x.Png)
+        }).ToLookup(x => x.WindowActivityId);
+        var windowsByProcess = windows.Select(x => new WindowActivity(Guid.Parse(x.Id), Guid.Parse(x.ProcessActivityId),
+            x.Handle, x.Title, Time(x.Start), Time(x.End), x.IsOpen)
+        { Activities = leavesByWindow[Guid.Parse(x.Id)].ToArray() }).ToLookup(x => x.ProcessActivityId);
+        return processes.Select(x => new ProcessActivity(Guid.Parse(x.Id), Guid.Parse(x.RecordingId), x.ProcessId,
+            x.Application, x.ProcessStartTicks, Time(x.Start), Time(x.End), x.IsOpen)
+        { Windows = windowsByProcess[Guid.Parse(x.Id)].ToArray() }).ToArray();
     }
 
     public async Task<IReadOnlyList<ActivityInterval>> ReadIntervalsAsync(DateTimeOffset from, DateTimeOffset to,
@@ -195,35 +180,15 @@ public sealed class SqliteActivityStore : IActivityStore
         CancellationToken cancellationToken = default)
     {
         await InitializeAsync(cancellationToken);
-        await using var connection = await OpenAsync(cancellationToken);
-        using var command = connection.CreateCommand();
-        command.CommandText = "SELECT * FROM events WHERE timestamp >= $from AND timestamp < $to ORDER BY timestamp,rowid;";
-        Add(command, "$from", Millis(from));
-        Add(command, "$to", Millis(to));
-        using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        var result = new List<ActivityEvent>();
-        while (await reader.ReadAsync(cancellationToken))
-        {
-            var pid = reader.IsDBNull(4) ? (int?)null : reader.GetInt32(4);
-            var app = reader.IsDBNull(5) ? null : reader.GetString(5);
-            WindowInfo? window = reader.IsDBNull(6) ? null : new(reader.GetInt64(6), pid ?? 0, app ?? "",
-                reader.IsDBNull(7) ? "" : reader.GetString(7), reader.IsDBNull(8) ? null : reader.GetString(8));
-            result.Add(new(Guid.Parse(reader.GetString(0)), Guid.Parse(reader.GetString(1)),
-                Enum.Parse<EventKind>(reader.GetString(2)), Time(reader.GetInt64(3)), window, pid, app,
-                reader.IsDBNull(9) ? null : reader.GetString(9)));
-        }
-        return result;
-    }
-
-    private async Task<SqliteConnection> OpenAsync(CancellationToken cancellationToken)
-    {
-        var connection = new SqliteConnection(_connectionString);
-        try { await connection.OpenAsync(cancellationToken); return connection; }
-        catch { await connection.DisposeAsync(); throw; }
+        await using var db = new ActivityDbContext(_options);
+        // rowid preserves historical insertion order when timestamps are equal.
+        var rows = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE timestamp >= {Millis(from)} AND timestamp < {Millis(to)} ORDER BY timestamp,rowid")
+            .AsNoTracking().ToArrayAsync(cancellationToken);
+        return rows.Select(x => new ActivityEvent(Guid.Parse(x.Id), Guid.Parse(x.RecordingId), Enum.Parse<EventKind>(x.Kind),
+            Time(x.Timestamp), x.WindowHandle is long handle ? new WindowInfo(handle, x.ProcessId ?? 0, x.Application ?? "",
+                x.Title ?? "", x.Url) : null, x.ProcessId, x.Application, x.Reason)).ToArray();
     }
 
     private static long Millis(DateTimeOffset time) => time.ToUnixTimeMilliseconds();
     private static DateTimeOffset Time(long milliseconds) => DateTimeOffset.FromUnixTimeMilliseconds(milliseconds);
-    private static void Add(SqliteCommand command, string name, object? value) =>
-        command.Parameters.AddWithValue(name, value ?? DBNull.Value);
 }

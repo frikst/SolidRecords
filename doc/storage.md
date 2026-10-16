@@ -4,7 +4,7 @@
 
 Release zostava ukladá používateľské dáta do `%LOCALAPPDATA%\SolidRecords`: `activity.db` a `settings.json`. Debug zostava používa oba súbory v `artifacts/dev/` v repozitári, ktorý je celý ignorovaný Gitom. Absolútna vývojová cesta sa vloží pri zostavení, takže nezávisí od pracovného priečinka pri spustení. Existujúce dáta sa medzi týmito priečinkami nekopírujú. Databáza obsahuje názvy dokumentov a celé dostupné URL vrátane query parametrov. Nie je šifrovaná, bez automatickej retencie; aplikácia dáta neposiela na sieť.
 
-SQLite používa Microsoft.Data.Sqlite, WAL, `synchronous=FULL`, cudzie kľúče, parametrizované SQL, transakcie a časové/rodičovské indexy. `SaveAsync` zapisuje celú dávku v jednej transakcii. Čítanie kompozitov má spoločnú read transakciu, aby heartbeat medzi SELECTmi nevytvoril nekonzistentný report. Časy sú UTC Unix milisekundy; GUID sa ukladajú ako text.
+SQLite používa Entity Framework Core 10.0.12 s providerom `Microsoft.EntityFrameworkCore.Sqlite` (pod ním Microsoft.Data.Sqlite), WAL, `synchronous=FULL`, cudzie kľúče, parametrizované príkazy, transakcie a časové/rodičovské indexy. `ActivityDbContext` mapuje samostatné perzistenčné entity na pôvodné tabuľky; modely Core nezávisia od EF. Každá operácia store vytvára vlastný kontext, takže Recorder a report nezdieľajú change tracker. Čítanie používa LINQ bez trackovania, zápis sledované entity a `SaveChangesAsync`; hromadné mazanie a recovery používajú EF príkazy. Pri udalostiach zostáva parametrizovaný `FromSqlInterpolated`, aby sa zachovalo historické poradie `timestamp,rowid`. `SaveAsync` zapisuje celú dávku v jednej transakcii. Čítanie kompozitov má spoločnú read transakciu, aby heartbeat medzi SELECTmi nevytvoril nekonzistentný report. Časy sú UTC Unix milisekundy; GUID sa ukladajú ako text.
 
 | Tabuľka | Význam |
 | --- | --- |
@@ -22,13 +22,15 @@ Pri zmene zlúčenia sa najprv zapíšu rodičia/listy, potom sa upsertnú a pri
 
 ## Migrácie a obnova
 
-Aktuálna verzia je `PRAGMA user_version=4`, spravovaná v `SqliteSchema.cs`. Inicializácia je v rámci inštancie store jednorazová a zamknutá semaforom.
+Schému spravujú EF migrácie v `Migrations/` a tabuľka `__EFMigrationsHistory`. `SqliteSchema.InitializeAsync` ich automaticky aplikuje cez `Database.MigrateAsync` pri štarte ešte pred vytvorením Recorderu a GUI, aj pri vypnutom zázname po spustení. Aplikácia inicializáciu vykonáva cez `Task.Run`, pretože SQLite async API môže blokovať volajúce vlákno. Inicializácia je v rámci inštancie store jednorazová a zamknutá semaforom; volá sa aj pri samostatnom použití store.
+
+Úvodná migrácia `AdoptExistingSchema` vytvorí chýbajúce tabuľky a indexy cez `IF NOT EXISTS`, takže prevezme aj databázy verzie 1–4 bez prepisu histórie. Starý marker `PRAGMA user_version=4` zostáva pre kompatibilitu diagnostiky; ďalšie zmeny eviduje EF. Pri starších databázach sa najprv aplikuje úvodná migrácia, potom sa v samostatnej transakcii prevedú dáta a nastaví starý marker. Až po dokončení prevodu sa aplikujú prípadné ďalšie EF migrácie. Ak sa prevod preruší, marker zostane pôvodný a ďalší štart ho zopakuje bez duplikovania dát. Úvodná migrácia nepodporuje downgrade, ktorý by odstránil prevzatú históriu.
 
 - Verzia 1: intervaly sa prenesú pod nové procesy a okná, ID listov, názvy, URL a časy zostávajú. Pôvodná tabuľka sa nemaže. Rodičovské životnosti sú odvodené z histórie, skutočný zánik starých okien nie je známy.
 - Verzia 2: doplnia sa `activity_spans`, každý pôvodný list dostane jeden úsek.
 - Verzia 3: pridá sa samostatná tabuľka ikon bez zmeny ID, časov a aktívnych úsekov histórie. Ikony sa dopĺňajú pri ďalšom pozorovaní aplikácií; bez dostupnej ikony zostáva miesto vedľa názvu prázdne. PNG sa ukladá raz na názov aplikácie ako BLOB, nie pri každej aktivite.
-- Migrácia aj uzavretie otvorených procesov/okien/listov prebiehajú v transakcii. Po páde sa nemení posledný potvrdený koniec, iba sa zruší `is_open`, aby prestoj nevytvoril pracovný čas.
-- Novšia neznáma verzia sa odmietne otvoriť. Staršiu aplikáciu nepoužívaj na zápis po migrácii. Zmeny schémy musia mať test migrácie s izolovanou databázou.
+- EF migrácie spravujú vlastné transakcie. Prevod starých dát aj následné uzavretie otvorených procesov/okien/listov majú samostatné transakcie. Po páde sa nemení posledný potvrdený koniec, iba sa zruší `is_open`, aby prestoj nevytvoril pracovný čas.
+- Novšia neznáma hodnota `user_version` alebo neznámy záznam v `__EFMigrationsHistory` sa odmietne ešte pred migráciami a recovery. Staršiu aplikáciu nepoužívaj na zápis po migrácii. Zmeny schémy musia mať test migrácie s izolovanou databázou.
 
 ## Diagnostika bez zmien histórie
 
