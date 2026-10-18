@@ -10,6 +10,7 @@ public sealed class SettingsViewModel : ObservableObject
     private bool _startWithWindows;
     private bool _startMinimized;
     private int _themeIndex;
+    private bool _checkForUpdates;
     private string _error = "";
     private bool _isSaving;
 
@@ -21,6 +22,7 @@ public sealed class SettingsViewModel : ObservableObject
         _startWithWindows = settings.StartWithWindows;
         _startMinimized = settings.StartMinimized;
         _themeIndex = (int)settings.Theme;
+        _checkForUpdates = settings.CheckForUpdates;
         SaveCommand = new(SaveAsync, ex => Error = "Nastavenia sa nepodarilo uložiť: " + ex.Message);
     }
 
@@ -28,6 +30,7 @@ public sealed class SettingsViewModel : ObservableObject
     public bool RecordOnLaunch { get => _recordOnLaunch; set => Set(ref _recordOnLaunch, value); }
     public bool StartWithWindows { get => _startWithWindows; set => Set(ref _startWithWindows, value); }
     public bool StartMinimized { get => _startMinimized; set => Set(ref _startMinimized, value); }
+    public bool CheckForUpdates { get => _checkForUpdates; set => Set(ref _checkForUpdates, value); }
     public int ThemeIndex { get => _themeIndex; set => Set(ref _themeIndex, value); }
     public string Error { get => _error; private set => Set(ref _error, value); }
     public bool IsSaving { get => _isSaving; private set { if (Set(ref _isSaving, value)) Changed(nameof(IsEditable)); } }
@@ -43,7 +46,7 @@ public sealed class SettingsViewModel : ObservableObject
             Error = "Zadajte celé číslo od 0 do 600 sekúnd.";
             return;
         }
-        var settings = new ApplicationSettings(seconds, RecordOnLaunch, StartWithWindows, StartMinimized, (ApplicationTheme)ThemeIndex);
+        var settings = new ApplicationSettings(seconds, RecordOnLaunch, StartWithWindows, StartMinimized, (ApplicationTheme)ThemeIndex, CheckForUpdates);
         settings.Validate();
         IsSaving = true;
         try { await _save(settings); }

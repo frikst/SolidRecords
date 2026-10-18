@@ -5,6 +5,7 @@ using SolidRecords.App;
 using SolidRecords.App.Infrastructure;
 using SolidRecords.App.Presentation;
 using SolidRecords.Core;
+using SolidRecords.Core.Updates;
 using SolidRecords.Core.Recording;
 
 namespace SolidRecords.DesktopChecks;
@@ -18,6 +19,10 @@ internal static class StartupChecks
         File.WriteAllText(Path.Combine(directory, "settings.json"), paused ? "{\"RecordOnLaunch\":false}" : "{\"RecordOnLaunch\":true}");
         var source = new EmptySource();
         var services = new ServiceCollection().AddSolidRecords(directory);
+        services.RemoveAll<IUpdateNotifier>();
+        services.AddSingleton<IUpdateNotifier, SilentNotifications>();
+        services.RemoveAll<IReleaseClient>();
+        services.AddSingleton<IReleaseClient, OfflineReleaseClient>();
         services.RemoveAll<Action<bool>>();
         services.AddSingleton<Action<bool>>(_ => _ => { });
         services.RemoveAll<Recorder>();
@@ -71,7 +76,7 @@ internal static class StartupChecks
                     failingEditor.SaveCommand.Execute(null);
                     if (failingEditor.Error.Length == 0 || !failingEditor.IsEditable)
                         throw new InvalidOperationException("Settings editor did not recover from a save failure.");
-                    var settings = new ApplicationSettings(0, false, false, false, ApplicationTheme.Dark);
+                    var settings = new ApplicationSettings(0, false, false, false, ApplicationTheme.Dark, false);
                     var recordingBeforeSave = recorder.IsRecording;
                     await app.SaveSettingsAsync(settings);
                     if (recorder.IsRecording != recordingBeforeSave)
@@ -98,6 +103,18 @@ internal static class StartupChecks
         if (source.DisposalCount != 1) throw new InvalidOperationException("Capture source was not disposed exactly once.");
         Console.WriteLine($"PASS: DI startup ({(paused ? "paused" : "recording")}), shared services, show/hide, preferences and shutdown.");
         return 0;
+    }
+
+    private sealed class SilentNotifications : IUpdateNotifier
+    {
+        public void Show(UpdateRelease release) { }
+        public void Clear() { }
+    }
+
+    private sealed class OfflineReleaseClient : IReleaseClient
+    {
+        public Task<ReleaseCheckResult> CheckAsync(string? etag, CancellationToken cancellationToken) =>
+            Task.FromResult(new ReleaseCheckResult(false));
     }
 
     private sealed class EmptySource : IActivitySource

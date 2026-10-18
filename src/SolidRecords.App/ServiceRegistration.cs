@@ -2,6 +2,10 @@ using Microsoft.Extensions.DependencyInjection;
 using SolidRecords.App.Infrastructure;
 using SolidRecords.App.Presentation;
 using SolidRecords.App.Tray;
+using SolidRecords.App.Updates;
+using SolidRecords.Core.Updates;
+using SolidRecords.Windows.Shell;
+using System.Net.Http;
 using SolidRecords.Core;
 using SolidRecords.Core.Recording;
 using SolidRecords.Core.Reporting;
@@ -31,6 +35,15 @@ internal static class ServiceRegistration
         services.AddSingleton<MainWindow>();
         services.AddSingleton<Func<MainWindow>>(provider => provider.GetRequiredService<MainWindow>);
         services.AddSingleton<TrayIconFactory>();
+        services.AddSingleton(_ => new HttpClient { Timeout = TimeSpan.FromMinutes(15) });
+        services.AddSingleton<IReleaseClient, GitHubReleaseClient>();
+        services.AddSingleton<IUpdateStateStore>(_ => new UpdateStateStore(dataDirectory));
+        services.AddSingleton<IUpdateNotifier, UpdateNotifications>();
+        services.AddSingleton(provider => new UpdateChecker(provider.GetRequiredService<IReleaseClient>(),
+            provider.GetRequiredService<IUpdateStateStore>(), provider.GetRequiredService<IUpdateNotifier>(),
+            typeof(App).Assembly.GetName().Version!));
+        services.AddSingleton(provider => new UpdateInstaller(provider.GetRequiredService<HttpClient>(), dataDirectory));
+        services.AddSingleton<UpdateController>();
         services.AddSingleton<App>();
         return services;
     }

@@ -1,4 +1,7 @@
 using System.Windows;
+using SolidRecords.App.Updates;
+using SolidRecords.Core.Updates;
+using SolidRecords.Windows.Shell;
 using SolidRecords.App.Infrastructure;
 using SolidRecords.App.Presentation;
 using SolidRecords.App.Tray;
@@ -22,11 +25,15 @@ internal partial class App : Application
     private readonly ActivityTrackingOptions _trackingOptions;
     private readonly Action<bool> _setStartup;
     private readonly SemaphoreSlim _settingsLifecycle = new(1, 1);
+    private readonly UpdateController _updates;
+    private readonly IUpdateNotifier _updateNotifier;
     private bool _exiting;
     private bool _showRequested;
+    private bool _startupComplete;
+    private readonly Queue<(string Action, string Tag)> _pendingUpdateActions = new();
 
     public App(IActivityStore store, Recorder recorder, MainViewModel viewModel, Func<MainWindow> createWindow,
-        PreferencesStore preferences, TrayIconFactory trayFactory, ActivityTrackingOptions trackingOptions, Action<bool> setStartup)
+        PreferencesStore preferences, TrayIconFactory trayFactory, ActivityTrackingOptions trackingOptions, Action<bool> setStartup, UpdateController updates, IUpdateNotifier updateNotifier)
     {
         _store = store;
         _recorder = recorder;
@@ -36,6 +43,8 @@ internal partial class App : Application
         _trayFactory = trayFactory;
         _trackingOptions = trackingOptions;
         _setStartup = setStartup;
+        _updates = updates;
+        _updateNotifier = updateNotifier;
     }
 
     protected override async void OnStartup(StartupEventArgs e)
@@ -58,6 +67,12 @@ internal partial class App : Application
                 catch (Exception ex) { _viewModel.ShowError(ex); ShowWindow(); }
             }
             await _viewModel.RefreshAsync();
+            _updates.Start(ex => Dispatcher.Invoke(() => MessageBox.Show("Aktualizácia sa nepodarila:\n" + ex.Message,
+                "SolidRecords", MessageBoxButton.OK, MessageBoxImage.Error)));
+            _startupComplete = true;
+            while (_pendingUpdateActions.TryDequeue(out var pending)) HandleUpdateActionAsync(pending.Action, pending.Tag);
+            if (_updateNotifier is UpdateNotifications notifications)
+                notifications.SetActivationHandler((action, tag) => Dispatcher.BeginInvoke(() => HandleUpdateActionAsync(action, tag)));
             if (_showRequested || !_preferences.Current.StartMinimized || e.Args.Contains("--show", StringComparer.OrdinalIgnoreCase)) ShowWindow();
         }
         catch (Exception ex)
@@ -65,6 +80,17 @@ internal partial class App : Application
             MessageBox.Show("Aplikáciu sa nepodarilo spustiť:\n" + ex.Message, "SolidRecords", MessageBoxButton.OK, MessageBoxImage.Error);
             await ExitAsync();
         }
+    }
+
+    internal async void HandleUpdateActionAsync(string action, string tag)
+    {
+        if (_exiting) return;
+        if (!_startupComplete)
+        {
+            if (_pendingUpdateActions.Count < 16) _pendingUpdateActions.Enqueue((action, tag));
+            return;
+        }
+        await _updates.HandleActionAsync(action, tag, ExitAsync);
     }
 
     internal void ShowWindow()
@@ -153,6 +179,7 @@ internal partial class App : Application
             ApplyTheme(settings.Theme);
         }
         finally { if (resume && !_exiting) await _recorder.StartAsync(); }
+        _ = Task.Run(_updates.RefreshAsync);
         await _viewModel.RefreshAsync();
     }
 
@@ -160,6 +187,7 @@ internal partial class App : Application
     {
         if (_exiting) return;
         _exiting = true;
+        await _updates.StopAsync();
         await _settingsLifecycle.WaitAsync();
         _settingsLifecycle.Release();
         _aboutWindow?.Close();

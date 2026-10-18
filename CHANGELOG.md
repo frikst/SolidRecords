@@ -5,6 +5,10 @@ Formát vychádza z [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0
 
 ## Unreleased
 
+### Added
+
+- Denná kontrola nových verzií s Windows notifikáciou: stiahnutie a tichá inštalácia po potvrdení oprávnenia správcu, pripomenutie o 4 hodiny alebo ignorovanie konkrétnej verzie. Kontrolu možno vypnúť v nastaveniach.
+
 ## [1.0.0] - 2026-10-16
 
 ### Added

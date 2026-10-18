@@ -43,6 +43,8 @@ jobs:
               run: dotnet build SolidRecords.slnx -c Release --no-restore -p:Version=$env:RELEASE_VERSION
             - name: Test
               run: dotnet test tests/SolidRecords.Tests -c Release --no-build --no-restore --logger trx --results-directory artifacts/test-results
+            - name: Check update downloads and notification actions
+              run: dotnet run --project tests/SolidRecords.DesktopChecks -c Release --no-build --no-restore -- --updates-only
             - name: Check WPF previews
               run: dotnet run --project tests/SolidRecords.DesktopChecks -c Release --no-build --no-restore -- --preview-only
             - name: Publish self-contained application

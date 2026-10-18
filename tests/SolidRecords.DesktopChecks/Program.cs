@@ -23,6 +23,11 @@ internal static class Program
     {
         try
         {
+            if (args.Contains("--updates-only", StringComparer.Ordinal))
+            {
+                UpdateChecks.RunAsync().GetAwaiter().GetResult();
+                return 0;
+            }
             if (args.Contains("--startup-only", StringComparer.Ordinal))
                 return StartupChecks.Run(args.Contains("--paused", StringComparer.Ordinal));
             if (args.Contains("--inspect-history", StringComparer.Ordinal)) return HistoryDiagnostics.Run();

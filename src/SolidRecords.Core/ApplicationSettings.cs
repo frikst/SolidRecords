@@ -3,7 +3,7 @@ namespace SolidRecords.Core;
 public enum ApplicationTheme { System, Light, Dark }
 
 public sealed record ApplicationSettings(int MinimumActivitySeconds = 15, bool RecordOnLaunch = true,
-    bool StartWithWindows = true, bool StartMinimized = true, ApplicationTheme Theme = ApplicationTheme.System)
+    bool StartWithWindows = true, bool StartMinimized = true, ApplicationTheme Theme = ApplicationTheme.System, bool CheckForUpdates = true)
 {
     public void Validate()
     {
