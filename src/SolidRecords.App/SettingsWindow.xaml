@@ -33,7 +33,6 @@
       <TabItem Header="Zaznamenávanie">
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
           <StackPanel Margin="0,20,8,0" TextElement.Foreground="{DynamicResource TextFillColorPrimaryBrush}">
-            <TextBlock Text="ZAZNAMENÁVANIE" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="11" Margin="0,0,0,12" />
             <Label Content="Minimálne trvanie aktivity" Target="{Binding ElementName=MinimumDuration}" Padding="0" />
             <StackPanel Orientation="Horizontal" Margin="0,8,0,6">
               <TextBox x:Name="MinimumDuration" Text="{Binding MinimumActivitySeconds, UpdateSourceTrigger=PropertyChanged}" Width="90" MaxLength="3" VerticalContentAlignment="Center" />
@@ -47,6 +46,31 @@
               <ComboBoxItem Content="Pri spustení aplikácie – stále" />
               <ComboBoxItem Content="Iba v pracovnom čase" />
             </ComboBox>
+            <Label Content="Automaticky mazať záznamy aktivity" Target="{Binding ElementName=RetentionMode}" Padding="0" />
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,6">
+              <ComboBox x:Name="RetentionMode" SelectedValuePath="Tag" SelectedValue="{Binding DeleteOldActivities}" Width="150"
+                        xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+                <ComboBoxItem Content="Nikdy"><ComboBoxItem.Tag><sys:Boolean>False</sys:Boolean></ComboBoxItem.Tag></ComboBoxItem>
+                <ComboBoxItem Content="Po"><ComboBoxItem.Tag><sys:Boolean>True</sys:Boolean></ComboBoxItem.Tag></ComboBoxItem>
+              </ComboBox>
+              <StackPanel Orientation="Horizontal" Margin="12,0,0,0">
+                <StackPanel.Style>
+                  <Style TargetType="StackPanel">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding DeleteOldActivities}" Value="True">
+                        <Setter Property="Visibility" Value="Visible" />
+                      </DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </StackPanel.Style>
+                <TextBox x:Name="RetentionDays" Text="{Binding ActivityRetentionDays, UpdateSourceTrigger=PropertyChanged}" Width="90" MaxLength="10"
+                         AutomationProperties.Name="Počet dní uchovávania aktivity" VerticalContentAlignment="Center" />
+                <TextBlock Text="dňoch" VerticalAlignment="Center" Margin="12,0,0,0" />
+              </StackPanel>
+            </StackPanel>
+            <TextBlock Text="Staršie ukončené záznamy sa natrvalo vymažú pri štarte, po uložení a potom každú hodinu. Aktívne záznamy zostanú zachované."
+                       TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="12" Margin="0,0,0,12" />
           </StackPanel>
         </ScrollViewer>
       </TabItem>

@@ -31,6 +31,7 @@ internal partial class App : Application
     private readonly RecordingAutomation _recordingAutomation = new();
     private DispatcherTimer? _scheduleTimer;
     private bool _scheduleBusy;
+    private DateTimeOffset _nextRetentionCheck;
     private bool _exiting;
     private bool _showRequested;
     private bool _startupComplete;
@@ -58,6 +59,8 @@ internal partial class App : Application
         {
             await Task.Run(() => _store.InitializeAsync());
             await Task.Run(_preferences.LoadAsync);
+            try { await ApplyRetentionAsync(force: true); }
+            catch (Exception ex) { _viewModel.ShowError(ex); ShowWindow(); }
             _trackingOptions.SetMinimumActivityDuration(TimeSpan.FromSeconds(_preferences.Current.MinimumActivitySeconds));
             ApplyTheme(_preferences.Current.Theme);
             _window = _createWindow();
@@ -97,10 +100,24 @@ internal partial class App : Application
         await _settingsLifecycle.WaitAsync();
         try
         {
-            if (!_exiting) await ApplyRecordingScheduleAsync();
+            if (!_exiting)
+            {
+                await ApplyRecordingScheduleAsync();
+                await ApplyRetentionAsync();
+            }
         }
         catch (Exception ex) { _viewModel.ShowError(ex); }
         finally { _settingsLifecycle.Release(); _scheduleBusy = false; }
+    }
+
+    private async Task ApplyRetentionAsync(bool force = false)
+    {
+        var now = DateTimeOffset.UtcNow;
+        if (!force && now < _nextRetentionCheck) return;
+        // Back off on failure as well; report the error without retrying every second.
+        _nextRetentionCheck = now.AddHours(1);
+        if (ActivityRetention.GetCutoff(_preferences.Current, now) is { } cutoff)
+            await _recorder.DeleteBeforeAsync(cutoff);
     }
 
     private async Task ApplyRecordingScheduleAsync()
@@ -208,6 +225,7 @@ internal partial class App : Application
         }
         finally { if (resume && !_exiting) await _recorder.StartAsync(); }
         _viewModel.ApplySettings(settings);
+        await ApplyRetentionAsync(force: true);
         await ApplyRecordingScheduleAsync();
         _ = Task.Run(_updates.RefreshAsync);
         await _viewModel.RefreshAsync();

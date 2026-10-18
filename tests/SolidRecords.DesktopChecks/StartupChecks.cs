@@ -72,6 +72,23 @@ internal static class StartupChecks
                     editor.SaveCommand.Execute(null);
                     if (saveCalls != 1 || editor.Error.Length != 0 || !editor.IsEditable)
                         throw new InvalidOperationException("Settings editor failed to save a valid threshold.");
+                    ApplicationSettings? retentionSettings = null;
+                    var retentionEditor = new SettingsViewModel(new(), saved => { retentionSettings = saved; return Task.CompletedTask; });
+                    if (retentionEditor.DeleteOldActivities) throw new InvalidOperationException("Retention must default to never.");
+                    retentionEditor.DeleteOldActivities = true;
+                    foreach (var invalid in new[] { "", "0", "-1", "1.5", "abc", "2147483648" })
+                    {
+                        retentionEditor.ActivityRetentionDays = invalid;
+                        retentionEditor.SaveCommand.Execute(null);
+                        if (retentionSettings is not null || retentionEditor.Error.Length == 0)
+                            throw new InvalidOperationException("Settings editor accepted invalid retention.");
+                    }
+                    retentionEditor.ActivityRetentionDays = "30";
+                    retentionEditor.SaveCommand.Execute(null);
+                    if (retentionSettings?.ActivityRetentionDays != 30) throw new InvalidOperationException("Retention days were not saved.");
+                    retentionEditor.DeleteOldActivities = false;
+                    retentionEditor.SaveCommand.Execute(null);
+                    if (retentionSettings?.ActivityRetentionDays is not null) throw new InvalidOperationException("Never retention was not saved.");
                     ApplicationSettings? edited = null;
                     var workEditor = new SettingsViewModel(new(), saved => { edited = saved; return Task.CompletedTask; });
                     foreach (var (start, end) in new[] { ("24:00", "24:00"), ("15:00", "07:00"), ("07:00", "07:00"), ("bad", "15:00"), ("07:00", "25:00") })
@@ -95,9 +112,23 @@ internal static class StartupChecks
                     failingEditor.SaveCommand.Execute(null);
                     if (failingEditor.Error.Length == 0 || !failingEditor.IsEditable)
                         throw new InvalidOperationException("Settings editor did not recover from a save failure.");
-                    var settings = new ApplicationSettings(0, false, false, false, ApplicationTheme.Dark, false);
+                    var history = provider.GetRequiredService<IActivityStore>();
+                    var oldAt = DateTimeOffset.UtcNow.AddDays(-60);
+                    var oldId = Guid.NewGuid();
+                    var recordingId = Guid.NewGuid();
+                    await history.SaveAsync(new([], [new(oldId, recordingId, new(1, 2, "test", "old"), oldAt, oldAt.AddMinutes(1), false, oldId, oldId)])
+                    {
+                        Processes = [new(oldId, recordingId, 2, "test", null, oldAt, oldAt.AddMinutes(1), false)],
+                        Windows = [new(oldId, oldId, 1, "old", oldAt, oldAt.AddMinutes(1), false)]
+                    });
+                    await app.SaveSettingsAsync(provider.GetRequiredService<PreferencesStore>().Current);
+                    if ((await history.ReadIntervalsAsync(oldAt, oldAt.AddHours(1))).Count != 1)
+                        throw new InvalidOperationException("Never retention removed history.");
+                    var settings = new ApplicationSettings(0, false, false, false, ApplicationTheme.Dark, false, ActivityRetentionDays: 30);
                     var recordingBeforeSave = recorder.IsRecording;
                     await app.SaveSettingsAsync(settings);
+                    if ((await history.ReadIntervalsAsync(oldAt, oldAt.AddHours(1))).Count != 0)
+                        throw new InvalidOperationException("Saving retention settings did not remove expired history.");
                     if (recorder.IsRecording != recordingBeforeSave)
                         throw new InvalidOperationException("Saving settings changed the recording state.");
                     if (await provider.GetRequiredService<ISettingsStore>().ReadSettingsAsync() != settings

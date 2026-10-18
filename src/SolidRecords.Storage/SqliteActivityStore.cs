@@ -69,6 +69,28 @@ public sealed class SqliteActivityStore : IActivityStore, ISettingsStore
         await transaction.CommitAsync(cancellationToken);
     }
 
+    public async Task DeleteBeforeAsync(DateTimeOffset cutoff, CancellationToken cancellationToken = default)
+    {
+        await InitializeAsync(cancellationToken);
+        await using var db = new ActivityDbContext(_options);
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        var before = Millis(cutoff);
+        // Retain complete crossing/open activities, including their original spans and IDs.
+        await db.Leaves.Where(x => !x.IsOpen && x.End < before).ExecuteDeleteAsync(cancellationToken);
+        await db.Windows.Where(x => !x.IsOpen && x.End < before &&
+            !db.Leaves.Any(leaf => leaf.WindowActivityId == x.Id)).ExecuteDeleteAsync(cancellationToken);
+        await db.Processes.Where(x => !x.IsOpen && x.End < before &&
+            !db.Windows.Any(window => window.ProcessActivityId == x.Id)).ExecuteDeleteAsync(cancellationToken);
+        await db.Events.Where(x => x.Timestamp < before).ExecuteDeleteAsync(cancellationToken);
+        // The legacy table is unmapped and may be absent in a fresh database.
+        var hasLegacyIntervals = await db.Database.SqlQueryRaw<int>(
+            "SELECT COUNT(*) AS Value FROM sqlite_master WHERE type = 'table' AND name = 'intervals'")
+            .SingleAsync(cancellationToken);
+        if (hasLegacyIntervals != 0)
+            await db.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM intervals WHERE end < {before}", cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
     internal static async Task WriteBatchAsync(ActivityDbContext db, RecordingBatch batch, CancellationToken cancellationToken)
     {
         foreach (var icon in batch.ApplicationIcons)

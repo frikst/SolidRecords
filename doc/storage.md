@@ -2,7 +2,7 @@
 
 ## Súbory a schéma
 
-Release zostava ukladá používateľské dáta do `%LOCALAPPDATA%\SolidRecords`: `activity.db` vrátane nastavení. Pôvodný `settings.json` sa číta iba pri jednorazovom prevzatí preferencie záznamu. Debug zostava používa databázu v `artifacts/dev/` v repozitári, ktorý je celý ignorovaný Gitom. Absolútna vývojová cesta sa vloží pri zostavení, takže nezávisí od pracovného priečinka pri spustení. Existujúce dáta sa medzi týmito priečinkami nekopírujú. Databáza obsahuje názvy dokumentov a celé dostupné URL vrátane query parametrov. Nie je šifrovaná, bez automatickej retencie; aplikácia históriu neposiela na sieť. Vedľa databázy sa ukladá nezávislá cache kontroly vydaní `updates.json`; formát a sieťové správanie opisuje [updates.md](updates.md).
+Release zostava ukladá používateľské dáta do `%LOCALAPPDATA%\SolidRecords`: `activity.db` vrátane nastavení. Pôvodný `settings.json` sa číta iba pri jednorazovom prevzatí preferencie záznamu. Debug zostava používa databázu v `artifacts/dev/` v repozitári, ktorý je celý ignorovaný Gitom. Absolútna vývojová cesta sa vloží pri zostavení, takže nezávisí od pracovného priečinka pri spustení. Existujúce dáta sa medzi týmito priečinkami nekopírujú. Databáza obsahuje názvy dokumentov a celé dostupné URL vrátane query parametrov. Nie je šifrovaná; automatické mazanie je predvolene vypnuté; aplikácia históriu neposiela na sieť. Vedľa databázy sa ukladá nezávislá cache kontroly vydaní `updates.json`; formát a sieťové správanie opisuje [updates.md](updates.md).
 
 SQLite používa Entity Framework Core 10.0.12 s providerom `Microsoft.EntityFrameworkCore.Sqlite` (pod ním Microsoft.Data.Sqlite), WAL, `synchronous=FULL`, cudzie kľúče, parametrizované príkazy, transakcie a časové/rodičovské indexy. `ActivityDbContext` mapuje samostatné perzistenčné entity na pôvodné tabuľky; modely Core nezávisia od EF. Každá operácia store vytvára vlastný kontext, takže Recorder a report nezdieľajú change tracker. Čítanie používa LINQ bez trackovania, zápis sledované entity a `SaveChangesAsync`; hromadné mazanie a recovery používajú EF príkazy. Pri udalostiach zostáva parametrizovaný `FromSqlInterpolated`, aby sa zachovalo historické poradie `timestamp,rowid`. `SaveAsync` zapisuje celú dávku v jednej transakcii. Čítanie kompozitov má spoločnú read transakciu, aby heartbeat medzi SELECTmi nevytvoril nekonzistentný report. Časy sú UTC Unix milisekundy; GUID sa ukladajú ako text.
 
@@ -20,6 +20,14 @@ SQLite používa Entity Framework Core 10.0.12 s providerom `Microsoft.EntityFra
 Pri zmene zlúčenia sa najprv zapíšu rodičia/listy, potom sa upsertnú a priradia úseky a až potom sa odstránia nahradené listy. Zmena tohto poradia môže cez kaskádové mazanie stratiť presunuté úseky.
 
 `ReadProcessesAsync` vracia celé aktivity a úseky zasahujúce do rozsahu; report ich filtruje/normalizuje pred denným orezaním. `ReadIntervalsAsync` už oreže na požadovaný rozsah. Nepoužívaj ho namiesto reportu na posudzovanie minimálnej dĺžky cez polnoc.
+
+## Automatické mazanie
+
+`ApplicationSettings.ActivityRetentionDays` je voliteľný kladný počet dní; `null` znamená „Nikdy“ a použije sa aj pri starších nastaveniach bez tejto hodnoty. Zmena nevyžaduje migráciu schémy. Core `ActivityRetention` počíta hranicu ako aktuálny UTC čas mínus počet 24-hodinových dní, nezávisle od letného času.
+
+App spúšťa mazanie po načítaní nastavení pri štarte, po ich uložení a potom každú hodinu aj pri skrytom okne alebo zastavenom zázname. Recorder ho zaradí do rovnakého pracovného radu ako zápisy, mimo UI vlákna. Chyba mazania sa zobrazí používateľovi a nezastaví zber; periodické opakovanie počká hodinu.
+
+`DeleteBeforeAsync` v jednej transakcii odstráni ukončené listy s koncom striktne pred hranicou (úseky cez kaskádu), staršie ukončené okná/procesy bez potomkov, interné udalosti pred hranicou a staré riadky pôvodnej tabuľky `intervals`, ak existuje. Otvorené aktivity a záznamy zasahujúce cez hranicu zostávajú celé, so skutočnými úsekmi a pôvodnými ID. Nastavenia a spoločné ikony sa nemažú. Ide o logické odstránenie histórie, nie bezpečný prepis databázového súboru či záloh.
 
 ## Migrácie a obnova
 

@@ -24,6 +24,7 @@ Pravým kliknutím na ikonu pri hodinách otvorte **Nastavenia…**. Tlačidlo *
 | Nastavenie | Predvolená hodnota |
 | --- | --- |
 | Minimálne trvanie aktivity | 15 sekúnd; rozsah 0–600, pri 0 sa minimum vypne. |
+| Automaticky mazať záznamy aktivity | Nikdy; voliteľne po kladnom počte dní. |
 | Automatický záznam | Pri spustení aplikácie – stále; voliteľne iba v pracovnom čase alebo vypnutý (ručné spúšťanie). |
 | Pracovný čas a dni | 07:00–15:00, pondelok až piatok. |
 | Spustenie programu pri prihlásení do Windows | Zapnuté. |
@@ -74,7 +75,7 @@ Pri vynútenom ukončení alebo výpadku napájania nemusia byť uložené posle
 %LOCALAPPDATA%\SolidRecords\activity.db
 ```
 
-Údaje zostávajú lokálne; aplikácia ich nikam neposiela. Databáza nie je šifrovaná a nemá automatické mazanie ani limit retencie. Názvy dokumentov a celé dostupné URL vrátane query parametrov sú súčasťou záznamu.
+Údaje zostávajú lokálne; aplikácia ich nikam neposiela. Databáza nie je šifrovaná. V záložke Zaznamenávanie môžete zapnúť automatické mazanie ukončených záznamov po zadanom počte dní; predvolene je nastavené **Nikdy**. Mazanie sa vykoná po uložení nastavení, pri štarte a potom každú hodinu. Aktívne záznamy a záznamy zasahujúce do ponechaného obdobia zostávajú celé. Názvy dokumentov a celé dostupné URL vrátane query parametrov sú súčasťou záznamu.
 
 Pred súborovou zálohou aplikáciu ukončite. Databáza sa pri spustení automaticky aktualizuje na aktuálnu schému; po migrácii do nej nezapisujte staršou verziou aplikácie.
 

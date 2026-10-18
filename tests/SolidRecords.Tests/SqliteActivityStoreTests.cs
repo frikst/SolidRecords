@@ -44,7 +44,7 @@ public sealed class SqliteActivityStoreTests : IDisposable
         foreach (var seconds in new[] { 0, 600, 15 })
         {
             var settings = new ApplicationSettings(seconds, true, false, false, ApplicationTheme.Dark, false,
-                510, 1440, WorkDays.Tuesday | WorkDays.Sunday, true);
+                510, 1440, WorkDays.Tuesday | WorkDays.Sunday, true, 30);
             await store.SaveSettingsAsync(settings);
             Assert.Equal(settings, await CreateStore().ReadSettingsAsync());
         }
@@ -55,6 +55,74 @@ public sealed class SqliteActivityStoreTests : IDisposable
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => store.SaveSettingsAsync(new(601)));
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => store.SaveSettingsAsync(new(Theme: (ApplicationTheme)99)));
         Assert.Equal(15, (await store.ReadSettingsAsync())!.MinimumActivitySeconds);
+    }
+
+    [Fact]
+    public async Task RetentionRemovesOnlyExpiredClosedHistoryAndCascadesSpans()
+    {
+        var store = CreateStore();
+        var cutoff = new DateTimeOffset(2026, 10, 18, 12, 0, 0, TimeSpan.Zero);
+        ActivityInterval Leaf(DateTimeOffset start, DateTimeOffset end, bool open = false) =>
+            new(Guid.NewGuid(), Guid.NewGuid(), new(1, 2, "app", "title"), start, end, open);
+        var expired = Leaf(cutoff.AddDays(-2), cutoff.AddMilliseconds(-1));
+        var boundary = Leaf(cutoff.AddHours(-1), cutoff);
+        var crossing = Leaf(cutoff.AddDays(-2), cutoff.AddHours(1)) with
+        {
+            Spans = [new(Guid.NewGuid(), cutoff.AddDays(-2), cutoff.AddDays(-2).AddMinutes(1)),
+                new(Guid.NewGuid(), cutoff.AddMinutes(-1), cutoff.AddHours(1))]
+        };
+        var open = Leaf(cutoff.AddDays(-2), cutoff.AddHours(-1), true);
+        var recent = Leaf(cutoff.AddHours(1), cutoff.AddHours(2));
+        var shared = Leaf(cutoff.AddDays(-1), cutoff.AddHours(-1));
+        foreach (var leaf in new[] { expired, boundary, crossing, open, recent })
+            await store.SaveAsync(Composite(leaf));
+        // An expired child of a retained, open parent must also be removed.
+        await store.SaveAsync(new([], [shared with { ProcessActivityId = open.Id, WindowActivityId = open.Id }]));
+        var oldEvent = new ActivityEvent(Guid.NewGuid(), expired.RecordingId, EventKind.Heartbeat, cutoff.AddMilliseconds(-1));
+        var keptEvent = oldEvent with { Id = Guid.NewGuid(), Timestamp = cutoff };
+        await store.SaveAsync(new([oldEvent, keptEvent], []));
+        var settings = new ApplicationSettings(ActivityRetentionDays: 30);
+        await store.SaveSettingsAsync(settings);
+        await store.DeleteBeforeAsync(cutoff);
+        await store.DeleteBeforeAsync(cutoff);
+        var actual = await store.ReadIntervalsAsync(cutoff.AddDays(-3), cutoff.AddDays(1));
+        Assert.Equal(new[] { boundary.Id, crossing.Id, open.Id, recent.Id }.Order(), actual.Select(x => x.Id).Order());
+        Assert.Equal(crossing.Spans, actual.Single(x => x.Id == crossing.Id).Spans);
+        Assert.True(actual.Single(x => x.Id == open.Id).IsOpen);
+        Assert.Equal(keptEvent, Assert.Single(await store.ReadEventsAsync(cutoff.AddDays(-3), cutoff.AddDays(1))));
+        Assert.Equal(settings, await store.ReadSettingsAsync());
+        await using var connection = new SqliteConnection($"Data Source={store.DatabasePath}");
+        await connection.OpenAsync();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM activity_spans WHERE activity_id IN ($expired, $shared);";
+        command.Parameters.AddWithValue("$expired", expired.Id.ToString());
+        command.Parameters.AddWithValue("$shared", shared.Id.ToString());
+        Assert.Equal(0L, await command.ExecuteScalarAsync());
+        command.CommandText = "PRAGMA foreign_key_check;";
+        await using var reader = await command.ExecuteReaderAsync();
+        Assert.False(await reader.ReadAsync());
+    }
+
+    [Fact]
+    public async Task RetentionDuringRecordingDoesNotRestoreDeletedLeavesOnNextHeartbeat()
+    {
+        var store = CreateStore();
+        var at = new DateTimeOffset(2026, 10, 15, 8, 0, 0, TimeSpan.Zero);
+        var source = new IconSource();
+        await using var recorder = new Recorder(store, source, new IconClock(at), new ActivityTrackingOptions());
+        await recorder.StartAsync();
+        source.Publish!(new(SignalKind.SessionActive, at));
+        source.Publish(new(SignalKind.ForegroundChanged, at, new(1, 2, "app", "old")));
+        source.Publish(new(SignalKind.Heartbeat, at.AddMinutes(1)));
+        source.Publish(new(SignalKind.ForegroundChanged, at.AddMinutes(2), new(1, 2, "app", "current")));
+        source.Publish(new(SignalKind.Heartbeat, at.AddDays(2)));
+        await recorder.DeleteBeforeAsync(at.AddDays(1));
+        source.Publish(new(SignalKind.Heartbeat, at.AddDays(2).AddMinutes(1)));
+        await recorder.StopAsync();
+        var leaf = Assert.Single(await store.ReadIntervalsAsync(at, at.AddDays(3)));
+        Assert.Equal("current", leaf.Window.Title);
+        Assert.Equal(at.AddMinutes(2), leaf.Start);
+        Assert.False(leaf.IsOpen);
     }
 
     [Fact]
@@ -182,6 +250,13 @@ public sealed class SqliteActivityStoreTests : IDisposable
         Assert.False(leaf.IsOpen);
         // Reinitialization must not migrate the legacy rows a second time.
         Assert.Single(await CreateStore().ReadIntervalsAsync(DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddDays(1)));
+        await store.DeleteBeforeAsync(DateTimeOffset.UnixEpoch.AddDays(1));
+        Assert.Empty(await CreateStore().ReadProcessesAsync(DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddDays(1)));
+        await using var check = new SqliteConnection($"Data Source={store.DatabasePath}");
+        await check.OpenAsync();
+        using var legacy = check.CreateCommand();
+        legacy.CommandText = "SELECT COUNT(*) FROM intervals;";
+        Assert.Equal(0L, await legacy.ExecuteScalarAsync());
     }
 
     [Fact]

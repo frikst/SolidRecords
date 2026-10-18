@@ -7,6 +7,7 @@ Formát vychádza z [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0
 
 ### Added
 
+- Automatické mazanie starších záznamov po nastavenom počte dní. Predvolená voľba „Nikdy“ uchováva históriu bez časového obmedzenia.
 - Nastavenie pracovných hodín a dní (predvolene 7:00–15:00, pondelok až piatok) s voliteľným automatickým záznamom iba v pracovnom čase. Časová os zahŕňa celý pracovný rozsah aj bez aktivít a pri skoršej či neskoršej práci sa rozšíri. Predvolené zaznamenávanie zostáva bez časového obmedzenia.
 - Denná kontrola nových verzií s Windows notifikáciou: stiahnutie a tichá inštalácia po potvrdení oprávnenia správcu, pripomenutie o 4 hodiny alebo ignorovanie konkrétnej verzie. Kontrolu možno vypnúť v nastaveniach.
 

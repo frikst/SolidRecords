@@ -5,7 +5,7 @@ namespace SolidRecords.Core.Recording;
 /// <summary>Serializes capture and persistence; Stop drains all accepted observations.</summary>
 public sealed class Recorder : IAsyncDisposable
 {
-    private sealed record Work(CaptureSignal Signal, TaskCompletionSource? Completion = null);
+    private sealed record Work(CaptureSignal? Signal, TaskCompletionSource? Completion = null, DateTimeOffset? Cutoff = null);
     private readonly IActivityStore _store;
     private readonly IActivitySource _source;
     private readonly TimeProvider _clock;
@@ -83,6 +83,19 @@ public sealed class Recorder : IAsyncDisposable
         }
     }
 
+    public async Task DeleteBeforeAsync(DateTimeOffset cutoff)
+    {
+        await _lifecycle.WaitAsync();
+        try
+        {
+            var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (!_queue.Writer.TryWrite(new(null, completion, cutoff)))
+                throw new ObjectDisposedException(nameof(Recorder));
+            await completion.Task;
+        }
+        finally { _lifecycle.Release(); }
+    }
+
     private void Publish(CaptureSignal signal)
     {
         if (_accepting && _failure is null) _queue.Writer.TryWrite(new(signal));
@@ -100,13 +113,25 @@ public sealed class Recorder : IAsyncDisposable
     {
         await foreach (var work in _queue.Reader.ReadAllAsync())
         {
+            if (work.Cutoff is { } cutoff)
+            {
+                try
+                {
+                    await _store.DeleteBeforeAsync(cutoff);
+                    RecordsChanged?.Invoke(this, EventArgs.Empty);
+                    work.Completion!.SetResult();
+                }
+                catch (Exception ex) { work.Completion!.SetException(ex); }
+                continue;
+            }
+            var signal = work.Signal!;
             try
             {
                 if (_failure is not null) throw new InvalidOperationException("Zápis do databázy bol zastavený.", _failure);
-                if (work.Signal.Kind == SignalKind.CaptureFailed)
-                    throw new InvalidOperationException(work.Signal.Reason ?? "Zber udalostí zlyhal.");
-                var batch = _activityLog.Apply(_engine.Apply(work.Signal));
-                if (work.Signal.Icon is { } icon) batch = batch with { ApplicationIcons = [icon] };
+                if (signal.Kind == SignalKind.CaptureFailed)
+                    throw new InvalidOperationException(signal.Reason ?? "Zber udalostí zlyhal.");
+                var batch = _activityLog.Apply(_engine.Apply(signal));
+                if (signal.Icon is { } icon) batch = batch with { ApplicationIcons = [icon] };
                 if (batch.ApplicationIcons.Count > 0 || batch.Events.Count > 0 || batch.Intervals.Count > 0 || batch.Processes.Count > 0 || batch.Windows.Count > 0 || batch.RemovedIntervalIds.Count > 0)
                 {
                     await _store.SaveAsync(batch);

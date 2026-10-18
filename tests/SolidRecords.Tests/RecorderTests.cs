@@ -54,6 +54,7 @@ public sealed class RecorderTests
     private sealed class MemoryStore : IActivityStore
     {
         public List<ActivityEvent> Events { get; } = [];
+        public Task DeleteBeforeAsync(DateTimeOffset cutoff, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task SaveAsync(RecordingBatch batch, CancellationToken cancellationToken = default)
         {

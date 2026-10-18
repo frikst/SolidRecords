@@ -257,7 +257,6 @@ internal static class Program
         foreach (var theme in new[] { ThemeMode.Light, ThemeMode.Dark })
         {
             app.ThemeMode = theme;
-            TrayMenuPreview.Render(directory, theme.ToString().ToLowerInvariant());
             var settingsDialog = new SolidRecords.App.SettingsWindow(new SettingsViewModel(new ApplicationSettings(), _ => Task.CompletedTask));
             settingsDialog.Show();
             settingsDialog.UpdateLayout();
@@ -267,6 +266,19 @@ internal static class Program
             {
                 settingsTabs.SelectedIndex = tabIndex;
                 settingsDialog.UpdateLayout();
+                if (tabIndex == 1)
+                {
+                    var retentionMode = (System.Windows.Controls.ComboBox)settingsDialog.FindName("RetentionMode");
+                    var retentionEditor = (SettingsViewModel)settingsDialog.DataContext;
+                    Require(retentionMode.SelectedIndex == 0, "Retention must display Never by default.");
+                    retentionMode.SelectedIndex = 1;
+                    Require(retentionEditor.DeleteOldActivities, "Retention selector did not update the editor.");
+                    var retentionDays = (System.Windows.Controls.TextBox)settingsDialog.FindName("RetentionDays");
+                    Require(retentionDays.IsVisible, "Retention days must be visible for automatic deletion.");
+                    retentionMode.SelectedIndex = 0;
+                    Require(!retentionEditor.DeleteOldActivities, "Never must disable retention.");
+                    Require(!retentionDays.IsVisible, "Never must hide retention days.");
+                }
                 var settingsContent = (FrameworkElement)settingsDialog.Content;
                 var settingsSize = new Size(settingsContent.ActualWidth, settingsContent.ActualHeight);
                 foreach (var settingsScale in new[] { 1.0, 1.5 })
@@ -326,6 +338,14 @@ internal static class Program
             window.Loaded += (_, _) => Console.WriteLine($"Interactive preview DPI: {VisualTreeHelper.GetDpi(window).PixelsPerInchX}");
             window.ShowDialog();
         }
+#pragma warning disable WPF0001
+        foreach (var theme in new[] { ThemeMode.Light, ThemeMode.Dark })
+        {
+            app.ThemeMode = theme;
+            TrayMenuPreview.Render(directory, theme.ToString().ToLowerInvariant());
+        }
+        app.ThemeMode = ThemeMode.System;
+#pragma warning restore WPF0001
         PresentationTraceSources.DataBindingSource.Flush();
         Require(string.IsNullOrWhiteSpace(bindings.ToString()), "WPF binding errors: " + bindings);
         vm.Dispose();

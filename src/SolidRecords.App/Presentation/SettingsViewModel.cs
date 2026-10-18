@@ -7,6 +7,8 @@ public sealed class SettingsViewModel : ObservableObject
 {
     private readonly Func<ApplicationSettings, Task> _save;
     private string _minimumActivitySeconds;
+    private string _activityRetentionDays;
+    private bool _deleteOldActivities;
     private int _recordingModeIndex;
     private string _workStart;
     private string _workEnd;
@@ -21,6 +23,8 @@ public sealed class SettingsViewModel : ObservableObject
     public SettingsViewModel(ApplicationSettings settings, Func<ApplicationSettings, Task> save)
     {
         _save = save;
+        _deleteOldActivities = settings.ActivityRetentionDays.HasValue;
+        _activityRetentionDays = settings.ActivityRetentionDays?.ToString() ?? "30";
         _minimumActivitySeconds = settings.MinimumActivitySeconds.ToString();
         _recordingModeIndex = !settings.RecordOnLaunch ? 0 : settings.RecordOnlyDuringWorkHours ? 2 : 1;
         _workStart = FormatTime(settings.WorkStartMinutes);
@@ -33,6 +37,8 @@ public sealed class SettingsViewModel : ObservableObject
         SaveCommand = new(SaveAsync, ex => Error = "Nastavenia sa nepodarilo uložiť: " + ex.Message);
     }
 
+    public bool DeleteOldActivities { get => _deleteOldActivities; set => Set(ref _deleteOldActivities, value); }
+    public string ActivityRetentionDays { get => _activityRetentionDays; set => Set(ref _activityRetentionDays, value); }
     public string MinimumActivitySeconds { get => _minimumActivitySeconds; set => Set(ref _minimumActivitySeconds, value); }
     private static string FormatTime(int minutes) => $"{minutes / 60:00}:{minutes % 60:00}";
     public int RecordingModeIndex { get => _recordingModeIndex; set => Set(ref _recordingModeIndex, value); }
@@ -71,6 +77,16 @@ public sealed class SettingsViewModel : ObservableObject
             Error = "Zadajte celé číslo od 0 do 600 sekúnd.";
             return;
         }
+        int? retentionDays = null;
+        if (DeleteOldActivities)
+        {
+            if (!int.TryParse(ActivityRetentionDays, out var days) || days <= 0)
+            {
+                Error = "Zadajte kladný celý počet dní.";
+                return;
+            }
+            retentionDays = days;
+        }
         static int? ParseTime(string text)
         {
             if (text.Trim() == "24:00") return 1440;
@@ -90,7 +106,7 @@ public sealed class SettingsViewModel : ObservableObject
             return;
         }
         var settings = new ApplicationSettings(seconds, RecordingModeIndex != 0, StartWithWindows, StartMinimized,
-            (ApplicationTheme)ThemeIndex, CheckForUpdates, start.Value, end.Value, _workingDays, RecordingModeIndex == 2);
+            (ApplicationTheme)ThemeIndex, CheckForUpdates, start.Value, end.Value, _workingDays, RecordingModeIndex == 2, retentionDays);
         settings.Validate();
         IsSaving = true;
         try { await _save(settings); }

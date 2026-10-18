@@ -5,10 +5,11 @@ public enum ApplicationTheme { System, Light, Dark }
 public sealed record ApplicationSettings(int MinimumActivitySeconds = 15, bool RecordOnLaunch = true,
     bool StartWithWindows = true, bool StartMinimized = true, ApplicationTheme Theme = ApplicationTheme.System, bool CheckForUpdates = true,
     int WorkStartMinutes = 420, int WorkEndMinutes = 900, WorkDays WorkingDays = WorkDays.Weekdays,
-    bool RecordOnlyDuringWorkHours = false)
+    bool RecordOnlyDuringWorkHours = false, int? ActivityRetentionDays = null)
 {
     public void Validate()
     {
+        if (ActivityRetentionDays is <= 0) throw new ArgumentOutOfRangeException(nameof(ActivityRetentionDays));
         ArgumentOutOfRangeException.ThrowIfNegative(MinimumActivitySeconds);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(MinimumActivitySeconds, 600);
         ArgumentOutOfRangeException.ThrowIfNegative(WorkStartMinutes);
