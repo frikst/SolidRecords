@@ -72,6 +72,25 @@ internal static class StartupChecks
                     editor.SaveCommand.Execute(null);
                     if (saveCalls != 1 || editor.Error.Length != 0 || !editor.IsEditable)
                         throw new InvalidOperationException("Settings editor failed to save a valid threshold.");
+                    ApplicationSettings? edited = null;
+                    var workEditor = new SettingsViewModel(new(), saved => { edited = saved; return Task.CompletedTask; });
+                    foreach (var (start, end) in new[] { ("24:00", "24:00"), ("15:00", "07:00"), ("07:00", "07:00"), ("bad", "15:00"), ("07:00", "25:00") })
+                    {
+                        workEditor.WorkStart = start;
+                        workEditor.WorkEnd = end;
+                        workEditor.SaveCommand.Execute(null);
+                        if (edited is not null || workEditor.Error.Length == 0)
+                            throw new InvalidOperationException("Settings editor accepted invalid work hours.");
+                    }
+                    workEditor.WorkStart = "8:30";
+                    workEditor.WorkEnd = "24:00";
+                    workEditor.RecordingModeIndex = 2;
+                    workEditor.Monday = false;
+                    workEditor.Sunday = true;
+                    workEditor.SaveCommand.Execute(null);
+                    if (edited is not { RecordOnLaunch: true, RecordOnlyDuringWorkHours: true, WorkStartMinutes: 510, WorkEndMinutes: 1440 }
+                        || edited.WorkingDays != ((WorkDays.Weekdays & ~WorkDays.Monday) | WorkDays.Sunday))
+                        throw new InvalidOperationException("Settings editor failed to save the work schedule.");
                     var failingEditor = new SettingsViewModel(new(), _ => Task.FromException(new IOException("Test save failure")));
                     failingEditor.SaveCommand.Execute(null);
                     if (failingEditor.Error.Length == 0 || !failingEditor.IsEditable)
@@ -84,6 +103,19 @@ internal static class StartupChecks
                     if (await provider.GetRequiredService<ISettingsStore>().ReadSettingsAsync() != settings
                         || provider.GetRequiredService<ActivityTrackingOptions>().MinimumActivityDuration != TimeSpan.Zero)
                         throw new InvalidOperationException("Settings did not persist or update shared thresholds.");
+                    var scheduled = settings with { RecordOnLaunch = true, RecordOnlyDuringWorkHours = true,
+                        WorkStartMinutes = 0, WorkEndMinutes = 1440, WorkingDays = WorkDays.None };
+                    await app.SaveSettingsAsync(scheduled);
+                    if (recorder.IsRecording) throw new InvalidOperationException("An empty work week did not stop recording.");
+                    scheduled = scheduled with { WorkingDays = WorkDays.All };
+                    await app.SaveSettingsAsync(scheduled);
+                    if (!recorder.IsRecording) throw new InvalidOperationException("The current work period did not start recording.");
+                    var expectedBounds = Core.Reporting.TimelineRange.Calculate(DateOnly.FromDateTime(viewModel.SelectedDate!.Value), scheduled, viewModel.Timeline);
+                    if (viewModel.TimelineBounds != expectedBounds) throw new InvalidOperationException("Timeline settings were not applied.");
+                    await viewModel.ToggleRecordingAsync();
+                    await Task.Delay(1200);
+                    if (recorder.IsRecording) throw new InvalidOperationException("The schedule undid a manual pause between boundaries.");
+                    await app.SaveSettingsAsync(settings);
                     // A later load must prefer the database over the original JSON file.
                     await provider.GetRequiredService<PreferencesStore>().LoadAsync();
                     if (provider.GetRequiredService<PreferencesStore>().Current != settings)

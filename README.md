@@ -24,13 +24,16 @@ Pravým kliknutím na ikonu pri hodinách otvorte **Nastavenia…**. Tlačidlo *
 | Nastavenie | Predvolená hodnota |
 | --- | --- |
 | Minimálne trvanie aktivity | 15 sekúnd; rozsah 0–600, pri 0 sa minimum vypne. |
-| Automatický záznam pri spustení aplikácie | Zapnutý. |
+| Automatický záznam | Pri spustení aplikácie – stále; voliteľne iba v pracovnom čase alebo vypnutý (ručné spúšťanie). |
+| Pracovný čas a dni | 07:00–15:00, pondelok až piatok. |
 | Spustenie programu pri prihlásení do Windows | Zapnuté. |
 | Spustenie minimalizované v systray | Zapnuté. |
 | Téma | Podľa systému; voliteľne svetlá alebo tmavá. |
 | Denná kontrola aktualizácií | Zapnutá; možno ju vypnúť. |
 
 Téma a minimum sa použijú po uložení. Pri zmene minima sa aktívny záznam dopíše a pokračuje s novým prahom; nové minimum sa použije aj na zobrazenie histórie, ale neobnoví predtým neuložené krátke aktivity. Voľby spúšťania sa prejavia pri ďalšom štarte. Automatické spustenie používa aktuálnu cestu aplikácie v `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, preto prenosnú aplikáciu spúšťajte z finálneho priečinka.
+
+V režime **Iba v pracovnom čase** aplikácia podľa miestneho času záznam automaticky spustí na začiatku a zastaví na konci nastaveného času vo vybraných dňoch, aj pri skrytom okne. Pri uložení zmeny pracovného režimu alebo rozvrhu sa stav hneď prispôsobí. Ručné prepnutie platí do ďalšej hranice pracovného času. Časy musia patriť jednému dňu; koniec môže byť 24:00. Bez vybraných dní pracovný čas neexistuje. Časová os v každom pracovnom dni zahŕňa aspoň nastavené hodiny, aj bez aktivít a pri inom režime záznamu; skoršie či neskoršie aktivity jej rozsah rozšíria. Pracovný rozvrh nemení denný súčet skutočnej aktivity.
 
 Položka **O aplikácii** v kontextovom menu ikony pri hodinách otvorí dialóg s verziou, autorom, organizáciou a odkazom na web katedry. Dialóg zatvoríte aj klávesom Esc.
 

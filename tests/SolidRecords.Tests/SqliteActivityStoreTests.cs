@@ -43,7 +43,8 @@ public sealed class SqliteActivityStoreTests : IDisposable
         Assert.Null(await store.ReadSettingsAsync());
         foreach (var seconds in new[] { 0, 600, 15 })
         {
-            var settings = new ApplicationSettings(seconds, false, false, false, ApplicationTheme.Dark, false);
+            var settings = new ApplicationSettings(seconds, true, false, false, ApplicationTheme.Dark, false,
+                510, 1440, WorkDays.Tuesday | WorkDays.Sunday, true);
             await store.SaveSettingsAsync(settings);
             Assert.Equal(settings, await CreateStore().ReadSettingsAsync());
         }

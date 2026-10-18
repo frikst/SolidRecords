@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Threading;
 using SolidRecords.App.Updates;
 using SolidRecords.Core.Updates;
 using SolidRecords.Windows.Shell;
@@ -27,6 +28,9 @@ internal partial class App : Application
     private readonly SemaphoreSlim _settingsLifecycle = new(1, 1);
     private readonly UpdateController _updates;
     private readonly IUpdateNotifier _updateNotifier;
+    private readonly RecordingAutomation _recordingAutomation = new();
+    private DispatcherTimer? _scheduleTimer;
+    private bool _scheduleBusy;
     private bool _exiting;
     private bool _showRequested;
     private bool _startupComplete;
@@ -61,11 +65,15 @@ internal partial class App : Application
             _tray = _trayFactory.Create(ShowWindow, ShowAboutWindow, ShowSettingsWindow, ExitAsync);
             try { await Task.Run(() => _setStartup(_preferences.Current.StartWithWindows)); }
             catch (Exception ex) { _viewModel.ShowError(ex); ShowWindow(); }
-            if (_preferences.RecordOnLaunch)
+            _viewModel.ApplySettings(_preferences.Current);
+            if (_recordingAutomation.Evaluate(_preferences.Current, DateTimeOffset.Now) == true)
             {
                 try { await _recorder.StartAsync(); }
                 catch (Exception ex) { _viewModel.ShowError(ex); ShowWindow(); }
             }
+            _scheduleTimer = new DispatcherTimer(DispatcherPriority.Normal) { Interval = TimeSpan.FromSeconds(1) };
+            _scheduleTimer.Tick += ScheduleTick;
+            _scheduleTimer.Start();
             await _viewModel.RefreshAsync();
             _updates.Start(ex => Dispatcher.Invoke(() => MessageBox.Show("Aktualizácia sa nepodarila:\n" + ex.Message,
                 "SolidRecords", MessageBoxButton.OK, MessageBoxImage.Error)));
@@ -80,6 +88,26 @@ internal partial class App : Application
             MessageBox.Show("Aplikáciu sa nepodarilo spustiť:\n" + ex.Message, "SolidRecords", MessageBoxButton.OK, MessageBoxImage.Error);
             await ExitAsync();
         }
+    }
+
+    private async void ScheduleTick(object? sender, EventArgs e)
+    {
+        if (_scheduleBusy || _exiting) return;
+        _scheduleBusy = true;
+        await _settingsLifecycle.WaitAsync();
+        try
+        {
+            if (!_exiting) await ApplyRecordingScheduleAsync();
+        }
+        catch (Exception ex) { _viewModel.ShowError(ex); }
+        finally { _settingsLifecycle.Release(); _scheduleBusy = false; }
+    }
+
+    private async Task ApplyRecordingScheduleAsync()
+    {
+        var recording = _recordingAutomation.Evaluate(_preferences.Current, DateTimeOffset.Now);
+        if (recording == true && !_recorder.IsRecording) await _recorder.StartAsync();
+        else if (recording == false && _recorder.IsRecording) await _recorder.StopAsync();
     }
 
     internal async void HandleUpdateActionAsync(string action, string tag)
@@ -179,6 +207,8 @@ internal partial class App : Application
             ApplyTheme(settings.Theme);
         }
         finally { if (resume && !_exiting) await _recorder.StartAsync(); }
+        _viewModel.ApplySettings(settings);
+        await ApplyRecordingScheduleAsync();
         _ = Task.Run(_updates.RefreshAsync);
         await _viewModel.RefreshAsync();
     }
@@ -187,6 +217,11 @@ internal partial class App : Application
     {
         if (_exiting) return;
         _exiting = true;
+        if (_scheduleTimer is not null)
+        {
+            _scheduleTimer.Stop();
+            _scheduleTimer.Tick -= ScheduleTick;
+        }
         await _updates.StopAsync();
         await _settingsLifecycle.WaitAsync();
         _settingsLifecycle.Release();

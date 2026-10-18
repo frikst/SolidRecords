@@ -8,7 +8,7 @@ SQLite používa Entity Framework Core 10.0.12 s providerom `Microsoft.EntityFra
 
 | Tabuľka | Význam |
 | --- | --- |
-| `settings` | Jeden riadok s ID 1 a JSON hodnotou `ApplicationSettings`; rozsah minima a téma sa validujú pred zápisom aj po načítaní. |
+| `settings` | Jeden riadok s ID 1 a JSON hodnotou `ApplicationSettings`; minimum, téma, pracovné hodiny a maska dní sa validujú pred zápisom aj po načítaní. Staršie JSON hodnoty bez rozvrhu preberú predvolené pracovné hodiny a dni, s vypnutým obmedzením záznamu na pracovný čas; schéma sa nemení. |
 | `application_icons` | Posledná dostupná PNG ikona podľa názvu aplikácie (bez rozlíšenia veľkosti písmen), spoločná aj pre staršie záznamy. |
 | `process_activities` | Pozorovaná životnosť procesu a identita v rámci záznamu. |
 | `window_activities` | Životnosť okna, FK na proces. |

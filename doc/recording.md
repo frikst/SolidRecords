@@ -9,6 +9,14 @@
 - `End` otvoreného záznamu je posledný potvrdený čas, nie odhad do budúcnosti. Heartbeat ho aktualizuje každú sekundu. GUI pre otvorený list zobrazuje koniec a trvanie ako `-`, ale súčet a časová os sa aktualizujú.
 - Report používa miestne polnoci prevedené do UTC, vrátane letného času. Normalizácia prebehne pred orezaním na deň; inak by platná aktivita cez polnoc mohla vypadnúť ako príliš krátka.
 
+## Pracovný rozvrh a automatika
+
+`ApplicationSettings` definuje miestny začiatok/koniec v minútach od polnoci (predvolene 420–900), masku `WorkDays` (pondelok až piatok) a `RecordOnlyDuringWorkHours` (false). Začiatok musí byť pred koncom v rovnaký deň; 1440 je prípustné len ako koniec. Prázdna maska znamená žiadny pracovný čas. `WorkSchedule` pre vybraný deň vytvára rozsah s miestnymi offsetmi. Začiatok je zahrnutý, koniec vylúčený. Pri prechode letného času sa chýbajúci čas posunie na prvú platnú minútu; pri dvojznačnom čase sa použije štandardný offset. Ak tým rozsah zanikne, deň nemá pracovný čas.
+
+`RecordingAutomation` rozhoduje o automatických prechodoch. `RecordOnLaunch=false` zachová ručné spúšťanie; true bez obmedzenia spustí záznam pri štarte. Pri obmedzení ho spustí iba počas pracovného času a prepína na hraniciach rozvrhu. App kontroluje stav sekundovým timerom nezávisle od viditeľnosti okna, pod spoločným zámkom s ukladaním nastavení a ukončením. Po oneskorení alebo prebudení použije aktuálny čas, nevytvára spätné aktivity. Ručné prepnutie medzi hranicami nemení nastavenia a zostáva platné do ďalšieho automatického prechodu; zmena pracovného režimu alebo rozvrhu sa použije hneď po uložení. Zmena samotnej preferencie štartu medzi ručným a neobmedzeným režimom nemení aktuálny stav.
+
+`TimelineRange` spája rozsah skutočných aktivít s pracovným časom vybraného dňa nezávisle od režimu záznamu. Pracovný deň bez aktivít zobrazuje pracovný rozsah; bez rozvrhu zostáva pôvodný náhradný rozsah 06:00–18:00. Aktivity zachovávajú zaokrúhlenie rozsahu na hodiny a minimálnu šírku dve hodiny. Rozvrh nepridáva aktivitu ani pracovné trvanie a nefiltruje históriu.
+
 ## Minimum a zlúčenie
 
 `ActivityTrackingOptions` obsahuje jeden predvolený prah 15 s a dva samostatné parametre: `MinimumActivityDuration` a `MaximumMergeGap`. Minimum je nastaviteľné v rozsahu 0–600 s (0 vypne minimum); zlúčenie zostáva 15 s. Recorder a report používajú spoločné nastavenia, jeden report si vytvorí nemenný snapshot prahov.

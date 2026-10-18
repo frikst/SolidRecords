@@ -1,3 +1,4 @@
+using System.Globalization;
 using SolidRecords.Core;
 
 namespace SolidRecords.App.Presentation;
@@ -6,7 +7,10 @@ public sealed class SettingsViewModel : ObservableObject
 {
     private readonly Func<ApplicationSettings, Task> _save;
     private string _minimumActivitySeconds;
-    private bool _recordOnLaunch;
+    private int _recordingModeIndex;
+    private string _workStart;
+    private string _workEnd;
+    private WorkDays _workingDays;
     private bool _startWithWindows;
     private bool _startMinimized;
     private int _themeIndex;
@@ -18,7 +22,10 @@ public sealed class SettingsViewModel : ObservableObject
     {
         _save = save;
         _minimumActivitySeconds = settings.MinimumActivitySeconds.ToString();
-        _recordOnLaunch = settings.RecordOnLaunch;
+        _recordingModeIndex = !settings.RecordOnLaunch ? 0 : settings.RecordOnlyDuringWorkHours ? 2 : 1;
+        _workStart = FormatTime(settings.WorkStartMinutes);
+        _workEnd = FormatTime(settings.WorkEndMinutes);
+        _workingDays = settings.WorkingDays;
         _startWithWindows = settings.StartWithWindows;
         _startMinimized = settings.StartMinimized;
         _themeIndex = (int)settings.Theme;
@@ -27,7 +34,25 @@ public sealed class SettingsViewModel : ObservableObject
     }
 
     public string MinimumActivitySeconds { get => _minimumActivitySeconds; set => Set(ref _minimumActivitySeconds, value); }
-    public bool RecordOnLaunch { get => _recordOnLaunch; set => Set(ref _recordOnLaunch, value); }
+    private static string FormatTime(int minutes) => $"{minutes / 60:00}:{minutes % 60:00}";
+    public int RecordingModeIndex { get => _recordingModeIndex; set => Set(ref _recordingModeIndex, value); }
+    public string WorkStart { get => _workStart; set => Set(ref _workStart, value); }
+    public string WorkEnd { get => _workEnd; set => Set(ref _workEnd, value); }
+    private bool HasDay(WorkDays day) => (_workingDays & day) != 0;
+    private void SetDay(WorkDays day, bool value, string property)
+    {
+        var days = value ? _workingDays | day : _workingDays & ~day;
+        if (days == _workingDays) return;
+        _workingDays = days;
+        Changed(property);
+    }
+    public bool Monday { get => HasDay(WorkDays.Monday); set => SetDay(WorkDays.Monday, value, nameof(Monday)); }
+    public bool Tuesday { get => HasDay(WorkDays.Tuesday); set => SetDay(WorkDays.Tuesday, value, nameof(Tuesday)); }
+    public bool Wednesday { get => HasDay(WorkDays.Wednesday); set => SetDay(WorkDays.Wednesday, value, nameof(Wednesday)); }
+    public bool Thursday { get => HasDay(WorkDays.Thursday); set => SetDay(WorkDays.Thursday, value, nameof(Thursday)); }
+    public bool Friday { get => HasDay(WorkDays.Friday); set => SetDay(WorkDays.Friday, value, nameof(Friday)); }
+    public bool Saturday { get => HasDay(WorkDays.Saturday); set => SetDay(WorkDays.Saturday, value, nameof(Saturday)); }
+    public bool Sunday { get => HasDay(WorkDays.Sunday); set => SetDay(WorkDays.Sunday, value, nameof(Sunday)); }
     public bool StartWithWindows { get => _startWithWindows; set => Set(ref _startWithWindows, value); }
     public bool StartMinimized { get => _startMinimized; set => Set(ref _startMinimized, value); }
     public bool CheckForUpdates { get => _checkForUpdates; set => Set(ref _checkForUpdates, value); }
@@ -46,7 +71,26 @@ public sealed class SettingsViewModel : ObservableObject
             Error = "Zadajte celé číslo od 0 do 600 sekúnd.";
             return;
         }
-        var settings = new ApplicationSettings(seconds, RecordOnLaunch, StartWithWindows, StartMinimized, (ApplicationTheme)ThemeIndex, CheckForUpdates);
+        static int? ParseTime(string text)
+        {
+            if (text.Trim() == "24:00") return 1440;
+            return TimeOnly.TryParseExact(text.Trim(), ["H:mm", "HH:mm"], CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out var time) ? time.Hour * 60 + time.Minute : null;
+        }
+        var start = ParseTime(WorkStart);
+        var end = ParseTime(WorkEnd);
+        if (start is null or >= 1440 || end is null || end <= start)
+        {
+            Error = "Zadajte čas od–do vo formáte HH:mm. Koniec musí byť po začiatku v rovnaký deň (najneskôr 24:00).";
+            return;
+        }
+        if (RecordingModeIndex is < 0 or > 2)
+        {
+            Error = "Vyberte režim zaznamenávania.";
+            return;
+        }
+        var settings = new ApplicationSettings(seconds, RecordingModeIndex != 0, StartWithWindows, StartMinimized,
+            (ApplicationTheme)ThemeIndex, CheckForUpdates, start.Value, end.Value, _workingDays, RecordingModeIndex == 2);
         settings.Validate();
         IsSaving = true;
         try { await _save(settings); }

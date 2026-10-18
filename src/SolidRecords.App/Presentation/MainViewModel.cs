@@ -19,6 +19,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private string _search = "";
     private string _error = "";
     private DailyReport _report = new([]);
+    private ApplicationSettings _settings = new();
     private bool _loading;
     private bool _reloadRequested;
     private volatile bool _disposed;
@@ -49,6 +50,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand TodayCommand { get; }
     public ObservableCollection<ActivityRow> Activities { get; } = [];
     public IReadOnlyList<ActivityInterval> Timeline => _report.Intervals;
+    public WorkPeriod TimelineBounds => TimelineRange.Calculate(DateOnly.FromDateTime(_selectedDate ?? DateTime.Today), _settings, Timeline);
+    public void ApplySettings(ApplicationSettings settings)
+    {
+        _settings = settings;
+        Changed(nameof(TimelineBounds));
+    }
     public string ToggleLabel => _recorder.IsRecording ? "■  Zastaviť záznam" : "▶  Spustiť záznam";
     public string Status => _recorder.Error is not null ? "Zápis zlyhal" : _recorder.IsRecording ? "Zaznamenávanie je aktívne" : "Zaznamenávanie je pozastavené";
     public string StatusColor => _recorder.Error is not null ? "#D63D4F" : _recorder.IsRecording ? "#16A078" : "#8A96AA";
@@ -122,7 +129,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 _icons = icons;
                 _report = report;
                 FilterRows();
-                foreach (var name in new[] { nameof(Timeline), nameof(Started), nameof(Finished), nameof(TotalDuration), nameof(Count) }) Changed(name);
+                foreach (var name in new[] { nameof(Timeline), nameof(TimelineBounds), nameof(Started), nameof(Finished), nameof(TotalDuration), nameof(Count) }) Changed(name);
             } while (_reloadRequested && !_disposed);
         }
         finally { _loading = false; }
