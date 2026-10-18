@@ -5,6 +5,8 @@ Formát vychádza z [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0
 
 ## Unreleased
 
+## [1.1.0] - 2026-10-18
+
 ### Added
 
 - Automatické mazanie starších záznamov po nastavenom počte dní. Predvolená voľba „Nikdy“ uchováva históriu bez časového obmedzenia.
