@@ -262,20 +262,26 @@ internal static class Program
             settingsDialog.Show();
             settingsDialog.UpdateLayout();
             Console.WriteLine($"Settings dialog actual DPI: {VisualTreeHelper.GetDpi(settingsDialog).PixelsPerInchX}");
-            var settingsContent = (FrameworkElement)settingsDialog.Content;
-            var settingsSize = new Size(settingsContent.ActualWidth, settingsContent.ActualHeight);
-            foreach (var settingsScale in new[] { 1.0, 1.5 })
+            var settingsTabs = (System.Windows.Controls.TabControl)settingsDialog.FindName("SettingsTabs");
+            foreach (var (tabIndex, tabName) in new[] { (0, "general"), (1, "recording"), (2, "work-hours") })
             {
-                var settingsVisual = new DrawingVisual();
-                using (var drawing = settingsVisual.RenderOpen()) drawing.DrawRectangle(settingsDialog.Background, null, new Rect(settingsSize));
-                var settingsBitmap = new RenderTargetBitmap((int)Math.Ceiling(settingsSize.Width * settingsScale),
-                    (int)Math.Ceiling(settingsSize.Height * settingsScale), 96 * settingsScale, 96 * settingsScale, PixelFormats.Pbgra32);
-                settingsBitmap.Render(settingsVisual);
-                settingsBitmap.Render(settingsContent);
-                var settingsEncoder = new PngBitmapEncoder();
-                settingsEncoder.Frames.Add(BitmapFrame.Create(settingsBitmap));
-                using var settingsFile = File.Create(Path.Combine(directory, $"settings-{theme.ToString().ToLowerInvariant()}-{settingsScale * 100:0}.png"));
-                settingsEncoder.Save(settingsFile);
+                settingsTabs.SelectedIndex = tabIndex;
+                settingsDialog.UpdateLayout();
+                var settingsContent = (FrameworkElement)settingsDialog.Content;
+                var settingsSize = new Size(settingsContent.ActualWidth, settingsContent.ActualHeight);
+                foreach (var settingsScale in new[] { 1.0, 1.5 })
+                {
+                    var settingsVisual = new DrawingVisual();
+                    using (var drawing = settingsVisual.RenderOpen()) drawing.DrawRectangle(settingsDialog.Background, null, new Rect(settingsSize));
+                    var settingsBitmap = new RenderTargetBitmap((int)Math.Ceiling(settingsSize.Width * settingsScale),
+                        (int)Math.Ceiling(settingsSize.Height * settingsScale), 96 * settingsScale, 96 * settingsScale, PixelFormats.Pbgra32);
+                    settingsBitmap.Render(settingsVisual);
+                    settingsBitmap.Render(settingsContent);
+                    var settingsEncoder = new PngBitmapEncoder();
+                    settingsEncoder.Frames.Add(BitmapFrame.Create(settingsBitmap));
+                    using var settingsFile = File.Create(Path.Combine(directory, $"settings-{tabName}-{theme.ToString().ToLowerInvariant()}-{settingsScale * 100:0}.png"));
+                    settingsEncoder.Save(settingsFile);
+                }
             }
             settingsDialog.Close();
             var aboutContent = (FrameworkElement)about.Content;

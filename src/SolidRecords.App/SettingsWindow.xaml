@@ -1,63 +1,81 @@
 <Window x:Class="SolidRecords.App.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Nastavenia SolidRecords" Width="500" SizeToContent="Height" ResizeMode="NoResize"
+        Title="Nastavenia SolidRecords" Width="500" Height="520" ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False" Icon="Assets/SolidRecords.ico"
         Background="{DynamicResource ApplicationBackgroundBrush}" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
         FontFamily="Segoe UI" FontSize="13" UseLayoutRounding="True">
   <Grid>
     <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
       <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
-    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-      <StackPanel Margin="24,24,24,0" IsEnabled="{Binding IsEditable}">
-        <TextBlock Text="Nastavenia" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,20" />
-        <TextBlock Text="ZAZNAMENÁVANIE" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="11" Margin="0,0,0,12" />
-        <Label Content="Minimálne trvanie aktivity" Target="{Binding ElementName=MinimumDuration}" Padding="0" />
-        <StackPanel Orientation="Horizontal" Margin="0,8,0,6">
-          <TextBox x:Name="MinimumDuration" Text="{Binding MinimumActivitySeconds, UpdateSourceTrigger=PropertyChanged}" Width="90" MaxLength="3" VerticalContentAlignment="Center" />
-          <TextBlock Text="sekúnd (0 – 600)" VerticalAlignment="Center" Margin="12,0,0,0" />
-        </StackPanel>
-        <TextBlock Text="Kratšie aktivity sa neuložia. Hodnota 0 vypne minimum. Zmena sa použije po uložení a ovplyvní aj zobrazenie histórie."
-                   TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="12" Margin="0,0,0,12" />
-        <Label Content="Automatický záznam" Target="{Binding ElementName=RecordingMode}" Padding="0" />
-        <ComboBox x:Name="RecordingMode" SelectedIndex="{Binding RecordingModeIndex}" Margin="0,8,0,12">
-          <ComboBoxItem Content="Vypnutý – spúšťať ručne" />
-          <ComboBoxItem Content="Pri spustení aplikácie – stále" />
-          <ComboBoxItem Content="Iba v pracovnom čase" />
-        </ComboBox>
-        <TextBlock Text="PRACOVNÝ ČAS" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="11" Margin="0,4,0,12" />
-        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-          <Label Content="Od" Target="{Binding ElementName=WorkStart}" VerticalAlignment="Center" Padding="0" Margin="0,0,8,0" />
-          <TextBox x:Name="WorkStart" Text="{Binding WorkStart, UpdateSourceTrigger=PropertyChanged}" Width="70" MaxLength="5" VerticalContentAlignment="Center" />
-          <Label Content="Do" Target="{Binding ElementName=WorkEnd}" VerticalAlignment="Center" Padding="0" Margin="16,0,8,0" />
-          <TextBox x:Name="WorkEnd" Text="{Binding WorkEnd, UpdateSourceTrigger=PropertyChanged}" Width="70" MaxLength="5" VerticalContentAlignment="Center" />
-        </StackPanel>
-        <WrapPanel Margin="0,0,0,10">
-          <CheckBox Content="Po" IsChecked="{Binding Monday}" MinWidth="0" Width="48" Padding="6,0,0,0" VerticalContentAlignment="Center" Margin="0,0,12,6" />
-          <CheckBox Content="Ut" IsChecked="{Binding Tuesday}" MinWidth="0" Width="48" Padding="6,0,0,0" VerticalContentAlignment="Center" Margin="0,0,12,6" />
-          <CheckBox Content="St" IsChecked="{Binding Wednesday}" MinWidth="0" Width="48" Padding="6,0,0,0" VerticalContentAlignment="Center" Margin="0,0,12,6" />
-          <CheckBox Content="Št" IsChecked="{Binding Thursday}" MinWidth="0" Width="48" Padding="6,0,0,0" VerticalContentAlignment="Center" Margin="0,0,12,6" />
-          <CheckBox Content="Pi" IsChecked="{Binding Friday}" MinWidth="0" Width="48" Padding="6,0,0,0" VerticalContentAlignment="Center" Margin="0,0,12,6" />
-          <CheckBox Content="So" IsChecked="{Binding Saturday}" MinWidth="0" Width="48" Padding="6,0,0,0" VerticalContentAlignment="Center" Margin="0,0,12,6" />
-          <CheckBox Content="Ne" IsChecked="{Binding Sunday}" MinWidth="0" Width="48" Padding="6,0,0,0" VerticalContentAlignment="Center" Margin="0,0,0,6" />
-        </WrapPanel>
-        <TextBlock Text="Pracovný čas určuje aj minimálny rozsah časovej osi. Záznam môžete kedykoľvek ručne prepnúť; automatika sa znova použije pri najbližšej hranici pracovného času."
-                   TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="12" Margin="0,0,0,18" />
-        <TextBlock Text="SPÚŠŤANIE" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="11" Margin="0,0,0,12" />
-        <CheckBox Content="Spustiť program pri prihlásení do Windows" IsChecked="{Binding StartWithWindows}" Margin="0,0,0,12" />
-        <CheckBox Content="Spustiť program minimalizovaný v systray" IsChecked="{Binding StartMinimized}" Margin="0,0,0,22" />
-        <Label Content="Téma" Target="{Binding ElementName=Theme}" Padding="0" />
-        <ComboBox x:Name="Theme" SelectedIndex="{Binding ThemeIndex}" Margin="0,8,0,0">
-          <ComboBoxItem Content="Podľa systému" />
-          <ComboBoxItem Content="Svetlá" />
-          <ComboBoxItem Content="Tmavá" />
-        </ComboBox>
-        <CheckBox Content="Raz denne kontrolovať aktualizácie" IsChecked="{Binding CheckForUpdates}" Margin="0,20,0,0" />
-      </StackPanel>
-    </ScrollViewer>
-    <StackPanel Grid.Row="1" Margin="24,0,24,24" IsEnabled="{Binding IsEditable}">
+    <TextBlock Text="Nastavenia" FontSize="24" FontWeight="SemiBold" Margin="24,20,24,16" />
+    <TabControl x:Name="SettingsTabs" Grid.Row="1" Margin="24,0,24,0" IsEnabled="{Binding IsEditable}"
+                Background="{DynamicResource ApplicationBackgroundBrush}" BorderThickness="0" Padding="0">
+      <TabItem Header="Všeobecné">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Margin="0,20,8,0" TextElement.Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+            <TextBlock Text="SPÚŠŤANIE" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="11" Margin="0,0,0,12" />
+            <CheckBox Content="Spustiť program pri prihlásení do Windows" IsChecked="{Binding StartWithWindows}" Margin="0,0,0,12" />
+            <CheckBox Content="Spustiť program minimalizovaný v systray" IsChecked="{Binding StartMinimized}" Margin="0,0,0,22" />
+            <Label Content="Téma" Target="{Binding ElementName=Theme}" Padding="0" />
+            <ComboBox x:Name="Theme" SelectedIndex="{Binding ThemeIndex}" Margin="0,8,0,0">
+              <ComboBoxItem Content="Podľa systému" />
+              <ComboBoxItem Content="Svetlá" />
+              <ComboBoxItem Content="Tmavá" />
+            </ComboBox>
+            <CheckBox Content="Raz denne kontrolovať aktualizácie" IsChecked="{Binding CheckForUpdates}" Margin="0,20,0,0" />
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem Header="Zaznamenávanie">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Margin="0,20,8,0" TextElement.Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+            <TextBlock Text="ZAZNAMENÁVANIE" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="11" Margin="0,0,0,12" />
+            <Label Content="Minimálne trvanie aktivity" Target="{Binding ElementName=MinimumDuration}" Padding="0" />
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,6">
+              <TextBox x:Name="MinimumDuration" Text="{Binding MinimumActivitySeconds, UpdateSourceTrigger=PropertyChanged}" Width="90" MaxLength="3" VerticalContentAlignment="Center" />
+              <TextBlock Text="sekúnd (0 – 600)" VerticalAlignment="Center" Margin="12,0,0,0" />
+            </StackPanel>
+            <TextBlock Text="Kratšie aktivity sa neuložia. Hodnota 0 vypne minimum. Zmena sa použije po uložení a ovplyvní aj zobrazenie histórie."
+                       TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="12" Margin="0,0,0,12" />
+            <Label Content="Automatický záznam" Target="{Binding ElementName=RecordingMode}" Padding="0" />
+            <ComboBox x:Name="RecordingMode" SelectedIndex="{Binding RecordingModeIndex}" Margin="0,8,0,12">
+              <ComboBoxItem Content="Vypnutý – spúšťať ručne" />
+              <ComboBoxItem Content="Pri spustení aplikácie – stále" />
+              <ComboBoxItem Content="Iba v pracovnom čase" />
+            </ComboBox>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem Header="Pracovný čas">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Margin="0,20,8,0" TextElement.Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+            <TextBlock Text="PRACOVNÝ ČAS" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="11" Margin="0,4,0,12" />
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+              <Label Content="Od" Target="{Binding ElementName=WorkStart}" VerticalAlignment="Center" Padding="0" Margin="0,0,8,0" />
+              <TextBox x:Name="WorkStart" Text="{Binding WorkStart, UpdateSourceTrigger=PropertyChanged}" Width="70" MaxLength="5" VerticalContentAlignment="Center" />
+              <Label Content="Do" Target="{Binding ElementName=WorkEnd}" VerticalAlignment="Center" Padding="0" Margin="16,0,8,0" />
+              <TextBox x:Name="WorkEnd" Text="{Binding WorkEnd, UpdateSourceTrigger=PropertyChanged}" Width="70" MaxLength="5" VerticalContentAlignment="Center" />
+            </StackPanel>
+            <WrapPanel Margin="0,0,0,10">
+              <CheckBox Content="Po" IsChecked="{Binding Monday}" MinWidth="0" Width="48" Padding="6,0,0,0" VerticalContentAlignment="Center" Margin="0,0,12,6" />
+              <CheckBox Content="Ut" IsChecked="{Binding Tuesday}" MinWidth="0" Width="48" Padding="6,0,0,0" VerticalContentAlignment="Center" Margin="0,0,12,6" />
+              <CheckBox Content="St" IsChecked="{Binding Wednesday}" MinWidth="0" Width="48" Padding="6,0,0,0" VerticalContentAlignment="Center" Margin="0,0,12,6" />
+              <CheckBox Content="Št" IsChecked="{Binding Thursday}" MinWidth="0" Width="48" Padding="6,0,0,0" VerticalContentAlignment="Center" Margin="0,0,12,6" />
+              <CheckBox Content="Pi" IsChecked="{Binding Friday}" MinWidth="0" Width="48" Padding="6,0,0,0" VerticalContentAlignment="Center" Margin="0,0,12,6" />
+              <CheckBox Content="So" IsChecked="{Binding Saturday}" MinWidth="0" Width="48" Padding="6,0,0,0" VerticalContentAlignment="Center" Margin="0,0,12,6" />
+              <CheckBox Content="Ne" IsChecked="{Binding Sunday}" MinWidth="0" Width="48" Padding="6,0,0,0" VerticalContentAlignment="Center" Margin="0,0,0,6" />
+            </WrapPanel>
+            <TextBlock Text="Pracovný čas určuje aj minimálny rozsah časovej osi. Záznam môžete kedykoľvek ručne prepnúť; automatika sa znova použije pri najbližšej hranici pracovného času."
+                       TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="12" Margin="0,0,0,18" />
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+    </TabControl>
+    <StackPanel Grid.Row="2" Margin="24,0,24,24" IsEnabled="{Binding IsEditable}">
       <TextBlock Text="{Binding Error}" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,12,0,0" />
       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
         <Button Content="Zrušiť" IsCancel="True" MinWidth="96" Padding="16,7" Margin="0,0,8,0" />
