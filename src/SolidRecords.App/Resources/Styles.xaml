@@ -40,6 +40,120 @@
       <Setter Property="SelectionMode" Value="Single" /><Setter Property="SelectionUnit" Value="FullRow" />
       <Setter Property="EnableRowVirtualization" Value="True" />
     </Style>
+  <Style x:Key="ActivityOverlayPageButton" TargetType="RepeatButton">
+    <Setter Property="Focusable" Value="False" />
+    <Setter Property="Template">
+      <Setter.Value><ControlTemplate TargetType="RepeatButton"><Border Background="Transparent" /></ControlTemplate></Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="ActivityOverlayThumb" TargetType="Thumb">
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Thumb">
+          <Border Background="Transparent">
+            <Border x:Name="Grip" Background="{DynamicResource TextFillColorSecondaryBrush}" CornerRadius="3"
+                    Width="3" Margin="0,2" HorizontalAlignment="Center" Opacity="0.45" />
+          </Border>
+          <ControlTemplate.Triggers>
+            <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=ScrollBar}}" Value="True">
+              <Setter TargetName="Grip" Property="Width" Value="6" />
+              <Setter TargetName="Grip" Property="Opacity" Value="0.8" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Orientation, RelativeSource={RelativeSource AncestorType=ScrollBar}}" Value="Horizontal">
+              <Setter TargetName="Grip" Property="Width" Value="Auto" />
+              <Setter TargetName="Grip" Property="Height" Value="3" />
+              <Setter TargetName="Grip" Property="Margin" Value="2,0" />
+              <Setter TargetName="Grip" Property="HorizontalAlignment" Value="Stretch" />
+              <Setter TargetName="Grip" Property="VerticalAlignment" Value="Center" />
+            </DataTrigger>
+            <MultiDataTrigger>
+              <MultiDataTrigger.Conditions>
+                <Condition Binding="{Binding Orientation, RelativeSource={RelativeSource AncestorType=ScrollBar}}" Value="Horizontal" />
+                <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=ScrollBar}}" Value="True" />
+              </MultiDataTrigger.Conditions>
+              <Setter TargetName="Grip" Property="Height" Value="6" />
+            </MultiDataTrigger>
+            <Trigger Property="IsDragging" Value="True">
+              <Setter TargetName="Grip" Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+              <Setter TargetName="Grip" Property="Opacity" Value="1" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="ActivityOverlayScrollBar" TargetType="ScrollBar">
+    <Setter Property="Width" Value="12" />
+    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="MinHeight" Value="0" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Stylus.IsPressAndHoldEnabled" Value="False" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ScrollBar">
+          <Border x:Name="Surface" Background="{TemplateBinding Background}" CornerRadius="6">
+            <Track x:Name="PART_Track" Orientation="{TemplateBinding Orientation}" IsDirectionReversed="True">
+              <Track.DecreaseRepeatButton>
+                <RepeatButton x:Name="PageBefore" Style="{StaticResource ActivityOverlayPageButton}" Command="ScrollBar.PageUpCommand" />
+              </Track.DecreaseRepeatButton>
+              <Track.Thumb><Thumb Style="{StaticResource ActivityOverlayThumb}" /></Track.Thumb>
+              <Track.IncreaseRepeatButton>
+                <RepeatButton x:Name="PageAfter" Style="{StaticResource ActivityOverlayPageButton}" Command="ScrollBar.PageDownCommand" />
+              </Track.IncreaseRepeatButton>
+            </Track>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Surface" Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+            </Trigger>
+            <Trigger Property="Orientation" Value="Horizontal">
+              <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False" />
+              <Setter TargetName="PageBefore" Property="Command" Value="ScrollBar.PageLeftCommand" />
+              <Setter TargetName="PageAfter" Property="Command" Value="ScrollBar.PageRightCommand" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+    <Style.Triggers>
+      <Trigger Property="Orientation" Value="Horizontal">
+        <Setter Property="Width" Value="Auto" />
+        <Setter Property="Height" Value="12" />
+      </Trigger>
+    </Style.Triggers>
+  </Style>
+  <ControlTemplate x:Key="ActivityOverlayScrollViewer" TargetType="ScrollViewer">
+    <Grid ClipToBounds="True">
+      <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+      <DataGridColumnHeadersPresenter x:Name="PART_ColumnHeadersPresenter" />
+      <ScrollContentPresenter x:Name="PART_ScrollContentPresenter" Grid.Row="1" Content="{TemplateBinding Content}"
+                              ContentTemplate="{TemplateBinding ContentTemplate}" CanContentScroll="{TemplateBinding CanContentScroll}" />
+      <ScrollBar x:Name="PART_VerticalScrollBar" Grid.Row="1" Style="{StaticResource ActivityOverlayScrollBar}"
+                 Orientation="Vertical" HorizontalAlignment="Right" Margin="0,0,1,12"
+                 Maximum="{TemplateBinding ScrollableHeight}" ViewportSize="{TemplateBinding ViewportHeight}"
+                 Value="{Binding VerticalOffset, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}"
+                 Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}" />
+      <ScrollBar x:Name="PART_HorizontalScrollBar" Grid.Row="1" Style="{StaticResource ActivityOverlayScrollBar}"
+                 Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,0,12,1"
+                 Maximum="{TemplateBinding ScrollableWidth}" ViewportSize="{TemplateBinding ViewportWidth}"
+                 Value="{Binding HorizontalOffset, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}"
+                 Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}" />
+    </Grid>
+  </ControlTemplate>
+  <Style x:Key="ActivityOverlayDataGrid" TargetType="DataGrid" BasedOn="{StaticResource {x:Type DataGrid}}">
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="DataGrid">
+          <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+            <ScrollViewer x:Name="DG_ScrollViewer" Focusable="False" Template="{StaticResource ActivityOverlayScrollViewer}">
+              <ItemsPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
+            </ScrollViewer>
+          </Border>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
     <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}">
       <Setter Property="Background" Value="{DynamicResource SolidBackgroundFillColorTertiaryBrush}" /><Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
       <Setter Property="Padding" Value="6,5" /><Setter Property="FontWeight" Value="SemiBold" />

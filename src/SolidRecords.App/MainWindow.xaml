@@ -215,7 +215,7 @@
               </TreeView>
             </DockPanel>
           </Border>
-          <p:ActivityDataGrid Style="{StaticResource {x:Type DataGrid}}" ItemsSource="{Binding EventRows}" SelectedItem="{Binding SelectedEventRow, Mode=TwoWay}" SelectionMode="Single">
+          <p:ActivityDataGrid Style="{StaticResource ActivityOverlayDataGrid}" ItemsSource="{Binding EventRows}" SelectedItem="{Binding SelectedEventRow, Mode=TwoWay}" SelectionMode="Single">
             <p:ActivityDataGrid.RowStyle>
               <Style TargetType="DataGridRow" BasedOn="{StaticResource ActivityGridRow}">
                 <Style.Triggers>
