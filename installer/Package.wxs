@@ -5,6 +5,15 @@
         <MediaTemplate EmbedCab="yes" />
         <ui:WixUI Id="WixUI_Minimal" />
         <UIRef Id="WixUI_ErrorProgressText" />
+        <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Spustiť SolidRecords po dokončení inštalácie" />
+        <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+        <CustomAction Id="LaunchApplication" Directory="INSTALLFOLDER"
+                      ExeCommand="&quot;[INSTALLFOLDER]SolidRecords.App.exe&quot; --show"
+                      Execute="immediate" Impersonate="yes" Return="asyncNoWait" />
+        <UI>
+            <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchApplication" Order="1"
+                     Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 AND NOT Installed AND NOT REMOVE" />
+        </UI>
         <WixVariable Id="WixUILicenseRtf" Value="$(var.LicenseRtf)" />
         <Icon Id="AppIcon" SourceFile="$(sys.SOURCEFILEDIR)../src/SolidRecords.App/Assets/SolidRecords.ico" />
         <Property Id="ARPPRODUCTICON" Value="AppIcon" />
@@ -18,6 +27,7 @@
                               Arguments="--show" WorkingDirectory="INSTALLFOLDER" Icon="AppIcon" />
                     <RemoveFolder Id="RemoveApplicationProgramsFolder" On="uninstall" />
                     <RegistryValue Root="HKLM" Key="Software\SolidRecords\Installer" Name="Installed" Type="integer" Value="1" KeyPath="yes" />
+                    <RegistryValue Root="HKLM" Key="Software\SolidRecords\Installer" Name="InstallDirectory" Type="string" Value="[INSTALLFOLDER]" />
                 </Component>
             </Directory>
         </StandardDirectory>

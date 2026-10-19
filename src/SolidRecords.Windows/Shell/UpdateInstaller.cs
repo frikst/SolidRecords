@@ -50,24 +50,60 @@ public sealed class UpdateInstaller(HttpClient http, string directory)
 
     public static Process LaunchAfterExit(string path, string sha256)
     {
-        // The elevated helper waits for normal shutdown, including DI/store disposal. No MSI file is
-        // opened while the old executable is running; cancellation of UAC leaves recording untouched.
-        var script = CreateHelperScript(path, sha256);
+        // The restart helper keeps the original user's token, even with another account at UAC.
+        // Only the installer is elevated; cancellation leaves recording untouched.
+        var pipeName = "SolidRecords.Update." + Guid.NewGuid().ToString("N");
+        using var ready = new EventWaitHandle(false, EventResetMode.AutoReset, pipeName + ".Ready");
+        var helper = StartPowerShell(CreateHelperScript(path, sha256, pipeName), elevated: true);
+        try
+        {
+            using var restart = StartPowerShell(CreateRestartScript(pipeName), elevated: false);
+            if (!ready.WaitOne(TimeSpan.FromSeconds(15)))
+            {
+                if (!restart.HasExited) restart.Kill();
+                throw new IOException("Pomocník reštartu sa nepripravil. Aplikácia zostáva spustená.");
+            }
+            return helper;
+        }
+        catch
+        {
+            // Without a restart client the helper times out before installing anything.
+            helper.Dispose();
+            throw;
+        }
+    }
+
+    private static Process StartPowerShell(string script, bool elevated)
+    {
         var start = new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe"))
         {
-            UseShellExecute = true, Verb = "runas", WindowStyle = ProcessWindowStyle.Hidden,
+            UseShellExecute = elevated, Verb = elevated ? "runas" : "",
+            CreateNoWindow = !elevated, WindowStyle = ProcessWindowStyle.Hidden,
             Arguments = "-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand "
                 + Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(script))
         };
         return Process.Start(start) ?? throw new IOException("Inštalátor sa nepodarilo spustiť.");
     }
 
-    public static string CreateHelperScript(string path, string sha256)
+    private static string Quote(string value) => "'" + value.Replace("'", "''") + "'";
+
+    public static string CreateHelperScript(string path, string sha256, string pipeName)
     {
-        static string Quote(string value) => "'" + value.Replace("'", "''") + "'";
         return $$"""
             $ErrorActionPreference = 'Stop'
+            $env:PSModulePath = (Join-Path $PSHOME 'Modules') + ';' + $env:PSModulePath
+            $pipe = $null
+            $writer = $null
             try {
+                # Default pipe security allows the original user to read even with another UAC account.
+                $pipe = [IO.Pipes.NamedPipeServerStream]::new({{Quote(pipeName)}}, [IO.Pipes.PipeDirection]::Out, 1,
+                    [IO.Pipes.PipeTransmissionMode]::Byte, [IO.Pipes.PipeOptions]::Asynchronous)
+                $connection = $pipe.BeginWaitForConnection($null, $null)
+                if (-not $connection.AsyncWaitHandle.WaitOne(60000)) { throw 'Pomocník reštartu sa nepripojil.' }
+                $pipe.EndWaitForConnection($connection)
+                $connection.AsyncWaitHandle.Dispose()
+                $writer = [IO.StreamWriter]::new($pipe)
+                $writer.AutoFlush = $true
                 $parent = Get-Process -Id {{Environment.ProcessId}} -ErrorAction SilentlyContinue
                 if ($parent) { $parent | Wait-Process -Timeout 120 }
                 $msi = {{Quote(path)}}
@@ -78,10 +114,52 @@ public sealed class UpdateInstaller(HttpClient http, string directory)
                 $arguments = '/i "' + $msi + '" /quiet /norestart /L*v "' + $log + '"'
                 $process = Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\msiexec.exe') -ArgumentList $arguments -WindowStyle Hidden -Wait -PassThru
                 if ($process.ExitCode -notin @(0, 1641, 3010)) { throw "Inštalácia zlyhala ($($process.ExitCode)). Protokol: $log" }
-                Remove-Item -LiteralPath $msi
+                # Cleanup must not prevent restarting a successfully installed update.
+                Remove-Item -LiteralPath $msi -ErrorAction SilentlyContinue
+                $writer.WriteLine('installed')
             } catch {
                 Add-Type -AssemblyName System.Windows.Forms
                 [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Aktualizácia SolidRecords') | Out-Null
+            } finally {
+                if ($writer) { $writer.Dispose() }
+                if ($pipe) { $pipe.Dispose() }
+            }
+            """;
+    }
+
+    public static string CreateRestartScript(string pipeName)
+    {
+        return $$"""
+            $ErrorActionPreference = 'Stop'
+            $env:PSModulePath = (Join-Path $PSHOME 'Modules') + ';' + $env:PSModulePath
+            $pipe = $null
+            $reader = $null
+            try {
+                $pipe = [IO.Pipes.NamedPipeClientStream]::new('.', {{Quote(pipeName)}}, [IO.Pipes.PipeDirection]::In,
+                    [IO.Pipes.PipeOptions]::Asynchronous, [Security.Principal.TokenImpersonationLevel]::Identification)
+                $pipe.Connect(60000)
+                $ready = [Threading.EventWaitHandle]::OpenExisting({{Quote(pipeName + ".Ready")}})
+                try { $ready.Set() | Out-Null } finally { $ready.Dispose() }
+                $reader = [IO.StreamReader]::new($pipe)
+                # Keep waiting for long installations too; a terminated installer helper closes the pipe.
+                $result = $reader.ReadLine()
+                if ($result -ne 'installed') { exit }
+                # Read the machine-wide path; never restart an outdated portable executable.
+                $registry = [Microsoft.Win32.RegistryKey]::OpenBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine,
+                    [Microsoft.Win32.RegistryView]::Registry64)
+                try {
+                    $key = $registry.OpenSubKey('Software\SolidRecords\Installer')
+                    try { $folder = if ($key) { $key.GetValue('InstallDirectory') } } finally { if ($key) { $key.Dispose() } }
+                } finally { $registry.Dispose() }
+                if (-not $folder) { throw 'Chýba cesta aplikácie. Spustite SolidRecords z ponuky Štart.' }
+                $application = Join-Path $folder 'SolidRecords.App.exe'
+                Start-Process -FilePath $application -WorkingDirectory $folder -WindowStyle Hidden -ErrorAction Stop | Out-Null
+            } catch {
+                Add-Type -AssemblyName System.Windows.Forms
+                [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Reštart SolidRecords po aktualizácii') | Out-Null
+            } finally {
+                if ($reader) { $reader.Dispose() }
+                if ($pipe) { $pipe.Dispose() }
             }
             """;
     }

@@ -71,7 +71,7 @@ Na runneri `windows-2025` sa obnoví a zostaví riešenie, spustia xUnit testy a
 
 Samostatný job s oprávnením `contents: write` vytvorí GitHub Release pre existujúci tag cez `gh release create --verify-tag`. Pripojí `SolidRecords-X.Y.Z-win-x64.msi` a `SolidRecords-X.Y.Z-win-x64.zip`; telo vydania tvorí presný obsah verziovej sekcie changelogu so zachovanými kategóriami. Stačí vstavaný `GITHUB_TOKEN`, ďalší secret netreba. Existujúce vydanie sa neprepisuje; opakovaný beh po úspešnom publikovaní skončí pri vytvorení release chybou.
 
-MSI je x64, inštaluje pre všetkých používateľov do `%ProgramFiles%\SolidRecords` a potrebuje administrátorské oprávnenia na inštaláciu. Aplikácia sa potom spúšťa bez administrátorských práv, cez odkaz v ponuke Štart s `--show`. Stabilný `UpgradeCode` zabezpečuje aktualizáciu starších MSI a blokuje downgrade. Pred ručnou aktualizáciou alebo odinštalovaním aplikáciu ukonči cez systray; autostart pred odinštalovaním vypni v aplikácii. Inštalátor autostart nezapína ani nečistí používateľské HKCU nastavenia. Používateľskú databázu a nastavenia neobsahuje ani neodstraňuje. MSI a EXE sa zatiaľ digitálne nepodpisujú.
+MSI je x64, inštaluje pre všetkých používateľov do `%ProgramFiles%\SolidRecords` a potrebuje administrátorské oprávnenia na inštaláciu. Aplikácia sa potom spúšťa bez administrátorských práv, cez odkaz v ponuke Štart s `--show`. Posledná stránka novej inštalácie alebo major upgradu obsahuje predvolene zapnutú voľbu spustenia aplikácie; akcia sa vykoná až tlačidlom Dokončiť, s `--show` v kontexte klienta inštalátora. Pri oprave, odinštalovaní a tichej inštalácii sa táto UI akcia nevykoná. MSI ukladá cestu inštalácie do HKLM pre reštart po aktualizácii; jeho postup a oprávnenia opisuje [updates.md](updates.md). Stabilný `UpgradeCode` zabezpečuje aktualizáciu starších MSI a blokuje downgrade. Pred ručnou aktualizáciou alebo odinštalovaním aplikáciu ukonči cez systray; autostart pred odinštalovaním vypni v aplikácii. Inštalátor autostart nezapína ani nečistí používateľské HKCU nastavenia. Používateľskú databázu a nastavenia neobsahuje ani neodstraňuje. MSI a EXE sa zatiaľ digitálne nepodpisujú.
 
 Lokálne overenie balenia (ukážková verzia musí zodpovedať publikácii):
 
@@ -82,7 +82,7 @@ dotnet tool install wix --version 5.0.2 --tool-path artifacts/wix
 ./tools/Build-Installer.ps1 -Version 1.2.3
 ```
 
-WiX stačí nainštalovať raz; výstup je v `artifacts/release/`. Pri kontrole MSI over slovenský licenčný dialóg s úplným textom GPL v3 a prítomnosť `LICENSE` v nainštalovanom priečinku aj v ZIPe. Inštaláciu, upgrade a odinštalovanie overuj v izolovanom Windows prostredí, bez spustenia nad používateľskou históriou. Test extrakcie changelogu používa vlastné súbory pod `artifacts/release-metadata-tests/`.
+WiX stačí nainštalovať raz; výstup je v `artifacts/release/`. Pri kontrole MSI over slovenský licenčný dialóg s úplným textom GPL v3, predvolene zapnutú voľbu spustenia na poslednej stránke aj jej vypnutie a prítomnosť `LICENSE` v nainštalovanom priečinku aj v ZIPe. Over tiež major upgrade, opravu a odinštalovanie bez nechceného spustenia aplikácie. Inštaláciu, upgrade a odinštalovanie overuj v izolovanom Windows prostredí, bez spustenia nad používateľskou históriou. Test extrakcie changelogu používa vlastné súbory pod `artifacts/release-metadata-tests/`.
 
 ## Aktuálny stav a hranice
 

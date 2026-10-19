@@ -76,7 +76,9 @@ internal static class UpdateChecks
             Require(actions.Any(element => ((string?)element.Attribute("arguments"))?.Contains("action=" + action, StringComparison.Ordinal) == true
                 && ((string?)element.Attribute("arguments"))?.Contains("tag=v2.0.0", StringComparison.Ordinal) == true), "Notification action lost its version or command.");
         await File.WriteAllTextAsync(Path.Combine(directory, "notification.xml"), xml.ToString());
-        await File.WriteAllTextAsync(Path.Combine(directory, "installer-helper.ps1"), UpdateInstaller.CreateHelperScript(path.Replace("SolidRecords.msi", "apostrophe's test.msi"), release.Sha256));
+        await File.WriteAllTextAsync(Path.Combine(directory, "installer-helper.ps1"), UpdateInstaller.CreateHelperScript(path.Replace("SolidRecords.msi", "apostrophe's test.msi"), release.Sha256, "SolidRecords.Update.SyntaxCheck"));
+        await File.WriteAllTextAsync(Path.Combine(directory, "restart-helper.ps1"), UpdateInstaller.CreateRestartScript("SolidRecords.Update.SyntaxCheck"));
+        await UpdateHelperChecks.RunAsync(directory);
         Console.WriteLine($"PASS: Update cache, notification actions, MSI digest/size validation and partial-file cleanup. Helper source: {directory}");
     }
 

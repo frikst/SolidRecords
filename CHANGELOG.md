@@ -5,6 +5,14 @@ Formát vychádza z [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0
 
 ## Unreleased
 
+### Added
+
+- Na konci inštalácie je predvolene zapnutá voľba na okamžité spustenie SolidRecords; pred dokončením ju môžete vypnúť.
+
+### Fixed
+
+- Po úspešnej aktualizácii spustenej z aplikácie sa SolidRecords automaticky znovu spustí a pokračuje podľa uložených nastavení.
+
 ## [1.2.0] - 2026-10-19
 
 ### Added

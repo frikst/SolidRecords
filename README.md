@@ -4,7 +4,7 @@ Lokálny záznam práce na počítači pre Windows, postavený na **.NET 10 / WP
 
 ## Inštalácia
 
-V GitHub Releases repozitára nájdete MSI inštalátor a prenosný ZIP pre Windows x64 s pribaleným .NET runtime. MSI vyžaduje administrátorské oprávnenia na inštaláciu a pridá SolidRecords do ponuky Štart. Samotná aplikácia ich nevyžaduje. Pred ručnou aktualizáciou aplikáciu ukončite cez systray; pred odinštalovaním vypnite aj spúšťanie po prihlásení. Odinštalovanie ponechá lokálnu históriu a nastavenia.
+V GitHub Releases repozitára nájdete MSI inštalátor a prenosný ZIP pre Windows x64 s pribaleným .NET runtime. MSI vyžaduje administrátorské oprávnenia na inštaláciu a pridá SolidRecords do ponuky Štart. Na poslednej stránke je predvolene zaškrtnuté **Spustiť SolidRecords po dokončení inštalácie**; pred dokončením môžete voľbu vypnúť. Samotná aplikácia administrátorské oprávnenia nevyžaduje. Pred ručnou aktualizáciou aplikáciu ukončite cez systray; pred odinštalovaním vypnite aj spúšťanie po prihlásení. Odinštalovanie ponechá lokálnu históriu a nastavenia.
 
 ## Spustenie
 
@@ -42,7 +42,7 @@ Položka **O aplikácii** v kontextovom menu ikony pri hodinách otvorí dialóg
 
 Aplikácia raz za 24 hodín skontroluje GitHub Releases. Pri novej verzii zobrazí Windows notifikáciu: **Stiahnuť a inštalovať**, pripomenutie **O 4 hodiny** alebo **Ignorovať verziu**. Odloženie aj ignorovanie zostávajú uložené po reštarte. Kontrolu môžete vypnúť v **Nastaveniach → Aktualizácie**. Tlačidlo **Aktualizovať teraz** skontroluje novú verziu a pri jej dostupnosti spustí stiahnutie a inštaláciu aj pri vypnutej dennej kontrole. Výsledok sa zobrazí priamo v tejto karte.
 
-Po stiahnutí a overení MSI Windows požiada o oprávnenie správcu. Aplikácia dopíše záznam, ukončí sa a inštalácia prebehne bez ďalších otázok a automatického reštartu počítača. Po dokončení ju spustite z ponuky Štart. Pri odmietnutí oprávnenia aplikácia pokračuje v zázname. Prenosná verzia ponúka rovnaké MSI, ktoré vytvorí inštaláciu v Program Files; prenosný priečinok sa neprepíše. Pri prechode z prenosnej verzie obnovte voľbu spúšťania po prihlásení v nainštalovanej aplikácii.
+Po stiahnutí a overení MSI Windows požiada o oprávnenie správcu. Aplikácia dopíše záznam, ukončí sa a inštalácia prebehne bez ďalších otázok a automatického reštartu počítača. Po úspešnej aktualizácii sa nainštalovaná aplikácia automaticky spustí pod pôvodným používateľom bez administrátorských práv a použije uložené nastavenia zobrazenia a záznamu. Pri odmietnutí oprávnenia aplikácia pokračuje v zázname. Prenosná verzia ponúka rovnaké MSI, ktoré vytvorí inštaláciu v Program Files; prenosný priečinok sa neprepíše. Po automatickom spustení nainštalovanej aplikácie sa spúšťanie po prihlásení nastaví pre novú cestu podľa uloženej voľby.
 
 ## Funkcie
 
