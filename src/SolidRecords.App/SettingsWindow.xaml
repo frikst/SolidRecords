@@ -1,5 +1,6 @@
 <Window x:Class="SolidRecords.App.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:presentation="clr-namespace:SolidRecords.App.Presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Nastavenia SolidRecords" Width="500" Height="520" ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False" Icon="Assets/SolidRecords.ico"
@@ -7,6 +8,7 @@
         FontFamily="Segoe UI" FontSize="13" UseLayoutRounding="True">
   <Window.Resources>
     <Style TargetType="TextBox" BasedOn="{StaticResource SettingsTextBox}" />
+    <Style TargetType="presentation:ShortcutBox" BasedOn="{StaticResource SettingsTextBox}" />
     <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
       <Setter Property="MinHeight" Value="32" />
       <Setter Property="Padding" Value="10,5" />
@@ -115,6 +117,18 @@
             <TextBlock Text="Po stiahnutí potvrďte oprávnenie správcu. Aplikácia sa ukončí a nainštaluje aktualizáciu."
                        TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="12" Margin="0,12,0,0" />
             <TextBlock Text="{Binding UpdateStatus}" TextWrapping="Wrap" Margin="0,16,0,0" AutomationProperties.LiveSetting="Polite" />
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem Header="Skratky">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Margin="0,20,8,0" TextElement.Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+            <Label Content="Otvoriť / skryť hlavné okno" Target="{Binding ElementName=WindowShortcut}" Padding="0" />
+            <presentation:ShortcutBox x:Name="WindowShortcut" Shortcut="{Binding ToggleWindowShortcut}" Margin="0,8,0,16" />
+            <Label Content="Spustiť / zastaviť zaznamenávanie" Target="{Binding ElementName=RecordingShortcut}" Padding="0" />
+            <presentation:ShortcutBox x:Name="RecordingShortcut" Shortcut="{Binding ToggleRecordingShortcut}" Margin="0,8,0,16" />
+            <TextBlock Text="Stlačte Ctrl, Alt alebo Win + písmeno, číslicu alebo F1–F24; môžete pridať Shift. Delete / Backspace skratku zruší. Platia po uložení aj mimo aplikácie."
+                       TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
           </StackPanel>
         </ScrollViewer>
       </TabItem>

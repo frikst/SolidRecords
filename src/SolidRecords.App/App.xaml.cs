@@ -19,6 +19,7 @@ internal partial class App : Application
     private readonly Func<MainWindow> _createWindow;
     private readonly PreferencesStore _preferences;
     private readonly TrayIconFactory _trayFactory;
+    private GlobalShortcuts? _shortcuts;
     private MainWindow? _window;
     private TrayIcon? _tray;
     private AboutWindow? _aboutWindow;
@@ -31,6 +32,7 @@ internal partial class App : Application
     private readonly RecordingAutomation _recordingAutomation = new();
     private DispatcherTimer? _scheduleTimer;
     private bool _scheduleBusy;
+    private bool _shortcutBusy;
     private DateTimeOffset _nextRetentionCheck;
     private bool _exiting;
     private bool _showRequested;
@@ -65,6 +67,9 @@ internal partial class App : Application
             ApplyTheme(_preferences.Current.Theme);
             _window = _createWindow();
             MainWindow = _window;
+            _shortcuts = new GlobalShortcuts();
+            try { await _shortcuts.ApplyAsync(_preferences.Current, ToggleWindow, ToggleRecording, () => Task.CompletedTask); }
+            catch (Exception ex) { _viewModel.ShowError(ex); ShowWindow(); }
             _tray = _trayFactory.Create(ShowWindow, ShowAboutWindow, ShowSettingsWindow, ExitAsync);
             try { await Task.Run(() => _setStartup(_preferences.Current.StartWithWindows)); }
             catch (Exception ex) { _viewModel.ShowError(ex); ShowWindow(); }
@@ -148,6 +153,26 @@ internal partial class App : Application
         _viewModel.RequestRefresh();
     }
 
+    internal void ToggleWindow()
+    {
+        if (_exiting) return;
+        // An owned modal dialog must remain reachable.
+        if (_settingsWindow is not null) { _settingsWindow.Activate(); return; }
+        if (_aboutWindow is not null) { _aboutWindow.Activate(); return; }
+        if (_window?.IsVisible == true && _window.WindowState != WindowState.Minimized) _window.Hide();
+        else ShowWindow();
+    }
+
+    private async void ToggleRecording()
+    {
+        if (!_startupComplete || _exiting || _shortcutBusy || !_viewModel.ToggleRecordingCommand.CanExecute(null)) return;
+        _shortcutBusy = true;
+        await _settingsLifecycle.WaitAsync();
+        try { if (!_exiting) await _viewModel.ToggleRecordingAsync(); }
+        catch (Exception ex) { _viewModel.ShowError(ex); ShowWindow(); }
+        finally { _settingsLifecycle.Release(); _shortcutBusy = false; }
+    }
+
     private void ShowAboutWindow()
     {
         if (_exiting) return;
@@ -186,8 +211,24 @@ internal partial class App : Application
         if (_window?.IsVisible == true && _window.WindowState != WindowState.Minimized) dialog.Owner = _window;
         else { dialog.WindowStartupLocation = WindowStartupLocation.CenterScreen; dialog.ShowInTaskbar = true; }
         _settingsWindow = dialog;
+        if (_shortcuts is not null) _shortcuts.Suspend();
         try { dialog.ShowDialog(); }
-        finally { _settingsWindow = null; }
+        finally
+        {
+            _settingsWindow = null;
+            if (_shortcuts is not null && !_exiting)
+            {
+                _shortcuts.Resume();
+                RestoreShortcuts();
+            }
+        }
+    }
+
+    private async void RestoreShortcuts()
+    {
+        if (_shortcuts is null || _exiting) return;
+        try { await _shortcuts.ApplyAsync(_preferences.Current, ToggleWindow, ToggleRecording, () => Task.CompletedTask); }
+        catch (Exception ex) { _viewModel.ShowError(ex); ShowWindow(); }
     }
 
     internal async Task SaveSettingsAsync(ApplicationSettings settings)
@@ -210,7 +251,7 @@ internal partial class App : Application
         if (resume) await _recorder.StopAsync();
         try
         {
-            await Task.Run(async () =>
+            async Task PersistAsync() => await Task.Run(async () =>
             {
                 if (settings.StartWithWindows != previous.StartWithWindows) _setStartup(settings.StartWithWindows);
                 try { await _preferences.SaveAsync(settings); }
@@ -220,6 +261,8 @@ internal partial class App : Application
                     throw;
                 }
             });
+            if (_shortcuts is not null) await _shortcuts.ApplyAsync(settings, ToggleWindow, ToggleRecording, PersistAsync);
+            else await PersistAsync();
             _trackingOptions.SetMinimumActivityDuration(TimeSpan.FromSeconds(settings.MinimumActivitySeconds));
             ApplyTheme(settings.Theme);
         }
@@ -243,6 +286,7 @@ internal partial class App : Application
         await _updates.StopAsync();
         await _settingsLifecycle.WaitAsync();
         _settingsLifecycle.Release();
+        _shortcuts?.Dispose();
         _aboutWindow?.Close();
         _settingsWindow?.Close();
         try { await _recorder.StopAsync(); }

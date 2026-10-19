@@ -495,7 +495,7 @@ internal static class Program
             settingsDialog.UpdateLayout();
             Console.WriteLine($"Settings dialog actual DPI: {VisualTreeHelper.GetDpi(settingsDialog).PixelsPerInchX}");
             var settingsTabs = (System.Windows.Controls.TabControl)settingsDialog.FindName("SettingsTabs");
-            foreach (var (tabIndex, tabName) in new[] { (0, "general"), (1, "recording"), (2, "work-hours"), (3, "updates") })
+            foreach (var (tabIndex, tabName) in new[] { (0, "general"), (1, "recording"), (2, "work-hours"), (3, "updates"), (4, "shortcuts") })
             {
                 settingsTabs.SelectedIndex = tabIndex;
                 settingsDialog.UpdateLayout();

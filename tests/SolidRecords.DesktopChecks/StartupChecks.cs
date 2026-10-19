@@ -129,6 +129,7 @@ internal static class StartupChecks
                     failedUpdate.UpdateNowCommand.Execute(null);
                     if (!failedUpdate.IsEditable || failedUpdate.IsUpdating || !failedUpdate.UpdateStatus.Contains("Test update failure", StringComparison.Ordinal))
                         throw new InvalidOperationException("Manual update did not recover from failure.");
+                    await ShortcutChecks.RunAsync(app, provider);
                     var history = provider.GetRequiredService<IActivityStore>();
                     var oldAt = DateTimeOffset.UtcNow.AddDays(-60);
                     var oldId = Guid.NewGuid();

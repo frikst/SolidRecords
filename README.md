@@ -30,7 +30,10 @@ Pravým kliknutím na ikonu pri hodinách otvorte **Nastavenia…**. Tlačidlo *
 | Spustenie programu pri prihlásení do Windows | Zapnuté. |
 | Spustenie minimalizované v systray | Zapnuté. |
 | Téma | Podľa systému; voliteľne svetlá alebo tmavá. |
+| Globálne klávesové skratky | Nenastavené; voliteľne na otvorenie/skrytie okna a spustenie/zastavenie záznamu. |
 | Denná kontrola aktualizácií | Zapnutá; možno ju vypnúť. |
+
+Na záložke **Skratky** kliknite do príslušného poľa a stlačte Ctrl, Alt alebo Win spolu s písmenom, číslicou alebo F1–F24; voliteľne pridajte Shift. Delete alebo Backspace skratku zruší. Skratky sa aktivujú po uložení a fungujú aj pri skrytom okne. Obsadenú alebo systémom vyhradenú kombináciu aplikácia odmietne; vyberte inú. Počas otvorených nastavení sa akcie skratiek nevykonávajú.
 
 Téma a minimum sa použijú po uložení. Pri zmene minima sa aktívny záznam dopíše a pokračuje s novým prahom; nové minimum sa použije aj na zobrazenie histórie, ale neobnoví predtým neuložené krátke aktivity. Voľby spúšťania sa prejavia pri ďalšom štarte. Automatické spustenie používa aktuálnu cestu aplikácie v `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, preto prenosnú aplikáciu spúšťajte z finálneho priečinka.
 

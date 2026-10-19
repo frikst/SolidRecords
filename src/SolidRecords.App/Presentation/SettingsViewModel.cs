@@ -22,9 +22,13 @@ public sealed class SettingsViewModel : ObservableObject
     private bool _checkForUpdates;
     private string _error = "";
     private bool _isSaving;
+    private GlobalShortcut? _toggleWindowShortcut;
+    private GlobalShortcut? _toggleRecordingShortcut;
 
     public SettingsViewModel(ApplicationSettings settings, Func<ApplicationSettings, Task> save, Func<Task<string>>? updateNow = null)
     {
+        _toggleWindowShortcut = settings.ToggleWindowShortcut;
+        _toggleRecordingShortcut = settings.ToggleRecordingShortcut;
         _save = save;
         _updateNow = updateNow ?? (() => Task.FromResult("Aktualizácie nie sú v tomto náhľade dostupné."));
         UpdateNowCommand = new(UpdateNowAsync, ex => UpdateStatus = "Aktualizácia sa nepodarila: " + ex.Message);
@@ -41,6 +45,9 @@ public sealed class SettingsViewModel : ObservableObject
         _checkForUpdates = settings.CheckForUpdates;
         SaveCommand = new(SaveAsync, ex => Error = "Nastavenia sa nepodarilo uložiť: " + ex.Message);
     }
+
+    public GlobalShortcut? ToggleWindowShortcut { get => _toggleWindowShortcut; set => Set(ref _toggleWindowShortcut, value); }
+    public GlobalShortcut? ToggleRecordingShortcut { get => _toggleRecordingShortcut; set => Set(ref _toggleRecordingShortcut, value); }
 
     public bool DeleteOldActivities { get => _deleteOldActivities; set => Set(ref _deleteOldActivities, value); }
     public string ActivityRetentionDays { get => _activityRetentionDays; set => Set(ref _activityRetentionDays, value); }
@@ -123,7 +130,7 @@ public sealed class SettingsViewModel : ObservableObject
             return;
         }
         var settings = new ApplicationSettings(seconds, RecordingModeIndex != 0, StartWithWindows, StartMinimized,
-            (ApplicationTheme)ThemeIndex, CheckForUpdates, start.Value, end.Value, _workingDays, RecordingModeIndex == 2, retentionDays);
+            (ApplicationTheme)ThemeIndex, CheckForUpdates, start.Value, end.Value, _workingDays, RecordingModeIndex == 2, retentionDays, ToggleWindowShortcut, ToggleRecordingShortcut);
         settings.Validate();
         IsSaving = true;
         try { await _save(settings); }

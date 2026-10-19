@@ -7,6 +7,8 @@ Formát vychádza z [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0
 
 ### Added
 
+- Voliteľné globálne klávesové skratky na otvorenie/skrytie okna a spustenie/zastavenie zaznamenávania sa nastavujú na samostatnej záložke Skratky. Predvolene nie je nastavená žiadna.
+
 - Zoznam aktivít obsahuje časové oddeľovače aktivácie a deaktivácie relácie s typom zachytenej udalosti, napríklad zamknutie, odomknutie, odhlásenie alebo vypnutie počítača. Čas oddeľovača je zarovnaný pod stĺpcom Začiatok.
 
 - Na konci inštalácie je predvolene zapnutá voľba na okamžité spustenie SolidRecords; pred dokončením ju môžete vypnúť.
