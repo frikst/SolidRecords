@@ -215,7 +215,46 @@
               </TreeView>
             </DockPanel>
           </Border>
-          <p:ActivityDataGrid Style="{StaticResource {x:Type DataGrid}}" ItemsSource="{Binding Activities}" SelectedItem="{Binding SelectedActivity, Mode=TwoWay}" SelectionMode="Single">
+          <p:ActivityDataGrid Style="{StaticResource {x:Type DataGrid}}" ItemsSource="{Binding EventRows}" SelectedItem="{Binding SelectedEventRow, Mode=TwoWay}" SelectionMode="Single">
+            <p:ActivityDataGrid.RowStyle>
+              <Style TargetType="DataGridRow" BasedOn="{StaticResource ActivityGridRow}">
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding IsSeparator}" Value="True">
+                    <Setter Property="IsHitTestVisible" Value="False" />
+                    <Setter Property="IsEnabled" Value="False" />
+                    <Setter Property="Focusable" Value="False" />
+                    <Setter Property="MinHeight" Value="{Binding RowHeight, RelativeSource={RelativeSource AncestorType=p:ActivityDataGrid}}" />
+                    <Setter Property="Template">
+                      <Setter.Value>
+                        <ControlTemplate TargetType="DataGridRow">
+                          <Border Background="{DynamicResource SubtleFillColorSecondaryBrush}"
+                                  BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="0,1"
+                                  ClipToBounds="True">
+                            <Grid VerticalAlignment="Center" ToolTip="{Binding Label}">
+                              <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="{Binding Columns[0].ActualWidth, RelativeSource={RelativeSource AncestorType=p:ActivityDataGrid}}" />
+                                <ColumnDefinition Width="{Binding Columns[1].ActualWidth, RelativeSource={RelativeSource AncestorType=p:ActivityDataGrid}}" />
+                                <ColumnDefinition Width="{Binding Columns[2].ActualWidth, RelativeSource={RelativeSource AncestorType=p:ActivityDataGrid}}" />
+                                <ColumnDefinition Width="{Binding Columns[3].ActualWidth, RelativeSource={RelativeSource AncestorType=p:ActivityDataGrid}}" />
+                                <ColumnDefinition Width="{Binding Columns[4].ActualWidth, RelativeSource={RelativeSource AncestorType=p:ActivityDataGrid}}" />
+                                <ColumnDefinition Width="*" />
+                              </Grid.ColumnDefinitions>
+                              <Grid.RenderTransform>
+                                <TranslateTransform X="{Binding SessionContentOffset, RelativeSource={RelativeSource AncestorType=p:ActivityDataGrid}}" />
+                              </Grid.RenderTransform>
+                              <TextBlock Grid.ColumnSpan="4" Text="{Binding Summary}" Margin="8,0" FontSize="11" FontWeight="SemiBold"
+                                         Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+                              <TextBlock Grid.Column="4" x:Name="SessionTime" Text="{Binding Start}" Margin="8,0" FontSize="12"
+                                         Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            </Grid>
+                          </Border>
+                        </ControlTemplate>
+                      </Setter.Value>
+                    </Setter>
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </p:ActivityDataGrid.RowStyle>
             <p:ActivityDataGrid.Columns>
               <DataGridTemplateColumn Header="Aplikácia" SortMemberPath="Application" Width="130" MinWidth="130">
                 <DataGridTemplateColumn.CellTemplate>

@@ -17,6 +17,23 @@ public sealed class RecordingEngineTests
         return engine;
     }
 
+    [Theory]
+    [InlineData("Logoff")]
+    [InlineData("Shutdown")]
+    public void SessionEndingAfterLockRetainsItsTypeWithoutAddingActivity(string reason)
+    {
+        var engine = new RecordingEngine();
+        engine.Apply(new(SignalKind.RecordingStarted, Origin));
+        engine.Apply(new(SignalKind.SessionActive, Origin));
+        engine.Apply(new(SignalKind.SessionInactive, Origin.AddMinutes(1), Reason: "WTS:7"));
+        var batch = engine.Apply(new(SignalKind.SessionInactive, Origin.AddMinutes(2), Reason: reason));
+        var entry = Assert.Single(batch.Events);
+        Assert.Equal(EventKind.SessionInactive, entry.Kind);
+        Assert.Equal(reason, entry.Reason);
+        Assert.Equal(Origin.AddMinutes(2), entry.Timestamp);
+        Assert.Empty(batch.Intervals);
+    }
+
     [Fact]
     public void StartingWhileLockedRecordsInactiveBaselineOnlyOnce()
     {

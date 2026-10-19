@@ -61,6 +61,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand NextDayCommand { get; }
     public RelayCommand TodayCommand { get; }
     public ObservableCollection<ActivityRow> Activities { get; } = [];
+    public ObservableCollection<IActivityListRow> EventRows { get; } = [];
     public ObservableCollection<ActivityDetailNode> DetailApplications { get; } = [];
     public bool DetailsVisible { get => _detailsVisible; set => Set(ref _detailsVisible, value); }
     public ActivityRow? SelectedActivity
@@ -68,8 +69,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         get => _selectedActivity;
         set
         {
-            if (Set(ref _selectedActivity, value) && !_updatingRows) UpdateDetails();
+            if (!Set(ref _selectedActivity, value)) return;
+            Changed(nameof(SelectedEventRow));
+            if (!_updatingRows) UpdateDetails();
         }
+    }
+    public object? SelectedEventRow
+    {
+        get => SelectedActivity;
+        set { if (value is null or ActivityRow) SelectedActivity = value as ActivityRow; }
     }
     public IReadOnlyList<ActivityInterval> Timeline => _report.Intervals;
     public WorkPeriod TimelineBounds => TimelineRange.Calculate(DateOnly.FromDateTime(_selectedDate ?? DateTime.Today), _settings, Timeline);
@@ -87,7 +95,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public string TotalDuration => ActivityRow.FormatDuration(_report.ActiveDuration);
     public string Count => _report.Intervals.Count.ToString();
     public string Details => $"{Activities.Count} aktivít  ·  {_report.Processes.Count} procesov  ·  časy v miestnom časovom pásme";
-    public bool IsEmpty => Activities.Count == 0;
+    public bool IsEmpty => EventRows.Count == 0;
     public IReadOnlyList<DateTime> AvailableDates => _availableDates;
     public DateTime? SelectedDate
     {
@@ -225,11 +233,35 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             row.UpdateIcon(GetIcon(interval));
             if (!ReferenceEquals(Activities[i], row)) Activities.Move(Activities.IndexOf(row), i);
         }
+        SynchronizeEventRows();
         _updatingRows = false;
         SelectedActivity = Activities.FirstOrDefault(row => row.Interval.Id == selectionId) ?? Activities.FirstOrDefault();
         UpdateDetails();
         Changed(nameof(Details));
         Changed(nameof(IsEmpty));
+    }
+
+    private void SynchronizeEventRows()
+    {
+        var existing = EventRows.OfType<SessionEventRow>().ToDictionary(row => row.Id);
+        var separators = _report.SessionEvents.Select(entry =>
+        {
+            if (!existing.TryGetValue(entry.Id, out var row)) return new SessionEventRow(entry);
+            row.Update(entry);
+            return row;
+        });
+        var desired = Activities.Cast<IActivityListRow>().Concat(separators)
+            .OrderByDescending(row => row.Timestamp)
+            .ThenBy(row => row is SessionEventRow session ? session.IsActive ? 2 : 0 : 1).ToArray();
+        var ids = desired.Select(row => row.Id).ToHashSet();
+        for (var i = EventRows.Count - 1; i >= 0; i--)
+            if (!ids.Contains(EventRows[i].Id)) EventRows.RemoveAt(i);
+        for (var i = 0; i < desired.Length; i++)
+        {
+            var index = EventRows.IndexOf(desired[i]);
+            if (index < 0) EventRows.Insert(i, desired[i]);
+            else if (index != i) EventRows.Move(index, i);
+        }
     }
 
     private void UpdateDetails()

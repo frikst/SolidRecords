@@ -33,6 +33,8 @@ internal static class Program
             if (args.Contains("--inspect-history", StringComparer.Ordinal)) return HistoryDiagnostics.Run();
             var directory = Path.GetFullPath(args.FirstOrDefault(x => !x.StartsWith("--", StringComparison.Ordinal)) ?? "artifacts/desktop-checks");
             Directory.CreateDirectory(directory);
+            SessionCaptureChecks.Run();
+            if (args.Contains("--session-only", StringComparer.Ordinal)) return 0;
             CheckWindowFilter();
             if (!args.Contains("--preview-only", StringComparer.Ordinal))
             {
@@ -99,6 +101,116 @@ internal static class Program
         grid.ItemsSource = source;
         Console.WriteLine("Sorting: numeric durations, all column cycles, column switch, live updates and original order passed.");
     }
+    private static void CheckSessionTimeAlignment(System.Windows.Controls.DataGrid grid)
+    {
+        var rows = Descendants<System.Windows.Controls.DataGridRow>(grid).ToArray();
+        var activity = rows.FirstOrDefault(row => row.Item is ActivityRow);
+        if (activity is null) return;
+        var start = grid.Columns[4].GetCellContent(activity.Item);
+        if (start is null) return;
+        var expected = start.TransformToAncestor(grid).Transform(new Point()).X;
+        foreach (var row in rows.Where(row => row.Item is SessionEventRow))
+        {
+            var time = (FrameworkElement)row.Template.FindName("SessionTime", row);
+            var actual = time.TransformToAncestor(grid).Transform(new Point()).X;
+            Require(Math.Abs(actual - expected) <= 1, $"Separator time is not aligned: {actual} vs {expected}");
+        }
+    }
+
+    private static void CheckActivityRowColors(System.Windows.Controls.DataGrid grid)
+    {
+        foreach (var activity in grid.Items.OfType<ActivityRow>().ToArray())
+        {
+            grid.ScrollIntoView(activity);
+            grid.UpdateLayout();
+            var row = (System.Windows.Controls.DataGridRow)grid.ItemContainerGenerator.ContainerFromItem(activity);
+            var expectedBackground = row.IsSelected ? (Brush)grid.FindResource("AccentFillColorDefaultBrush")
+                : System.Windows.Controls.ItemsControl.GetAlternationIndex(row) == 1 ? grid.AlternatingRowBackground : grid.RowBackground;
+            var expectedForeground = (Brush)grid.FindResource(row.IsSelected
+                ? "TextOnAccentFillColorPrimaryBrush" : "TextFillColorPrimaryBrush");
+            Require(((SolidColorBrush)row.Background).Color == ((SolidColorBrush)expectedBackground).Color,
+                "An activity row retained a default background instead of the current theme");
+            Require(((SolidColorBrush)row.Foreground).Color == ((SolidColorBrush)expectedForeground).Color,
+                "An activity row retained a default foreground instead of the current theme");
+            foreach (var text in Descendants<System.Windows.Controls.TextBlock>(row))
+                Require(((SolidColorBrush)text.Foreground).Color == ((SolidColorBrush)expectedForeground).Color,
+                    "Activity cell text does not use the row's current theme foreground");
+        }
+        grid.ScrollIntoView(grid.SelectedItem ?? grid.Items[0]);
+        grid.UpdateLayout();
+    }
+
+    private static void CheckSessionNavigation(SolidRecords.App.MainWindow window, System.Windows.Controls.DataGrid grid)
+    {
+        var source = grid.ItemsSource;
+        var selected = grid.SelectedItem;
+        var column = grid.Columns[2];
+        var at = DateTimeOffset.Now;
+        var rows = new System.Collections.ObjectModel.ObservableCollection<IActivityListRow>();
+        SessionEventRow Separator() => new(new(Guid.NewGuid(), Guid.NewGuid(), EventKind.SessionInactive, at, Reason: "WTS:7"));
+        rows.Add(Separator());
+        for (var index = 0; index < 40; index++)
+        {
+            rows.Add(new ActivityRow(new(Guid.NewGuid(), Guid.NewGuid(), new(100, index, $"App {index:00}", "Navigation"),
+                at, at.AddSeconds(20), false)));
+            rows.Add(Separator());
+            rows.Add(Separator());
+        }
+        window.Show();
+        grid.ItemsSource = rows;
+        grid.CurrentColumn = column;
+        grid.SelectedItem = null;
+        grid.UpdateLayout();
+        void Press(System.Windows.Input.Key key)
+        {
+            var args = new System.Windows.Input.KeyEventArgs(System.Windows.Input.Keyboard.PrimaryDevice,
+                PresentationSource.FromVisual(grid), 0, key) { RoutedEvent = System.Windows.Input.Keyboard.PreviewKeyDownEvent };
+            var target = grid.SelectedItem is ActivityRow activity ? column.GetCellContent(activity) : null;
+            ((UIElement?)target ?? grid).RaiseEvent(args);
+            Require(args.Handled, "The activity navigation key was not handled");
+        }
+        void CheckOrder()
+        {
+            var activities = grid.Items.OfType<ActivityRow>().ToArray();
+            grid.SelectedItem = null;
+            foreach (var activity in activities)
+            {
+                Press(System.Windows.Input.Key.Down);
+                Require(ReferenceEquals(grid.SelectedItem, activity) && ReferenceEquals(grid.CurrentCell.Item, activity)
+                    && grid.CurrentColumn == column, "Down did not skip separators or preserve the current column");
+            }
+            Press(System.Windows.Input.Key.Down);
+            Require(ReferenceEquals(grid.SelectedItem, activities[^1]), "Down crossed the last activity");
+            foreach (var activity in activities.Reverse().Skip(1))
+            {
+                Press(System.Windows.Input.Key.Up);
+                Require(ReferenceEquals(grid.SelectedItem, activity), "Up did not skip separators");
+            }
+            Press(System.Windows.Input.Key.Up);
+            Require(ReferenceEquals(grid.SelectedItem, activities[0]), "Up crossed the first activity");
+            grid.SelectedItem = null;
+            Press(System.Windows.Input.Key.Up);
+            Require(ReferenceEquals(grid.SelectedItem, activities[^1]), "Up without selection did not choose the last activity");
+        }
+        CheckOrder();
+        grid.Items.SortDescriptions.Add(new System.ComponentModel.SortDescription(nameof(ActivityRow.Application),
+            System.ComponentModel.ListSortDirection.Descending));
+        CheckOrder();
+        grid.Items.SortDescriptions.Clear();
+        grid.Items.Filter = item => item is SessionEventRow || ((ActivityRow)item).ProcessId % 3 == 0;
+        CheckOrder();
+        grid.Items.Filter = item => item is SessionEventRow;
+        grid.SelectedItem = null;
+        Press(System.Windows.Input.Key.Down);
+        Press(System.Windows.Input.Key.Up);
+        Require(grid.SelectedItem is null, "Separators were selected in a list without activities");
+        grid.Items.Filter = null;
+        grid.ItemsSource = source;
+        grid.SelectedItem = selected;
+        window.Hide();
+        Console.WriteLine("Activity navigation: Up/Down skip consecutive separators, preserve the column and cross virtualized rows in original, sorted and filtered order.");
+    }
+
     private static async Task CheckCaptureAsync(string directory)
     {
         var store = new SqliteActivityStore(Path.Combine(directory, $"capture-{Guid.NewGuid():N}.db"));
@@ -162,7 +274,7 @@ internal static class Program
         var engine = new RecordingEngine();
         void Save(CaptureSignal signal) => store.SaveAsync(engine.Apply(signal)).GetAwaiter().GetResult();
         Save(new(SignalKind.RecordingStarted, day));
-        Save(new(SignalKind.SessionActive, day));
+        Save(new(SignalKind.SessionActive, day, Reason: "WTS:5"));
         var apps = samples.Select(x => x.Item1).Distinct().Select((name, i) => (name, id: i + 20)).ToDictionary(x => x.name, x => x.id);
         foreach (var sample in samples)
         {
@@ -171,7 +283,13 @@ internal static class Program
                 new(pid + 100, pid, sample.Item1, sample.Item2, sample.Item3)));
             Save(new(SignalKind.ForegroundChanged, day.AddMinutes(sample.Item4 + sample.Item5)));
         }
-        Save(new(SignalKind.RecordingStopped, day.AddMinutes(228)));
+        Save(new(SignalKind.SessionInactive, day.AddMinutes(228), Reason: "WTS:7"));
+        Save(new(SignalKind.SessionActive, day.AddMinutes(240), Reason: "WTS:8"));
+        Save(new(SignalKind.SessionInactive, day.AddMinutes(250), Reason: "Shutdown"));
+        Save(new(SignalKind.RecordingStopped, day.AddMinutes(250)));
+        store.SaveAsync(new(Enumerable.Range(0, 4).Select(index => new SolidRecords.Core.ActivityEvent(Guid.NewGuid(), Guid.NewGuid(),
+            index == 0 ? EventKind.SessionInactive : EventKind.SessionActive, day.AddMinutes(index * 20 + 1),
+            Reason: "RecordingBaseline")).ToArray(), [])).GetAwaiter().GetResult();
         var recorder = new Recorder(store, new EmptySource());
         var vm = new MainViewModel(recorder, new DailyReportService(store));
         var refresh = vm.RefreshAsync();
@@ -181,6 +299,23 @@ internal static class Program
         Dispatcher.PushFrame(frame);
         refresh.GetAwaiter().GetResult();
         Require(vm.Activities.All(row => row.Icon is { IsFrozen: true }), "Stored icons were not decoded and frozen");
+        var separators = vm.EventRows.OfType<SessionEventRow>().ToArray();
+        Require(separators.Length == 4 && separators[0].Description == "Vypnutie počítača"
+            && separators[1].Description == "Odomknutie počítača"
+            && separators[2].Description == "Zamknutie počítača"
+            && separators[3].Description == "Prihlásenie používateľa", "Session separators lost their order or type");
+        var separator = separators[0];
+        var refreshSeparators = vm.RefreshAsync();
+        var separatorFrame = new DispatcherFrame();
+        refreshSeparators.ContinueWith(_ => Dispatcher.CurrentDispatcher.BeginInvoke(() => separatorFrame.Continue = false),
+            CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.FromCurrentSynchronizationContext());
+        Dispatcher.PushFrame(separatorFrame);
+        refreshSeparators.GetAwaiter().GetResult();
+        Require(ReferenceEquals(separator, vm.EventRows[0]), "Refresh replaced a session separator");
+        vm.Search = "no-matching-activity";
+        Require(vm.Activities.Count == 0 && vm.EventRows.Count == 4 && !vm.IsEmpty,
+            "Search removed session context or counted separators as activities");
+        vm.Search = "";
         var window = new SolidRecords.App.MainWindow(vm);
         var content = (FrameworkElement)window.Content;
         void Render(string name, double width, double height, double scale)
@@ -188,6 +323,7 @@ internal static class Program
             content.Measure(new Size(width, height));
             content.Arrange(new Rect(0, 0, width, height));
             content.UpdateLayout();
+            CheckSessionTimeAlignment(Descendants<System.Windows.Controls.DataGrid>(content).Single());
             var image = new RenderTargetBitmap((int)(width * scale), (int)(height * scale),
                 96 * scale, 96 * scale, PixelFormats.Pbgra32);
             var background = new DrawingVisual();
@@ -275,7 +411,24 @@ internal static class Program
         Render("main-window-small-150.png", 744, 380, 1.5);
         var timeline = Descendants<TimelineControl>(content).Single();
         var grid = Descendants<System.Windows.Controls.DataGrid>(content).Single();
+        CheckSessionTimeAlignment(grid);
+        var activityScroll = Descendants<System.Windows.Controls.ScrollViewer>(grid).First(viewer => viewer.TemplatedParent == grid);
+        activityScroll.ScrollToHorizontalOffset(120);
+        grid.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+        grid.UpdateLayout();
+        CheckSessionTimeAlignment(grid);
+        activityScroll.ScrollToHorizontalOffset(0);
+        grid.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
         CheckSorting(grid);
+        var sessionSorting = typeof(System.Windows.Controls.DataGrid).GetMethod("OnSorting",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+        foreach (var column in grid.Columns)
+        {
+            for (var click = 0; click < 3; click++)
+                sessionSorting.Invoke(grid, new object[] { new System.Windows.Controls.DataGridSortingEventArgs(column) });
+            Require(grid.Items.Cast<IActivityListRow>().SequenceEqual(vm.EventRows),
+                "Mixed session/activity rows did not restore their chronological order");
+        }
         var detailToggle = Descendants<System.Windows.Controls.Primitives.ToggleButton>(content)
             .Single(button => System.Windows.Automation.AutomationProperties.GetName(button) == "Detaily aplikácie");
         detailToggle.IsChecked = true;
@@ -301,7 +454,8 @@ internal static class Program
             "Selection did not switch application details");
         detailToggle.IsChecked = false;
         Require(!vm.DetailsVisible, "Details toggle did not close the panel");
-        grid.SelectedIndex = 0;
+        grid.SelectedItem = vm.Activities[0];
+        CheckActivityRowColors(grid);
         var selected = grid.SelectedItem;
         var lightBackground = ((SolidColorBrush)window.Background).Color;
         var lightLabel = ((SolidColorBrush)timeline.LabelBrush).Color;
@@ -310,6 +464,7 @@ internal static class Program
         Render("main-window-details-dark-150.png", 1000, 600, 1.5);
         vm.DetailsVisible = false;
         Render("main-window-dark.png", 1084, 600, 1);
+        CheckActivityRowColors(grid);
         RenderCalendar("dark");
         Render("main-window-dark-150.png", 1000, 600, 1.5);
         Render("main-window-dark-small-150.png", 744, 380, 1.5);
@@ -320,7 +475,9 @@ internal static class Program
         Render("main-window-light-restored.png", 1084, 600, 1);
         Require(((SolidColorBrush)window.Background).Color == lightBackground, "Switching back did not restore the light theme");
         Require(((SolidColorBrush)timeline.LabelBrush).Color == lightLabel, "Switching back did not restore timeline labels");
+        CheckActivityRowColors(grid);
         CheckWindowCaption(window);
+        CheckSessionNavigation(window, grid);
         if (searchPreview)
         {
             RenderFocusedSearch("main-window-search-light-150.png");

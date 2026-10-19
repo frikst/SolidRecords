@@ -24,6 +24,7 @@ public sealed class DailyReport
 
     public IReadOnlyList<ProcessActivity> Processes { get; }
     public IReadOnlyList<ActivityInterval> Intervals { get; }
+    public IReadOnlyList<ActivityEvent> SessionEvents { get; init; } = [];
     public TimeSpan ActiveDuration => TimeSpan.FromTicks(Intervals.Sum(x => x.Duration.Ticks));
     public DateTimeOffset? FirstActivity => Intervals.Count == 0 ? null : Intervals.Min(x => x.Start);
     public DateTimeOffset? LastActivity => Intervals.Count == 0 ? null : Intervals.Max(x => x.End);
@@ -32,6 +33,11 @@ public sealed class DailyReport
 public sealed class DailyReportService(IActivityStore store, TimeZoneInfo? timeZone = null, ActivityTrackingOptions? options = null)
 {
     private readonly TimeZoneInfo _timeZone = timeZone ?? TimeZoneInfo.Local;
+
+    // The collector needs its initial state to gate foreground tracking. It does not
+    // represent an OS session transition, including when reading older recordings.
+    private static bool IsSessionTransition(ActivityEvent entry) =>
+        entry.Kind is EventKind.SessionActive or EventKind.SessionInactive && entry.Reason != "RecordingBaseline";
 
     public async Task<IReadOnlyList<DateOnly>> ReadActivityDatesAsync(CancellationToken cancellationToken = default)
     {
@@ -48,6 +54,9 @@ public sealed class DailyReportService(IActivityStore store, TimeZoneInfo? timeZ
                 if (date >= last) break;
             }
         }
+        foreach (var entry in (await store.ReadSessionEventsAsync(DateTimeOffset.MinValue, DateTimeOffset.MaxValue, cancellationToken))
+            .Where(IsSessionTransition))
+            dates.Add(DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(entry.Timestamp, _timeZone).DateTime));
         return dates.ToArray();
     }
 
@@ -57,6 +66,11 @@ public sealed class DailyReportService(IActivityStore store, TimeZoneInfo? timeZ
         var end = date.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified);
         var from = new DateTimeOffset(TimeZoneInfo.ConvertTimeToUtc(start, _timeZone));
         var to = new DateTimeOffset(TimeZoneInfo.ConvertTimeToUtc(end, _timeZone));
-        return new(await store.ReadProcessesAsync(from, to, cancellationToken), options, from, to);
+        var processes = await store.ReadProcessesAsync(from, to, cancellationToken);
+        var events = await store.ReadSessionEventsAsync(from, to, cancellationToken);
+        return new(processes, options, from, to)
+        {
+            SessionEvents = events.Where(IsSessionTransition).ToArray()
+        };
     }
 }

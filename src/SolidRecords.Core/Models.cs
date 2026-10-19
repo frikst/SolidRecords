@@ -74,6 +74,10 @@ public interface IActivityStore
         CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ActivityInterval>> ReadIntervalsAsync(DateTimeOffset from, DateTimeOffset to,
         CancellationToken cancellationToken = default);
+    async Task<IReadOnlyList<ActivityEvent>> ReadSessionEventsAsync(DateTimeOffset from, DateTimeOffset to,
+        CancellationToken cancellationToken = default) =>
+        (await ReadEventsAsync(from, to, cancellationToken))
+            .Where(entry => entry.Kind is EventKind.SessionActive or EventKind.SessionInactive).ToArray();
     Task<IReadOnlyList<ActivityEvent>> ReadEventsAsync(DateTimeOffset from, DateTimeOffset to,
         CancellationToken cancellationToken = default);
 }

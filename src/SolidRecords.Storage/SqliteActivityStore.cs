@@ -243,6 +243,17 @@ public sealed class SqliteActivityStore : IActivityStore, ISettingsStore
         .SelectMany(p => p.Windows).SelectMany(w => w.Activities)
         .Select(interval => ActivityLogPolicy.Clip(interval, from, to)).OfType<ActivityInterval>().OrderBy(x => x.Start).ToArray();
 
+    public async Task<IReadOnlyList<ActivityEvent>> ReadSessionEventsAsync(DateTimeOffset from, DateTimeOffset to,
+        CancellationToken cancellationToken = default)
+    {
+        await InitializeAsync(cancellationToken);
+        await using var db = new ActivityDbContext(_options);
+        var rows = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE timestamp >= {Millis(from)} AND timestamp < {Millis(to)} AND kind IN ('SessionActive', 'SessionInactive') ORDER BY timestamp,rowid")
+            .AsNoTracking().ToArrayAsync(cancellationToken);
+        return rows.Select(x => new ActivityEvent(Guid.Parse(x.Id), Guid.Parse(x.RecordingId), Enum.Parse<EventKind>(x.Kind),
+            Time(x.Timestamp), Reason: x.Reason)).ToArray();
+    }
+
     public async Task<IReadOnlyList<ActivityEvent>> ReadEventsAsync(DateTimeOffset from, DateTimeOffset to,
         CancellationToken cancellationToken = default)
     {

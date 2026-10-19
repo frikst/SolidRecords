@@ -14,7 +14,7 @@ SQLite používa Entity Framework Core 10.0.12 s providerom `Microsoft.EntityFra
 | `window_activities` | Životnosť okna, FK na proces. |
 | `activity_leaves` | Prijatá aktivita s vlastným `recording_id`, historický názov a voliteľná URL, FK na okno. Začiatok/koniec sú obálka aktívnych úsekov. |
 | `activity_spans` | Skutočné aktívne úseky, FK na list s ON DELETE CASCADE. Zdroj pracovného trvania. |
-| `events` | Interné udalosti vrátane heartbeat, GUI ich nečíta. |
+| `events` | Interné udalosti vrátane heartbeat; report pre GUI číta iba aktiváciu/deaktiváciu relácie s dôvodom. |
 | `intervals` | Zachovaná pôvodná tabuľka po migrácii verzie 1. |
 
 Pri zmene zlúčenia sa najprv zapíšu rodičia/listy, potom sa upsertnú a priradia úseky a až potom sa odstránia nahradené listy. Zmena tohto poradia môže cez kaskádové mazanie stratiť presunuté úseky.

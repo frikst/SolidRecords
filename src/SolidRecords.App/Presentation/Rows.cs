@@ -3,9 +3,18 @@ using SolidRecords.Core;
 
 namespace SolidRecords.App.Presentation;
 
-public sealed class ActivityRow(ActivityInterval interval) : ObservableObject
+public interface IActivityListRow
+{
+    Guid Id { get; }
+    DateTimeOffset Timestamp { get; }
+}
+
+public sealed class ActivityRow(ActivityInterval interval) : ObservableObject, IActivityListRow
 {
     public ActivityInterval Interval { get; private set; } = interval;
+    public bool IsSeparator => false;
+    public Guid Id => Interval.Id;
+    public DateTimeOffset Timestamp => Interval.Start;
     public void Update(ActivityInterval value)
     {
         if (Interval.Id == value.Id && Interval.Window == value.Window && Interval.Start == value.Start &&

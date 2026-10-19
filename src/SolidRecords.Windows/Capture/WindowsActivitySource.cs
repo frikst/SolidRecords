@@ -24,6 +24,7 @@ public sealed class WindowsActivitySource : IActivitySource
     private nint _nameHook;
     private nint _destroyHook;
     private WindowInfo? _foreground;
+    private SessionCaptureState _sessionState = new();
     private bool _active;
     private bool _suspended;
     private long _generation;
@@ -44,6 +45,7 @@ public sealed class WindowsActivitySource : IActivitySource
                 _windows = new ObservedWindowRegistry(publish);
                 _generation++;
                 _suspended = false;
+                _sessionState = new();
                 _messageWindow = new HwndSource(new HwndSourceParameters("SolidRecords capture")
                 {
                     Width = 0, Height = 0, WindowStyle = 0x00800000 // hidden top-level window receives power broadcasts
@@ -56,7 +58,7 @@ public sealed class WindowsActivitySource : IActivitySource
                 _destroyHook = NativeMethods.SetWinEventHook(0x8001, 0x8001, 0, _callback, 0, 0, 0);
                 if (_foregroundHook == 0 || _nameHook == 0 || _destroyHook == 0)
                     throw new Win32Exception("Nepodarilo sa zaregistrovať sledovanie okien.");
-                _active = NativeMethods.IsDesktopActive();
+                _active = IsSessionActive();
                 Emit(_active ? SignalKind.SessionActive : SignalKind.SessionInactive, "RecordingBaseline");
                 CaptureForeground();
                 _timer = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background,
@@ -88,7 +90,7 @@ public sealed class WindowsActivitySource : IActivitySource
     {
         if (_suspended) return;
         // Reconcile missed notifications, secure desktop and workstation state.
-        SetSession(NativeMethods.IsDesktopActive(), "DesktopState");
+        SetSession(IsSessionActive(), "DesktopState");
         CaptureForeground();
         _windows?.Refresh();
         if (_active && _foreground is { } window && IsBrowser(window.Application))
@@ -127,7 +129,7 @@ public sealed class WindowsActivitySource : IActivitySource
     private void CaptureForeground()
     {
         if (!_active || _suspended || _publish is null) return;
-        if (!NativeMethods.IsDesktopActive())
+        if (!IsSessionActive())
         {
             SetSession(false, "SecureDesktop");
             return;
@@ -165,10 +167,11 @@ public sealed class WindowsActivitySource : IActivitySource
     {
         if (message == 0x02B1) // WM_WTSSESSION_CHANGE; registered for this session only
         {
+            _sessionState.ApplyWtsChange((int)wParam);
             switch ((int)wParam)
             {
                 case 1: case 3: case 5: case 8:
-                    SetSession(NativeMethods.IsDesktopActive(), $"WTS:{wParam}");
+                    SetSession(IsSessionActive(), $"WTS:{wParam}");
                     CaptureForeground();
                     break;
                 case 2: case 4: case 6: case 7:
@@ -186,22 +189,36 @@ public sealed class WindowsActivitySource : IActivitySource
             else if ((int)wParam is 7 or 18)
             {
                 _suspended = false;
-                SetSession(NativeMethods.IsDesktopActive(), "Resume");
+                SetSession(IsSessionActive(), "Resume");
                 CaptureForeground();
             }
         }
         else if (message == 0x0011) // WM_QUERYENDSESSION: persist inactivity before logoff/shutdown
         {
-            SetSession(false, "SessionEnding");
+            _sessionState.IsEnding = true;
+            SetSession(false, ((long)lParam & 0x80000000L) != 0 ? "Logoff" : "Shutdown");
             handled = true;
             return 1;
+        }
+        else if (message == 0x0016 && wParam == 0) // WM_ENDSESSION: shutdown/logoff was cancelled
+        {
+            _sessionState.IsEnding = false;
+            SetSession(IsSessionActive(), "SessionEndingCancelled");
+            CaptureForeground();
         }
         return 0;
     }
 
+    private bool IsSessionActive() => _sessionState.CanCapture(NativeMethods.IsDesktopActive());
+
     private void SetSession(bool active, string reason)
     {
-        if (_active == active) return;
+        if (_active == active)
+        {
+            // Logoff/shutdown is still a distinct event when the workstation is already locked.
+            if (!active && reason is "Logoff" or "Shutdown") Emit(SignalKind.SessionInactive, reason);
+            return;
+        }
         _active = active;
         _foreground = null;
         Emit(active ? SignalKind.SessionActive : SignalKind.SessionInactive, reason);

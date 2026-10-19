@@ -7,9 +7,17 @@ Formát vychádza z [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0
 
 ### Added
 
+- Zoznam aktivít obsahuje časové oddeľovače aktivácie a deaktivácie relácie s typom zachytenej udalosti, napríklad zamknutie, odomknutie, odhlásenie alebo vypnutie počítača. Čas oddeľovača je zarovnaný pod stĺpcom Začiatok.
+
 - Na konci inštalácie je predvolene zapnutá voľba na okamžité spustenie SolidRecords; pred dokončením ju môžete vypnúť.
 
 ### Fixed
+
+- Zamknutá alebo odpojená relácia sa pri priebežnej kontrole plochy už nesprávne neoznačí za aktívnu.
+
+- Spustenie alebo obnovenie zaznamenávania sa už nezobrazuje ako aktivácia relácie; nadbytočné oddeľovače zmiznú aj zo staršej histórie.
+
+- Aktivity zostávajú čitateľné aj v tmavej téme a šípky hore/dole preskakujú oddeľovače relácie pri výbere ďalšej aktivity.
 
 - Po úspešnej aktualizácii spustenej z aplikácie sa SolidRecords automaticky znovu spustí a pokračuje podľa uložených nastavení.
 

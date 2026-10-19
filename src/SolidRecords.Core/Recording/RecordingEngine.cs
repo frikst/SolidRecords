@@ -118,7 +118,8 @@ public sealed class RecordingEngine
                 break;
             case SignalKind.SessionInactive:
                 CloseActivity();
-                if (!_sessionKnown || _sessionActive) Emit(EventKind.SessionInactive);
+                if (!_sessionKnown || _sessionActive || signal.Reason is "Logoff" or "Shutdown")
+                    Emit(EventKind.SessionInactive);
                 _sessionActive = false;
                 _sessionKnown = true;
                 break;

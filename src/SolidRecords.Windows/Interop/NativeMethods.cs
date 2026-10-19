@@ -50,14 +50,14 @@ internal static class NativeMethods
         out nint buffer, out int bytes);
     [DllImport("wtsapi32.dll")]
     internal static extern void WTSFreeMemory(nint buffer);
-    [DllImport("user32.dll", SetLastError = true)]
-    internal static extern nint OpenInputDesktop(uint flags, bool inherit, uint access);
+    [DllImport("kernel32.dll")]
+    internal static extern uint GetCurrentThreadId();
     [DllImport("user32.dll")]
+    internal static extern nint GetThreadDesktop(uint threadId);
+    [DllImport("user32.dll", EntryPoint = "GetUserObjectInformationW", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    internal static extern bool CloseDesktop(nint desktop);
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    internal static extern bool SwitchDesktop(nint desktop);
+    internal static extern bool GetUserObjectInformation(nint handle, int index, out int value,
+        uint length, out uint needed);
 
     internal static bool IsDesktopActive()
     {
@@ -67,9 +67,10 @@ internal static class NativeMethods
             try { if (size >= 4 && Marshal.ReadInt32(buffer) != 0) return false; }
             finally { WTSFreeMemory(buffer); }
         }
-        var desktop = OpenInputDesktop(0, false, 0x0100); // DESKTOP_SWITCHDESKTOP
-        if (desktop == 0) return false;
-        try { return SwitchDesktop(desktop); }
-        finally { CloseDesktop(desktop); }
+        // Borrowed thread desktop handle: do not close it. UOI_IO only reads whether
+        // this desktop receives input; never switch desktops as an availability test.
+        var desktop = GetThreadDesktop(GetCurrentThreadId());
+        return desktop != 0 && GetUserObjectInformation(desktop, 6, out var receivingInput, sizeof(int), out _)
+            && receivingInput != 0;
     }
 }

@@ -45,8 +45,13 @@
       <Setter Property="Padding" Value="6,5" /><Setter Property="FontWeight" Value="SemiBold" />
       <Setter Property="BorderThickness" Value="0,0,0,1" /><Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
     </Style>
-    <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+    <Style x:Key="ActivityGridRow" TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+      <Setter Property="Background" Value="{Binding RowBackground, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
       <Style.Triggers>
+        <Trigger Property="AlternationIndex" Value="1">
+          <Setter Property="Background" Value="{Binding AlternatingRowBackground, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
+        </Trigger>
         <Trigger Property="IsSelected" Value="True">
           <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
           <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />

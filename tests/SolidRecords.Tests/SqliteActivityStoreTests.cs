@@ -27,8 +27,8 @@ public sealed class SqliteActivityStoreTests : IDisposable
         var source = new IconSource
         {
             StartupSignals = startsLocked
-                ? [new(SignalKind.SessionInactive, started)]
-                : [new(SignalKind.SessionActive, at), new(SignalKind.ForegroundChanged, at, window)]
+                ? [new(SignalKind.SessionInactive, started, Reason: "RecordingBaseline")]
+                : [new(SignalKind.SessionActive, at, Reason: "RecordingBaseline"), new(SignalKind.ForegroundChanged, at, window)]
         };
         var options = new ActivityTrackingOptions();
         await using var recorder = new Recorder(store, source, new IconClock(started), options);
@@ -235,7 +235,7 @@ public sealed class SqliteActivityStoreTests : IDisposable
     {
         var store = CreateStore();
         var at = DateTimeOffset.FromUnixTimeMilliseconds(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
-        var window = new WindowInfo(123, 4, "editor", "Žltý 'dokument'; DROP TABLE events;", "https://example.com/?a='b'");
+        var window = new WindowInfo(123, 4, "editor", "Ĺ˝ltĂ˝ 'dokument'; DROP TABLE events;", "https://example.com/?a='b'");
         var recording = Guid.NewGuid();
         var entry = new ActivityEvent(Guid.NewGuid(), recording, EventKind.WindowActivated, at, window, 4, "editor");
         var interval = new ActivityInterval(Guid.NewGuid(), recording, window, at, at.AddMinutes(5), false);
@@ -601,6 +601,54 @@ public sealed class SqliteActivityStoreTests : IDisposable
         Assert.Equal(Convert.ToBase64String([1, 2, 3]),
             Assert.Single(await adopted.ReadIntervalsAsync(at, at.AddDays(1))).ApplicationIconPngBase64);
         Assert.Equal(spans, Assert.Single(await CreateStore().ReadIntervalsAsync(at, at.AddDays(1))).Spans);
+    }
+
+    [Fact]
+    public async Task RecordingBaselinesNeverBecomeSessionSeparatorsOrEnableEmptyHistoryDays()
+    {
+        var store = CreateStore();
+        var at = new DateTimeOffset(2026, 10, 19, 8, 0, 0, TimeSpan.Zero);
+        ActivityEvent Entry(EventKind kind, DateTimeOffset time, string? reason = null) =>
+            new(Guid.NewGuid(), Guid.NewGuid(), kind, time, Reason: reason);
+        var baselineOnlyDay = Entry(EventKind.SessionInactive, at.AddDays(-1), "RecordingBaseline");
+        var started = Entry(EventKind.RecordingStarted, at);
+        var baseline = Entry(EventKind.SessionActive, at, "RecordingBaseline");
+        var restarted = Entry(EventKind.SessionActive, at.AddMinutes(5), "RecordingBaseline");
+        var lockEvent = Entry(EventKind.SessionInactive, at.AddMinutes(10), "WTS:7");
+        var unlockEvent = Entry(EventKind.SessionActive, at.AddMinutes(11), "WTS:8");
+        var unknownTransition = Entry(EventKind.SessionInactive, at.AddMinutes(15), "DesktopState");
+        var entries = new[] { baselineOnlyDay, started, baseline, restarted, lockEvent, unlockEvent, unknownTransition };
+        await store.SaveAsync(new(entries, []));
+        var reports = new DailyReportService(store, TimeZoneInfo.Utc);
+        Assert.Equal(new[] { lockEvent, unlockEvent, unknownTransition },
+            (await reports.ReadAsync(new(2026, 10, 19))).SessionEvents);
+        Assert.Empty((await reports.ReadAsync(new(2026, 10, 18))).SessionEvents);
+        Assert.Equal(new DateOnly[] { new(2026, 10, 19) }, await reports.ReadActivityDatesAsync());
+        // Filtering is a report concern: preserve every stored event for diagnostics.
+        Assert.Equal(entries, await store.ReadEventsAsync(at.AddDays(-1), at.AddDays(1)));
+    }
+
+    [Fact]
+    public async Task SessionEventsRespectLocalDayAndDoNotAddWorkTime()
+    {
+        var store = CreateStore();
+        var zone = TimeZoneInfo.CreateCustomTimeZone("Test+02", TimeSpan.FromHours(2), "Test+02", "Test+02");
+        var from = new DateTimeOffset(2026, 10, 18, 22, 0, 0, TimeSpan.Zero);
+        ActivityEvent Entry(EventKind kind, DateTimeOffset at, string reason) =>
+            new(Guid.NewGuid(), Guid.NewGuid(), kind, at, Reason: reason);
+        var before = Entry(EventKind.SessionInactive, from.AddMilliseconds(-1), "WTS:7");
+        var login = Entry(EventKind.SessionActive, from, "WTS:5");
+        var locked = Entry(EventKind.SessionInactive, from.AddHours(8), "WTS:7");
+        var next = Entry(EventKind.SessionActive, from.AddDays(1), "WTS:8");
+        await store.SaveAsync(new([before, login, Entry(EventKind.Heartbeat, from.AddSeconds(1), ""), locked, next], []));
+        var service = new DailyReportService(store, zone);
+        var report = await service.ReadAsync(new(2026, 10, 19));
+        Assert.Equal(new[] { login, locked }, report.SessionEvents);
+        Assert.Empty(report.Intervals);
+        Assert.Equal(TimeSpan.Zero, report.ActiveDuration);
+        Assert.Null(report.FirstActivity);
+        Assert.Equal(new[] { new DateOnly(2026, 10, 18), new DateOnly(2026, 10, 19), new DateOnly(2026, 10, 20) },
+            await service.ReadActivityDatesAsync());
     }
 
     [Theory]
