@@ -291,6 +291,7 @@ internal static class Program
         Render("main-window-light-restored.png", 1084, 600, 1);
         Require(((SolidColorBrush)window.Background).Color == lightBackground, "Switching back did not restore the light theme");
         Require(((SolidColorBrush)timeline.LabelBrush).Color == lightLabel, "Switching back did not restore timeline labels");
+        CheckWindowCaption(window);
         if (searchPreview)
         {
             RenderFocusedSearch("main-window-search-light-150.png");
@@ -397,6 +398,45 @@ internal static class Program
         Task.Run(async () => await recorder.DisposeAsync()).GetAwaiter().GetResult();
         Console.WriteLine("WPF preview: " + Path.Combine(directory, "main-window.png"));
     }
+
+    private static void CheckWindowCaption(SolidRecords.App.MainWindow window)
+    {
+        var originalWidth = window.Width;
+        window.ShowActivated = false;
+        window.Show();
+        var handle = new WindowInteropHelper(window).Handle;
+        void Check(FrameworkElement element, Point point, nint expected, string description)
+        {
+            var screen = element.PointToScreen(point);
+            var coordinates = unchecked((nint)(((int)screen.X & 0xffff) | ((int)screen.Y << 16)));
+            var actual = SendMessage(handle, 0x0084, 0, coordinates); // WM_NCHITTEST
+            Require(actual == expected, $"Caption hit test ({description}): expected {expected}, got {actual}");
+        }
+        foreach (var width in new[] { 1100.0, 760.0 })
+        {
+            window.Width = width;
+            window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+            var header = (FrameworkElement)window.FindName("WindowHeader");
+            Check(header, new Point(100, 24), 2, "first row"); // HTCAPTION
+            var stats = Descendants<System.Windows.Controls.Primitives.UniformGrid>(header).Single();
+            foreach (var statistic in stats.Children.Cast<FrameworkElement>())
+                Check(statistic, new Point(statistic.ActualWidth / 2, statistic.ActualHeight / 2), 2, "statistic");
+            Check(header, new Point(20, header.ActualHeight - 4), 2, "below logo");
+            var picker = Descendants<System.Windows.Controls.DatePicker>(header).Single();
+            Check(picker, new Point(picker.ActualWidth / 2, picker.ActualHeight / 2), 1, "date picker"); // HTCLIENT
+            foreach (var button in Descendants<System.Windows.Controls.Button>(header).Where(button => button.IsEnabled))
+                Check(button, new Point(button.ActualWidth / 2, button.ActualHeight / 2), 1, "header button");
+            var timeline = Descendants<TimelineControl>(window).Single();
+            Check(timeline, new Point(timeline.ActualWidth / 2, timeline.ActualHeight / 2), 1, "timeline");
+        }
+        window.Hide();
+        window.Width = originalWidth;
+        window.ShowActivated = true;
+        Console.WriteLine($"Caption: both rows, statistics and logo are HTCAPTION; controls and timeline are HTCLIENT at normal/minimum width; actual DPI {VisualTreeHelper.GetDpi(window).PixelsPerInchX}.");
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern nint SendMessage(nint window, uint message, nuint wParam, nint lParam);
 
     private static IEnumerable<T> Descendants<T>(DependencyObject parent) where T : DependencyObject
     {

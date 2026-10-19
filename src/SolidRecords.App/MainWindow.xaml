@@ -7,7 +7,7 @@
         WindowStartupLocation="CenterScreen" Background="{DynamicResource ApplicationBackgroundBrush}" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Icon="Assets/SolidRecords.ico"
         FontFamily="Segoe UI" FontSize="12" UseLayoutRounding="True">
   <shell:WindowChrome.WindowChrome>
-    <shell:WindowChrome CaptionHeight="48" ResizeBorderThickness="6" GlassFrameThickness="1"
+    <shell:WindowChrome CaptionHeight="{Binding ActualHeight, ElementName=WindowHeader}" ResizeBorderThickness="6" GlassFrameThickness="1"
                         CornerRadius="8" UseAeroCaptionButtons="False" />
   </shell:WindowChrome.WindowChrome>
   <Window.Resources>
@@ -61,7 +61,7 @@
       <RowDefinition Height="*" /><RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
 
-    <Grid>
+    <Grid x:Name="WindowHeader">
       <Grid.ColumnDefinitions><ColumnDefinition Width="68" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
       <Image x:Name="AppLogo" Width="48" Height="48" VerticalAlignment="Center" AutomationProperties.Name="SolidRecords" />
       <Grid Grid.Column="1">

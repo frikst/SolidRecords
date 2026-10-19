@@ -14,6 +14,84 @@ public sealed class SqliteActivityStoreTests : IDisposable
     private readonly string _directory = Path.GetFullPath(Path.Combine("artifacts", "storage-tests", Guid.NewGuid().ToString()));
     private SqliteActivityStore CreateStore() => new(Path.Combine(_directory, "activity.db"));
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FirstForegroundAtStartupOrMorningUnlockReachesReportWithoutSwitchingWindows(bool startsLocked)
+    {
+        var store = CreateStore();
+        var zone = TimeZoneInfo.FindSystemTimeZoneById("Central Europe Standard Time");
+        var at = new DateTimeOffset(2026, 10, 19, 6, 0, 0, TimeSpan.Zero);
+        var started = startsLocked ? at.AddHours(-10) : at;
+        var window = new WindowInfo(100, 42, "editor", "First document");
+        var source = new IconSource
+        {
+            StartupSignals = startsLocked
+                ? [new(SignalKind.SessionInactive, started)]
+                : [new(SignalKind.SessionActive, at), new(SignalKind.ForegroundChanged, at, window)]
+        };
+        var options = new ActivityTrackingOptions();
+        await using var recorder = new Recorder(store, source, new IconClock(started), options);
+        var reports = new DailyReportService(store, zone, options);
+        await recorder.StartAsync();
+        if (startsLocked)
+        {
+            source.Publish!(new(SignalKind.SessionActive, at));
+            source.Publish(new(SignalKind.ForegroundChanged, at, window));
+        }
+        source.Publish!(new(SignalKind.Heartbeat, at.AddSeconds(14)));
+        // A retention request is also an awaited queue barrier; this cutoff deletes nothing.
+        await recorder.DeleteBeforeAsync(DateTimeOffset.MinValue);
+        Assert.Empty((await reports.ReadAsync(new(2026, 10, 19))).Intervals);
+
+        source.Publish(new(SignalKind.Heartbeat, at.AddSeconds(15)));
+        await recorder.DeleteBeforeAsync(DateTimeOffset.MinValue);
+        var report = await reports.ReadAsync(new(2026, 10, 19));
+        var first = Assert.Single(report.Intervals);
+        Assert.Equal(at, first.Start);
+        Assert.Equal(at, report.FirstActivity);
+        Assert.Equal(TimeSpan.FromSeconds(15), report.ActiveDuration);
+        Assert.True(first.IsOpen);
+        Assert.Equal(window, first.Window);
+        Assert.Equal(new DateOnly[] { new(2026, 10, 19) }, await reports.ReadActivityDatesAsync());
+
+        source.Publish(new(SignalKind.ForegroundChanged, at.AddMinutes(1), window with { Title = "Second document" }));
+        await recorder.StopAsync();
+        first = Assert.Single((await reports.ReadAsync(new(2026, 10, 19))).Intervals);
+        Assert.Equal(report.Intervals[0].Id, first.Id);
+        Assert.Equal(at, first.Start);
+        Assert.Equal(TimeSpan.FromMinutes(1), first.Duration);
+        Assert.False(first.IsOpen);
+    }
+
+    [Fact]
+    public async Task FirstActivityAcrossLocalMidnightKeepsShortDayFragmentsAndIdentity()
+    {
+        var store = CreateStore();
+        var zone = TimeZoneInfo.FindSystemTimeZoneById("Central Europe Standard Time");
+        var midnight = new DateTimeOffset(2026, 10, 18, 22, 0, 0, TimeSpan.Zero);
+        var at = midnight.AddSeconds(-10);
+        var source = new IconSource
+        {
+            StartupSignals = [new(SignalKind.SessionActive, at),
+                new(SignalKind.ForegroundChanged, at, new(100, 42, "editor", "First document"))]
+        };
+        var options = new ActivityTrackingOptions();
+        await using var recorder = new Recorder(store, source, new IconClock(at), options);
+        await recorder.StartAsync();
+        source.Publish!(new(SignalKind.Heartbeat, midnight.AddSeconds(5)));
+        await recorder.DeleteBeforeAsync(DateTimeOffset.MinValue);
+        var reports = new DailyReportService(store, zone, options);
+        var before = Assert.Single((await reports.ReadAsync(new(2026, 10, 18))).Intervals);
+        var after = Assert.Single((await reports.ReadAsync(new(2026, 10, 19))).Intervals);
+        Assert.Equal(before.Id, after.Id);
+        Assert.Equal(at, before.Start);
+        Assert.Equal(midnight, after.Start);
+        Assert.Equal(TimeSpan.FromSeconds(10), before.Duration);
+        Assert.Equal(TimeSpan.FromSeconds(5), after.Duration);
+        Assert.Equal(new DateOnly[] { new(2026, 10, 18), new(2026, 10, 19) }, await reports.ReadActivityDatesAsync());
+    }
+
     [Fact]
     public async Task ActivityDatesUseLocalSpansExcludeGapsAndFollowRetention()
     {
@@ -607,10 +685,12 @@ public sealed class SqliteActivityStoreTests : IDisposable
 
     private sealed class IconSource : IActivitySource
     {
+        public IReadOnlyList<CaptureSignal> StartupSignals { get; init; } = [];
         public Action<CaptureSignal>? Publish { get; private set; }
         public Task StartAsync(Action<CaptureSignal> publish, CancellationToken cancellationToken = default)
         {
             Publish = publish;
+            foreach (var signal in StartupSignals) publish(signal);
             return Task.CompletedTask;
         }
         public Task StopAsync() => Task.CompletedTask;
