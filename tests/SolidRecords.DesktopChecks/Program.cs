@@ -232,6 +232,7 @@ internal static class Program
                 "The activity day style is not applied to the main date picker");
             var picker = new System.Windows.Controls.DatePicker
             {
+                Style = mainPicker.Style,
                 CalendarStyle = mainPicker.CalendarStyle,
                 SelectedDate = DateTime.Today,
                 DisplayDate = DateTime.Today

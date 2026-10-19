@@ -11,6 +11,11 @@
                         CornerRadius="8" UseAeroCaptionButtons="False" />
   </shell:WindowChrome.WindowChrome>
   <Window.Resources>
+    <Style x:Key="HeaderButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="Height" Value="28" />
+      <Setter Property="Padding" Value="8,3" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
     <Style x:Key="CaptionButton" TargetType="Button">
       <Setter Property="Width" Value="40" />
       <Setter Property="Height" Value="48" />
@@ -83,15 +88,15 @@
               </Grid>
               <Button Grid.Column="1" Content="{Binding ToggleLabel}" Command="{Binding ToggleRecordingCommand}"
                       shell:WindowChrome.IsHitTestVisibleInChrome="True" VerticalAlignment="Center"
-                      Background="Transparent" Foreground="{DynamicResource TextFillColorSecondaryBrush}" BorderBrush="{DynamicResource ControlStrokeColorSecondaryBrush}" Margin="0" />
+                      Style="{StaticResource HeaderButton}" Margin="0" />
             </Grid>
             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0"
                         shell:WindowChrome.IsHitTestVisibleInChrome="True">
-              <Button Content="‹" Command="{Binding PreviousDayCommand}" Padding="8,3" ToolTip="Predchádzajúci deň" />
-              <DatePicker SelectedDate="{Binding SelectedDate}" p:ActivityDatePicker.AvailableDates="{Binding AvailableDates}" CalendarStyle="{StaticResource ActivityCalendar}" Width="124" Height="28" VerticalContentAlignment="Center"
+              <Button Style="{StaticResource HeaderButton}" Content="‹" Command="{Binding PreviousDayCommand}" ToolTip="Predchádzajúci deň" />
+              <DatePicker Style="{StaticResource MainWindowDatePicker}" SelectedDate="{Binding SelectedDate}" p:ActivityDatePicker.AvailableDates="{Binding AvailableDates}" CalendarStyle="{StaticResource ActivityCalendar}" Width="124" Height="28" VerticalContentAlignment="Center"
                           AutomationProperties.Name="Deň záznamu" />
-              <Button Content="›" Command="{Binding NextDayCommand}" Padding="8,3" ToolTip="Nasledujúci deň" />
-              <Button Content="Dnes" Command="{Binding TodayCommand}" />
+              <Button Style="{StaticResource HeaderButton}" Content="›" Command="{Binding NextDayCommand}" ToolTip="Nasledujúci deň" />
+              <Button Style="{StaticResource HeaderButton}" Content="Dnes" Command="{Binding TodayCommand}" />
             </StackPanel>
             <StackPanel Grid.Column="3" Orientation="Horizontal">
               <Button Style="{StaticResource CaptionButton}" Click="MinimizeWindow" ToolTip="Minimalizovať" AutomationProperties.Name="Minimalizovať">

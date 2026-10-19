@@ -133,39 +133,99 @@
       <Setter Property="MinHeight" Value="0" />
       <Setter Property="Padding" Value="0" />
     </Style>
-    <Style x:Key="SearchTextBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+    <Style x:Key="MainWindowInputSurface" TargetType="Border">
       <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorSecondaryBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="6,3" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Control}}" Value="True">
+          <Setter Property="BorderBrush" Value="{DynamicResource ControlStrongStrokeColorDefaultBrush}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding IsKeyboardFocusWithin, RelativeSource={RelativeSource AncestorType=Control}}" Value="True">
+          <Setter Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding IsEnabled, RelativeSource={RelativeSource AncestorType=Control}}" Value="False">
+          <Setter Property="Opacity" Value="0.45" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+    <Style x:Key="MainWindowDatePicker" TargetType="DatePicker" BasedOn="{StaticResource {x:Type DatePicker}}">
+      <Setter Property="MinHeight" Value="28" />
+      <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+      <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="DatePicker">
+            <Grid x:Name="PART_Root">
+              <Border Style="{StaticResource MainWindowInputSurface}">
+                <DockPanel>
+                  <Button x:Name="PART_Button" DockPanel.Dock="Right" Width="18" MinHeight="0" Margin="4,0,0,0" Padding="0"
+                          Focusable="False" AutomationProperties.Name="Otvoriť kalendár"
+                          Foreground="{TemplateBinding Foreground}">
+                    <Button.Template>
+                      <ControlTemplate TargetType="Button">
+                        <Border x:Name="CalendarSurface" Background="Transparent" CornerRadius="2">
+                          <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                          <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="CalendarSurface" Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                          </Trigger>
+                          <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="CalendarSurface" Property="Background" Value="{DynamicResource SubtleFillColorTertiaryBrush}" />
+                          </Trigger>
+                        </ControlTemplate.Triggers>
+                      </ControlTemplate>
+                    </Button.Template>
+                    <Path Data="M 2,2 L 10,2 Q 12,2 12,4 L 12,11 Q 12,13 10,13 L 2,13 Q 0,13 0,11 L 0,4 Q 0,2 2,2 M 0,5 L 12,5 M 3,0 L 3,3 M 9,0 L 9,3 M 3,8 L 5,8 M 7,8 L 9,8 M 3,10 L 5,10"
+                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1" />
+                  </Button>
+                  <DatePickerTextBox x:Name="PART_TextBox" Foreground="{TemplateBinding Foreground}"
+                                     Background="Transparent" BorderThickness="0" Padding="0" MinHeight="0"
+                                     VerticalContentAlignment="Center" FocusVisualStyle="{x:Null}">
+                    <DatePickerTextBox.Template>
+                      <ControlTemplate TargetType="DatePickerTextBox">
+                        <Grid>
+                          <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center" />
+                          <ContentControl x:Name="PART_Watermark" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                          IsHitTestVisible="False" Focusable="False" Visibility="Collapsed" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                          <Trigger Property="Text" Value="">
+                            <Setter TargetName="PART_Watermark" Property="Visibility" Value="Visible" />
+                          </Trigger>
+                        </ControlTemplate.Triggers>
+                      </ControlTemplate>
+                    </DatePickerTextBox.Template>
+                  </DatePickerTextBox>
+                </DockPanel>
+              </Border>
+              <Popup x:Name="PART_Popup" Placement="Bottom" PlacementTarget="{Binding ElementName=PART_Root}"
+                     StaysOpen="False" AllowsTransparency="True" />
+            </Grid>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="SearchTextBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
       <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
       <Setter Property="CaretBrush" Value="{DynamicResource TextFillColorPrimaryBrush}" />
       <Setter Property="SelectionBrush" Value="{DynamicResource AccentFillColorSelectedTextBackgroundBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorSecondaryBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="Padding" Value="6,3" />
-      <Setter Property="MinHeight" Value="26" />
+      <Setter Property="MinHeight" Value="28" />
       <Setter Property="VerticalContentAlignment" Value="Center" />
       <Setter Property="FocusVisualStyle" Value="{x:Null}" />
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="TextBox">
-            <Border x:Name="Surface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
-                    BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+            <Border Style="{StaticResource MainWindowInputSurface}">
               <DockPanel>
                 <TextBlock Text="⌕" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,6,0"
                            VerticalAlignment="Center" IsHitTestVisible="False" />
                 <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
               </DockPanel>
             </Border>
-            <ControlTemplate.Triggers>
-              <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="Surface" Property="BorderBrush" Value="{DynamicResource ControlStrongStrokeColorDefaultBrush}" />
-              </Trigger>
-              <Trigger Property="IsKeyboardFocusWithin" Value="True">
-                <Setter TargetName="Surface" Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-              </Trigger>
-              <Trigger Property="IsEnabled" Value="False">
-                <Setter TargetName="Surface" Property="Opacity" Value="0.45" />
-              </Trigger>
-            </ControlTemplate.Triggers>
           </ControlTemplate>
         </Setter.Value>
       </Setter>
