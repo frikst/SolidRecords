@@ -5,6 +5,8 @@ Formát vychádza z [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0
 
 ## Unreleased
 
+## [1.3.0] - 2026-10-19
+
 ### Added
 
 - Voliteľné globálne klávesové skratky na otvorenie/skrytie okna a spustenie/zastavenie zaznamenávania sa nastavujú na samostatnej záložke Skratky. Predvolene nie je nastavená žiadna.
