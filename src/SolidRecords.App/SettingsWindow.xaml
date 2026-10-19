@@ -26,7 +26,6 @@
               <ComboBoxItem Content="Svetlá" />
               <ComboBoxItem Content="Tmavá" />
             </ComboBox>
-            <CheckBox Content="Raz denne kontrolovať aktualizácie" IsChecked="{Binding CheckForUpdates}" Margin="0,20,0,0" />
           </StackPanel>
         </ScrollViewer>
       </TabItem>
@@ -95,6 +94,19 @@
             </WrapPanel>
             <TextBlock Text="Pracovný čas určuje aj minimálny rozsah časovej osi. Záznam môžete kedykoľvek ručne prepnúť; automatika sa znova použije pri najbližšej hranici pracovného času."
                        TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="12" Margin="0,0,0,18" />
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem Header="Aktualizácie">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Margin="0,20,8,0" TextElement.Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+            <CheckBox Content="Raz denne kontrolovať aktualizácie" IsChecked="{Binding CheckForUpdates}" Margin="0,0,0,16" />
+            <TextBlock Text="Nové verzie môžete skontrolovať a nainštalovať aj ručne. Dennú kontrolu tým nezmeníte."
+                       TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="12" Margin="0,0,0,16" />
+            <Button x:Name="UpdateNow" Content="Aktualizovať teraz" Command="{Binding UpdateNowCommand}" HorizontalAlignment="Left" Padding="16,7" />
+            <TextBlock Text="Po stiahnutí potvrďte oprávnenie správcu. Aplikácia sa ukončí a nainštaluje aktualizáciu."
+                       TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="12" Margin="0,12,0,0" />
+            <TextBlock Text="{Binding UpdateStatus}" TextWrapping="Wrap" Margin="0,16,0,0" AutomationProperties.LiveSetting="Polite" />
           </StackPanel>
         </ScrollViewer>
       </TabItem>

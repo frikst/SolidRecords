@@ -182,7 +182,7 @@ internal partial class App : Application
     {
         if (_exiting) return;
         if (_settingsWindow is not null) { _settingsWindow.Activate(); return; }
-        var dialog = new SettingsWindow(new(_preferences.Current, SaveSettingsAsync));
+        var dialog = new SettingsWindow(new(_preferences.Current, SaveSettingsAsync, () => _updates.UpdateNowAsync(ExitAsync)));
         if (_window?.IsVisible == true && _window.WindowState != WindowState.Minimized) dialog.Owner = _window;
         else { dialog.WindowStartupLocation = WindowStartupLocation.CenterScreen; dialog.ShowInTaskbar = true; }
         _settingsWindow = dialog;

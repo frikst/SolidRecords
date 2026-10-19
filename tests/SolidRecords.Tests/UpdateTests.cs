@@ -98,6 +98,67 @@ public sealed class UpdateTests
         Assert.Equal(2, client.Calls);
     }
 
+    [Fact]
+    public async Task ManualCheckBypassesDailyDeadlineAndIgnoredVersionButKeepsEtagAndPreferenceIndependent()
+    {
+        var clock = new Clock();
+        var store = new StateStore();
+        var notifications = new Notifications();
+        var client = new Client(_ => new(false, "\"etag\"", Release));
+        var checker = new UpdateChecker(client, store, notifications, new(1, 0, 0), clock);
+        await checker.TickAsync(true);
+        await checker.ApplyActionAsync("ignore", Release.Tag, true);
+        await checker.TickAsync(false);
+        client.GetResult = etag =>
+        {
+            Assert.Equal("\"etag\"", etag);
+            return new(true);
+        };
+        var result = await checker.CheckNowAsync();
+        Assert.Equal(Release, result.Release);
+        Assert.Equal(2, client.Calls);
+        Assert.Single(notifications.Shown);
+        Assert.Contains(Release.Tag, store.State.IgnoredVersions!);
+        await checker.TickAsync(true);
+        Assert.Equal(2, client.Calls);
+        Assert.Single(notifications.Shown);
+    }
+
+    [Fact]
+    public async Task ManualCheckRespectsServerBackoffAcrossRestartEvenWhenShorterThanDailyInterval()
+    {
+        var clock = new Clock();
+        var store = new StateStore();
+        var retryAt = clock.GetUtcNow().AddHours(2);
+        var client = new Client(_ => new(false, RetryAt: retryAt));
+        UpdateChecker Create() => new(client, store, new Notifications(), new(1, 0, 0), clock);
+        await Create().TickAsync(true);
+        var result = await Create().CheckNowAsync();
+        Assert.Equal(retryAt, result.RetryAt);
+        Assert.Null(result.Release);
+        Assert.Equal(1, client.Calls);
+        clock.Advance(TimeSpan.FromHours(2));
+        client.GetResult = _ => new(false, Release: Release);
+        Assert.Equal(Release, (await Create().CheckNowAsync()).Release);
+        Assert.Equal(2, client.Calls);
+        Assert.Null(store.State.RetryNotBefore);
+    }
+
+    [Fact]
+    public async Task ManualCheckReportsFailureInsteadOfInstallingStaleCacheAndRejectsInstalledVersion()
+    {
+        var clock = new Clock();
+        var store = new StateStore();
+        var client = new Client(_ => new(false, Release: Release));
+        var checker = new UpdateChecker(client, store, new Notifications(), new(1, 0, 0), clock);
+        await checker.TickAsync(true);
+        client.GetResult = _ => throw new HttpRequestException("offline");
+        await Assert.ThrowsAsync<HttpRequestException>(() => checker.CheckNowAsync());
+        Assert.Equal(Release, store.State.Latest);
+        client.GetResult = _ => new(true);
+        Assert.Null((await new UpdateChecker(client, store, new Notifications(), new(2, 0, 0), clock).CheckNowAsync()).Release);
+    }
+
     [Theory]
     [InlineData("v1.0.0", false)]
     [InlineData("v0.9.0", false)]

@@ -37,7 +37,8 @@ internal static class UpdateChecks
         Require(loaded.ETag == state.ETag && loaded.Latest == release && loaded.NextCheckAt == state.NextCheckAt
             && loaded.NextNotificationAt == state.NextNotificationAt && loaded.IgnoredVersions!.SequenceEqual(state.IgnoredVersions!), "Update cache did not persist.");
         // Closing the app while a download is pending must cancel and drain it before shutdown.
-        using var delayedHttp = new HttpClient(new DelayedHandler());
+        using var delayedHandler = new DelayedHandler();
+        using var delayedHttp = new HttpClient(delayedHandler);
         var preferences = new PreferencesStore(new SettingsStore(), directory);
         await preferences.LoadAsync();
         var checker = new UpdateChecker(new UnusedClient(), store, new SilentNotifications(), new(1, 0, 0));
@@ -46,12 +47,28 @@ internal static class UpdateChecks
             Exception? failure = null;
             controller.Start(ex => failure = ex);
             var action = controller.HandleActionAsync("install", release.Tag, () => throw new InvalidOperationException("Cancelled download launched the installer."));
-            await DelayedHandler.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await delayedHandler.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
             await controller.StopAsync().WaitAsync(TimeSpan.FromSeconds(5));
             await action.WaitAsync(TimeSpan.FromSeconds(5));
             Require(failure is null, "Shutdown cancellation surfaced as an update failure.");
         }
         Require(Directory.GetFiles(directory, "*.msi", SearchOption.AllDirectories).Length == 1, "Cancelled download was not cleaned up.");
+        // Explicit installation works with automatic checks disabled and is drained on shutdown too.
+        using var manualHandler = new DelayedHandler();
+        using var manualHttp = new HttpClient(manualHandler);
+        var manualPreferences = new PreferencesStore(new SettingsStore(false), directory);
+        await manualPreferences.LoadAsync();
+        var manualChecker = new UpdateChecker(new CachedClient(), store, new SilentNotifications(), new(1, 0, 0));
+        await using (var controller = new UpdateController(manualChecker, new UpdateInstaller(manualHttp, directory), manualPreferences))
+        {
+            var action = controller.UpdateNowAsync(() => throw new InvalidOperationException("Cancelled manual update launched the installer."));
+            await manualHandler.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Require(await controller.UpdateNowAsync(() => Task.CompletedTask) == "Aktualizácia už prebieha.", "Concurrent manual updates were accepted.");
+            await controller.StopAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            Require(await action.WaitAsync(TimeSpan.FromSeconds(5)) == "Aktualizácia bola zrušená.", "Manual shutdown cancellation was not reported.");
+            Require(!manualPreferences.Current.CheckForUpdates, "Manual update enabled automatic checks.");
+        }
+        Require(Directory.GetFiles(directory, "*.msi", SearchOption.AllDirectories).Length == 1, "Cancelled manual download was not cleaned up.");
         var xml = XDocument.Parse(UpdateNotifications.CreateContent(release).GetToastContent().GetContent());
         var actions = xml.Descendants("action").ToArray();
         Require(actions.Length == 3, "Notification does not contain all three actions.");
@@ -68,15 +85,20 @@ internal static class UpdateChecks
         if (!condition) throw new InvalidOperationException(message);
     }
 
-    private sealed class SettingsStore : ISettingsStore
+    private sealed class SettingsStore(bool checkForUpdates = true) : ISettingsStore
     {
-        public Task<ApplicationSettings?> ReadSettingsAsync(CancellationToken cancellationToken = default) => Task.FromResult<ApplicationSettings?>(new());
+        public Task<ApplicationSettings?> ReadSettingsAsync(CancellationToken cancellationToken = default) => Task.FromResult<ApplicationSettings?>(new(CheckForUpdates: checkForUpdates));
         public Task SaveSettingsAsync(ApplicationSettings settings, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     private sealed class UnusedClient : IReleaseClient
     {
         public Task<ReleaseCheckResult> CheckAsync(string? etag, CancellationToken cancellationToken) => throw new InvalidOperationException("Cached version triggered a network request.");
+    }
+
+    private sealed class CachedClient : IReleaseClient
+    {
+        public Task<ReleaseCheckResult> CheckAsync(string? etag, CancellationToken cancellationToken) => Task.FromResult(new ReleaseCheckResult(true));
     }
 
     private sealed class SilentNotifications : IUpdateNotifier
@@ -87,7 +109,7 @@ internal static class UpdateChecks
 
     private sealed class DelayedHandler : HttpMessageHandler
     {
-        public static TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Entered.TrySetResult();

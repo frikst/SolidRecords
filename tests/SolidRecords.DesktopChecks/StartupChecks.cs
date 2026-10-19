@@ -112,6 +112,23 @@ internal static class StartupChecks
                     failingEditor.SaveCommand.Execute(null);
                     if (failingEditor.Error.Length == 0 || !failingEditor.IsEditable)
                         throw new InvalidOperationException("Settings editor did not recover from a save failure.");
+                    var updateCompletion = new TaskCompletionSource<string>();
+                    var updateCalls = 0;
+                    var updateEditor = new SettingsViewModel(new(CheckForUpdates: false), _ => Task.CompletedTask,
+                        () => { updateCalls++; return updateCompletion.Task; });
+                    updateEditor.UpdateNowCommand.Execute(null);
+                    updateEditor.UpdateNowCommand.Execute(null);
+                    if (updateCalls != 1 || updateEditor.IsEditable || !updateEditor.IsUpdating || updateEditor.UpdateStatus.Length == 0)
+                        throw new InvalidOperationException("Manual update did not report progress or prevent duplicate execution.");
+                    updateCompletion.SetResult("Test update complete");
+                    await Task.Yield();
+                    if (!updateEditor.IsEditable || updateEditor.CheckForUpdates || updateEditor.UpdateStatus != "Test update complete")
+                        throw new InvalidOperationException("Manual update did not report completion or changed the daily preference.");
+                    var failedUpdate = new SettingsViewModel(new(), _ => Task.CompletedTask,
+                        () => Task.FromException<string>(new IOException("Test update failure")));
+                    failedUpdate.UpdateNowCommand.Execute(null);
+                    if (!failedUpdate.IsEditable || failedUpdate.IsUpdating || !failedUpdate.UpdateStatus.Contains("Test update failure", StringComparison.Ordinal))
+                        throw new InvalidOperationException("Manual update did not recover from failure.");
                     var history = provider.GetRequiredService<IActivityStore>();
                     var oldAt = DateTimeOffset.UtcNow.AddDays(-60);
                     var oldId = Guid.NewGuid();

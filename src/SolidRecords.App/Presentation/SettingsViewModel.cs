@@ -6,6 +6,9 @@ namespace SolidRecords.App.Presentation;
 public sealed class SettingsViewModel : ObservableObject
 {
     private readonly Func<ApplicationSettings, Task> _save;
+    private readonly Func<Task<string>> _updateNow;
+    private bool _isUpdating;
+    private string _updateStatus = "";
     private string _minimumActivitySeconds;
     private string _activityRetentionDays;
     private bool _deleteOldActivities;
@@ -20,9 +23,11 @@ public sealed class SettingsViewModel : ObservableObject
     private string _error = "";
     private bool _isSaving;
 
-    public SettingsViewModel(ApplicationSettings settings, Func<ApplicationSettings, Task> save)
+    public SettingsViewModel(ApplicationSettings settings, Func<ApplicationSettings, Task> save, Func<Task<string>>? updateNow = null)
     {
         _save = save;
+        _updateNow = updateNow ?? (() => Task.FromResult("Aktualizácie nie sú v tomto náhľade dostupné."));
+        UpdateNowCommand = new(UpdateNowAsync, ex => UpdateStatus = "Aktualizácia sa nepodarila: " + ex.Message);
         _deleteOldActivities = settings.ActivityRetentionDays.HasValue;
         _activityRetentionDays = settings.ActivityRetentionDays?.ToString() ?? "30";
         _minimumActivitySeconds = settings.MinimumActivitySeconds.ToString();
@@ -65,7 +70,19 @@ public sealed class SettingsViewModel : ObservableObject
     public int ThemeIndex { get => _themeIndex; set => Set(ref _themeIndex, value); }
     public string Error { get => _error; private set => Set(ref _error, value); }
     public bool IsSaving { get => _isSaving; private set { if (Set(ref _isSaving, value)) Changed(nameof(IsEditable)); } }
-    public bool IsEditable => !IsSaving;
+    public bool IsEditable => !IsSaving && !IsUpdating;
+    public bool IsUpdating { get => _isUpdating; private set { if (Set(ref _isUpdating, value)) Changed(nameof(IsEditable)); } }
+    public string UpdateStatus { get => _updateStatus; private set => Set(ref _updateStatus, value); }
+    public AsyncCommand UpdateNowCommand { get; }
+
+    private async Task UpdateNowAsync()
+    {
+        IsUpdating = true;
+        UpdateStatus = "Kontrolujem aktualizácie. Nová verzia sa stiahne a spustí sa inštalácia…";
+        try { UpdateStatus = await _updateNow(); }
+        finally { IsUpdating = false; }
+    }
+
     public AsyncCommand SaveCommand { get; }
     public event EventHandler? Saved;
 

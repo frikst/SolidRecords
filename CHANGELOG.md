@@ -5,6 +5,10 @@ Formát vychádza z [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0
 
 ## Unreleased
 
+### Added
+
+- Samostatná karta Aktualizácie v nastaveniach s tlačidlom „Aktualizovať teraz“ na ručnú kontrolu, stiahnutie a inštaláciu novej verzie aj pri vypnutej dennej kontrole.
+
 ## [1.1.0] - 2026-10-18
 
 ### Added

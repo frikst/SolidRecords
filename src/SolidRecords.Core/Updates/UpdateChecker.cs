@@ -18,28 +18,7 @@ public sealed class UpdateChecker(IReleaseClient client, IUpdateStateStore store
             var now = _clock.GetUtcNow();
             if (_state.NextCheckAt is null || now >= _state.NextCheckAt)
             {
-                // Save before I/O, including failed/offline attempts, to avoid restart loops behind NAT.
-                await SaveAsync(_state with { NextCheckAt = now.AddDays(1) }, cancellationToken).ConfigureAwait(false);
-                try
-                {
-                    var result = await client.CheckAsync(_state.ETag, cancellationToken).ConfigureAwait(false);
-                    var latest = result.NotModified ? _state.Latest : result.Release;
-                    if (result.RetryAt is not null)
-                    {
-                        if (result.RetryAt > _state.NextCheckAt)
-                            await SaveAsync(_state with { NextCheckAt = result.RetryAt }, cancellationToken).ConfigureAwait(false);
-                    }
-                    else
-                    {
-                        var changed = latest?.Tag != _state.Latest?.Tag;
-                        await SaveAsync(_state with
-                        {
-                            ETag = result.ETag ?? (result.NotModified ? _state.ETag : null), Latest = latest,
-                            NextNotificationAt = changed ? null : _state.NextNotificationAt
-                        }, cancellationToken).ConfigureAwait(false);
-                        if (changed) notifier.Clear();
-                    }
-                }
+                try { await CheckReleaseAsync(now, cancellationToken).ConfigureAwait(false); }
                 catch (Exception ex) when (ex is HttpRequestException or System.Text.Json.JsonException
                     || ex is OperationCanceledException && !cancellationToken.IsCancellationRequested)
                 {
@@ -54,6 +33,48 @@ public sealed class UpdateChecker(IReleaseClient client, IUpdateStateStore store
             }
         }
         finally { _gate.Release(); }
+    }
+
+    public async Task<ReleaseCheckResult> CheckNowAsync(CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            _state ??= await store.ReadAsync(cancellationToken).ConfigureAwait(false);
+            var now = _clock.GetUtcNow();
+            if (_state.RetryNotBefore > now) return new(false, RetryAt: _state.RetryNotBefore);
+            var result = await CheckReleaseAsync(now, cancellationToken).ConfigureAwait(false);
+            // An explicit request also permits a previously ignored or postponed version.
+            return result with { Release = result.RetryAt is null && _state.Latest?.IsNewerThan(installedVersion) == true ? _state.Latest : null };
+        }
+        finally { _gate.Release(); }
+    }
+
+    private async Task<ReleaseCheckResult> CheckReleaseAsync(DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        // Save before I/O, including failed/offline attempts, to avoid restart loops behind NAT.
+        await SaveAsync(_state! with { NextCheckAt = now.AddDays(1) }, cancellationToken).ConfigureAwait(false);
+        var result = await client.CheckAsync(_state!.ETag, cancellationToken).ConfigureAwait(false);
+        if (result.RetryAt is not null)
+        {
+            await SaveAsync(_state with
+            {
+                NextCheckAt = result.RetryAt > _state.NextCheckAt ? result.RetryAt : _state.NextCheckAt,
+                RetryNotBefore = result.RetryAt
+            }, cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            var latest = result.NotModified ? _state.Latest : result.Release;
+            var changed = latest?.Tag != _state.Latest?.Tag;
+            await SaveAsync(_state with
+            {
+                ETag = result.ETag ?? (result.NotModified ? _state.ETag : null), Latest = latest,
+                NextNotificationAt = changed ? null : _state.NextNotificationAt, RetryNotBefore = null
+            }, cancellationToken).ConfigureAwait(false);
+            if (changed) notifier.Clear();
+        }
+        return result;
     }
 
     public async Task<UpdateRelease?> ApplyActionAsync(string action, string tag, bool enabled,

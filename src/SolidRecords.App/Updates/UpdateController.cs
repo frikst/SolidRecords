@@ -40,27 +40,46 @@ internal sealed class UpdateController(UpdateChecker checker, UpdateInstaller in
 
     public async Task HandleActionAsync(string action, string tag, Func<Task> exit)
     {
-        if (_stop.IsCancellationRequested || !_actions.Wait(0)) return;
+        try
+        {
+            await RunActionAsync(() => checker.ApplyActionAsync(action, tag, preferences.Current.CheckForUpdates, _stop.Token),
+                exit, requireEnabled: true);
+        }
+        catch (Exception ex) { _showError?.Invoke(ex); }
+    }
+
+    public Task<string> UpdateNowAsync(Func<Task> exit) => RunActionAsync(async () =>
+    {
+        var result = await Task.Run(() => checker.CheckNowAsync(_stop.Token));
+        if (result.RetryAt is { } retryAt)
+            throw new InvalidOperationException($"Server dočasne obmedzil kontrolu aktualizácií. Skúste to po {retryAt.LocalDateTime:g}.");
+        return result.Release;
+    }, exit, requireEnabled: false);
+
+    private async Task<string> RunActionAsync(Func<Task<UpdateRelease?>> getRelease, Func<Task> exit, bool requireEnabled)
+    {
+        if (_stop.IsCancellationRequested) return "Aplikácia sa ukončuje.";
+        if (!_actions.Wait(0)) return "Aktualizácia už prebieha.";
         var shouldExit = false;
         string? downloadedPath = null;
         try
         {
-            if (_installing) return;
-            var release = await checker.ApplyActionAsync(action, tag, preferences.Current.CheckForUpdates, _stop.Token);
-            if (release is null) return;
+            if (_installing) return "Inštalácia už prebieha.";
+            var release = await getRelease();
+            if (release is null) return "Nie je dostupná novšia verzia na inštaláciu.";
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_stop.Token);
             timeout.CancelAfter(TimeSpan.FromMinutes(15));
             var path = await installer.DownloadAsync(release, timeout.Token);
             downloadedPath = path;
-            if (!preferences.Current.CheckForUpdates || _stop.IsCancellationRequested) return;
+            if ((requireEnabled && !preferences.Current.CheckForUpdates) || _stop.IsCancellationRequested)
+                return "Aktualizácia bola zrušená.";
             // Obtain UAC consent while the app is still alive; the helper waits for this process to exit.
             using var helper = UpdateInstaller.LaunchAfterExit(path, release.Sha256);
             _installing = true;
             shouldExit = true;
         }
-        catch (OperationCanceledException) when (_stop.IsCancellationRequested) { }
-        catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 1223) { }
-        catch (Exception ex) { _showError?.Invoke(ex); }
+        catch (OperationCanceledException) when (_stop.IsCancellationRequested) { return "Aktualizácia bola zrušená."; }
+        catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 1223) { return "Inštalácia bola zrušená."; }
         finally
         {
             if (!shouldExit && downloadedPath is not null)
@@ -71,6 +90,7 @@ internal sealed class UpdateController(UpdateChecker checker, UpdateInstaller in
             _actions.Release();
         }
         if (shouldExit) await exit();
+        return "Spúšťa sa inštalácia aktualizácie.";
     }
 
     public async Task StopAsync()

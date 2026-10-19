@@ -16,7 +16,8 @@ public sealed record UpdateRelease(string Tag, string DownloadUrl, long Size, st
 }
 
 public sealed record UpdateState(DateTimeOffset? NextCheckAt = null, string? ETag = null,
-    UpdateRelease? Latest = null, DateTimeOffset? NextNotificationAt = null, string[]? IgnoredVersions = null);
+    UpdateRelease? Latest = null, DateTimeOffset? NextNotificationAt = null, string[]? IgnoredVersions = null,
+    DateTimeOffset? RetryNotBefore = null);
 
 public interface IUpdateStateStore
 {

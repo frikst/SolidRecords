@@ -303,12 +303,13 @@ internal static class Program
         foreach (var theme in new[] { ThemeMode.Light, ThemeMode.Dark })
         {
             app.ThemeMode = theme;
-            var settingsDialog = new SolidRecords.App.SettingsWindow(new SettingsViewModel(new ApplicationSettings(), _ => Task.CompletedTask));
+            var settingsDialog = new SolidRecords.App.SettingsWindow(new SettingsViewModel(new ApplicationSettings(), _ => Task.CompletedTask,
+                () => Task.FromResult("Nie je dostupná novšia verzia na inštaláciu.")));
             settingsDialog.Show();
             settingsDialog.UpdateLayout();
             Console.WriteLine($"Settings dialog actual DPI: {VisualTreeHelper.GetDpi(settingsDialog).PixelsPerInchX}");
             var settingsTabs = (System.Windows.Controls.TabControl)settingsDialog.FindName("SettingsTabs");
-            foreach (var (tabIndex, tabName) in new[] { (0, "general"), (1, "recording"), (2, "work-hours") })
+            foreach (var (tabIndex, tabName) in new[] { (0, "general"), (1, "recording"), (2, "work-hours"), (3, "updates") })
             {
                 settingsTabs.SelectedIndex = tabIndex;
                 settingsDialog.UpdateLayout();
@@ -324,6 +325,15 @@ internal static class Program
                     retentionMode.SelectedIndex = 0;
                     Require(!retentionEditor.DeleteOldActivities, "Never must disable retention.");
                     Require(!retentionDays.IsVisible, "Never must hide retention days.");
+                }
+                if (tabIndex == 3)
+                {
+                    var updateNow = (System.Windows.Controls.Button)settingsDialog.FindName("UpdateNow");
+                    Require(updateNow.IsVisible && updateNow.Command?.CanExecute(null) == true, "Manual update button is not available.");
+                    updateNow.Command!.Execute(null);
+                    Require(((SettingsViewModel)settingsDialog.DataContext).UpdateStatus == "Nie je dostupná novšia verzia na inštaláciu.",
+                        "Manual update button did not invoke its command.");
+                    settingsDialog.UpdateLayout();
                 }
                 var settingsContent = (FrameworkElement)settingsDialog.Content;
                 var settingsSize = new Size(settingsContent.ActualWidth, settingsContent.ActualHeight);

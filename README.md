@@ -40,7 +40,7 @@ Položka **O aplikácii** v kontextovom menu ikony pri hodinách otvorí dialóg
 
 ## Aktualizácie
 
-Aplikácia raz za 24 hodín skontroluje GitHub Releases. Pri novej verzii zobrazí Windows notifikáciu: **Stiahnuť a inštalovať**, pripomenutie **O 4 hodiny** alebo **Ignorovať verziu**. Odloženie aj ignorovanie zostávajú uložené po reštarte. Kontrolu môžete vypnúť v Nastaveniach.
+Aplikácia raz za 24 hodín skontroluje GitHub Releases. Pri novej verzii zobrazí Windows notifikáciu: **Stiahnuť a inštalovať**, pripomenutie **O 4 hodiny** alebo **Ignorovať verziu**. Odloženie aj ignorovanie zostávajú uložené po reštarte. Kontrolu môžete vypnúť v **Nastaveniach → Aktualizácie**. Tlačidlo **Aktualizovať teraz** skontroluje novú verziu a pri jej dostupnosti spustí stiahnutie a inštaláciu aj pri vypnutej dennej kontrole. Výsledok sa zobrazí priamo v tejto karte.
 
 Po stiahnutí a overení MSI Windows požiada o oprávnenie správcu. Aplikácia dopíše záznam, ukončí sa a inštalácia prebehne bez ďalších otázok a automatického reštartu počítača. Po dokončení ju spustite z ponuky Štart. Pri odmietnutí oprávnenia aplikácia pokračuje v zázname. Prenosná verzia ponúka rovnaké MSI, ktoré vytvorí inštaláciu v Program Files; prenosný priečinok sa neprepíše. Pri prechode z prenosnej verzie obnovte voľbu spúšťania po prihlásení v nainštalovanej aplikácii.
 
