@@ -5,6 +5,8 @@ Formát vychádza z [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0
 
 ## Unreleased
 
+## [1.2.0] - 2026-10-19
+
 ### Added
 
 - Prepínač Detaily pri vyhľadávaní otvorí pravý panel so stromom aplikácie, jej procesov a všetkých ich aktivít za vybraný deň. Panel sleduje vybranú aktivitu v zozname aj pri vyhľadávaní.
