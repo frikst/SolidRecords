@@ -171,6 +171,16 @@ public sealed class SqliteActivityStore : IActivityStore, ISettingsStore
         }
     }
 
+    public async Task<IReadOnlyList<ActivitySpan>> ReadActivitySpansAsync(CancellationToken cancellationToken = default)
+    {
+        await InitializeAsync(cancellationToken);
+        await using var db = new ActivityDbContext(_options);
+        // Navigation needs only actual foreground spans, without parent lifetimes, titles or icons.
+        var spans = await db.Spans.AsNoTracking().Select(x => new { x.Id, x.Start, x.End })
+            .ToArrayAsync(cancellationToken);
+        return spans.Select(x => new ActivitySpan(Guid.Parse(x.Id), Time(x.Start), Time(x.End))).ToArray();
+    }
+
     public async Task<IReadOnlyList<ProcessActivity>> ReadProcessesAsync(DateTimeOffset from, DateTimeOffset to,
         CancellationToken cancellationToken = default)
     {

@@ -68,6 +68,7 @@ public interface IActivityStore
     Task InitializeAsync(CancellationToken cancellationToken = default);
     Task SaveAsync(RecordingBatch batch, CancellationToken cancellationToken = default);
     Task DeleteBeforeAsync(DateTimeOffset cutoff, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ActivitySpan>> ReadActivitySpansAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ProcessActivity>> ReadProcessesAsync(DateTimeOffset from, DateTimeOffset to,
         CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ActivityInterval>> ReadIntervalsAsync(DateTimeOffset from, DateTimeOffset to,

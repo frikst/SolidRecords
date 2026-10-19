@@ -67,6 +67,64 @@
         </Trigger>
       </Style.Triggers>
     </Style>
+    <Style x:Key="ActivityCalendarDay" TargetType="CalendarDayButton">
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+      <Setter Property="Background" Value="{DynamicResource ControlSolidFillColorDefaultBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="CalendarDayButton">
+            <Border x:Name="DaySurface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" Margin="2" Padding="4">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsInactive" Value="True">
+                <Setter TargetName="DaySurface" Property="Opacity" Value="0.65" />
+              </Trigger>
+              <Trigger Property="IsToday" Value="True">
+                <Setter Property="BorderThickness" Value="2" />
+              </Trigger>
+              <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter Property="BorderThickness" Value="2" />
+              </Trigger>
+              <MultiTrigger>
+                <MultiTrigger.Conditions>
+                  <Condition Property="IsMouseOver" Value="True" />
+                  <Condition Property="IsBlackedOut" Value="False" />
+                </MultiTrigger.Conditions>
+                <Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+              </MultiTrigger>
+              <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderBrush" Value="Transparent" />
+                <Setter Property="Cursor" Value="Arrow" />
+              </Trigger>
+              <Trigger Property="IsBlackedOut" Value="True">
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
+                <Setter Property="FontWeight" Value="Normal" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderBrush" Value="Transparent" />
+                <Setter Property="IsHitTestVisible" Value="False" />
+                <Setter Property="Focusable" Value="False" />
+                <Setter Property="Cursor" Value="Arrow" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="ActivityCalendar" TargetType="Calendar" BasedOn="{StaticResource {x:Type Calendar}}">
+      <Setter Property="CalendarDayButtonStyle" Value="{StaticResource ActivityCalendarDay}" />
+    </Style>
     <Style TargetType="DatePicker" BasedOn="{StaticResource {x:Type DatePicker}}">
       <Setter Property="MinHeight" Value="28" />
       <Setter Property="Padding" Value="2,0" />

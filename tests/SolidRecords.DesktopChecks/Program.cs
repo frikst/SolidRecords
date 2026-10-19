@@ -225,7 +225,51 @@ internal static class Program
             encoder.Save(file);
             Console.WriteLine($"Focused search preview DPI: {VisualTreeHelper.GetDpi(window).PixelsPerInchX}");
         }
+        void RenderCalendar(string theme)
+        {
+            var mainPicker = Descendants<System.Windows.Controls.DatePicker>(content).Single();
+            Require(ReferenceEquals(mainPicker.CalendarStyle, app.FindResource("ActivityCalendar")),
+                "The activity day style is not applied to the main date picker");
+            var picker = new System.Windows.Controls.DatePicker
+            {
+                CalendarStyle = mainPicker.CalendarStyle,
+                SelectedDate = DateTime.Today,
+                DisplayDate = DateTime.Today
+            };
+            ActivityDatePicker.SetAvailableDates(picker, [DateTime.Today, DateTime.Today.AddDays(-2), DateTime.Today.AddDays(-5)]);
+            var host = new Window { Content = picker, Width = 240, Height = 80, ShowInTaskbar = false, ShowActivated = false };
+            host.Show();
+            picker.IsDropDownOpen = true;
+            picker.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+            var popup = (System.Windows.Controls.Primitives.Popup)picker.Template.FindName("PART_Popup", picker);
+            var popupContent = (FrameworkElement)popup.Child;
+            popupContent.UpdateLayout();
+            var days = Descendants<System.Windows.Controls.Primitives.CalendarDayButton>(popupContent)
+                .Where(button => button.Visibility == Visibility.Visible).ToArray();
+            var blocked = days.First(button => button.IsBlackedOut);
+            var available = days.First(button => !button.IsBlackedOut && !button.IsSelected);
+            var selectedDay = days.Single(button => button.IsSelected);
+            Require(!blocked.IsHitTestVisible && !blocked.Focusable && available.IsHitTestVisible,
+                "Unavailable calendar days still react to pointer input or keyboard focus");
+            Require(available.FontWeight == FontWeights.SemiBold && blocked.FontWeight == FontWeights.Normal
+                && !Equals(available.Foreground, blocked.Foreground),
+                "Available calendar days are not visually distinct");
+            Require(!Equals(selectedDay.Background, available.Background), "The selected day has no distinct fill");
+            foreach (var scale in new[] { 1.0, 1.5 })
+            {
+                var bitmap = new RenderTargetBitmap((int)Math.Ceiling(popupContent.ActualWidth * scale),
+                    (int)Math.Ceiling(popupContent.ActualHeight * scale), 96 * scale, 96 * scale, PixelFormats.Pbgra32);
+                bitmap.Render(popupContent);
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(bitmap));
+                using var file = File.Create(Path.Combine(directory, $"calendar-{theme}-{scale * 100:0}.png"));
+                encoder.Save(file);
+            }
+            picker.IsDropDownOpen = false;
+            host.Close();
+        }
         Render("main-window.png", 1084, 600, 1);
+        RenderCalendar("light");
         Render("main-window-150.png", 1000, 600, 1.5);
         Render("main-window-small-150.png", 744, 380, 1.5);
         var timeline = Descendants<TimelineControl>(content).Single();
@@ -237,6 +281,7 @@ internal static class Program
         var lightLabel = ((SolidColorBrush)timeline.LabelBrush).Color;
         app.ThemeMode = ThemeMode.Dark;
         Render("main-window-dark.png", 1084, 600, 1);
+        RenderCalendar("dark");
         Render("main-window-dark-150.png", 1000, 600, 1.5);
         Render("main-window-dark-small-150.png", 744, 380, 1.5);
         Require(((SolidColorBrush)window.Background).Color != lightBackground, "Theme switch did not update the window background");
@@ -428,7 +473,7 @@ internal static class Program
             var timeout = Stopwatch.StartNew();
             while (!condition())
             {
-                if (timeout.Elapsed > TimeSpan.FromSeconds(5)) throw new InvalidOperationException("Live view did not update automatically");
+                if (timeout.Elapsed > TimeSpan.FromSeconds(5)) throw new InvalidOperationException($"Live view did not update automatically: date={viewModel.SelectedDate}, rows={viewModel.Activities.Count}, notice={viewModel.Notice}");
                 await Task.Delay(25);
             }
         }
@@ -457,10 +502,47 @@ internal static class Program
             "The new open URL displays a final end or duration");
         await recorder.StopAsync();
         await Until(() => viewModel.Activities.All(row => !row.Interval.IsOpen));
+        Require(!viewModel.PreviousDayCommand.CanExecute(null) && !viewModel.NextDayCommand.CanExecute(null),
+            "An empty history outside today enabled navigation");
+        var older = existing.Interval with
+        {
+            Id = Guid.NewGuid(), RecordingId = Guid.NewGuid(), IsOpen = false,
+            Start = at.AddDays(-4), End = at.AddDays(-4).AddMinutes(1),
+            Spans = [new(Guid.NewGuid(), at.AddDays(-4), at.AddDays(-4).AddMinutes(1))]
+        };
+        var process = new ProcessActivity(Guid.NewGuid(), older.RecordingId, 42, "browser", null,
+            older.Start, older.End, false);
+        var parent = new WindowActivity(Guid.NewGuid(), process.Id, 101, "History", older.Start, older.End, false);
+        older = older with { ProcessActivityId = process.Id, WindowActivityId = parent.Id };
+        await store.SaveAsync(new([], [older]) { Processes = [process], Windows = [parent] });
+        await viewModel.RefreshAsync();
+        var picker = new System.Windows.Controls.DatePicker();
+        System.Windows.Data.BindingOperations.SetBinding(picker, System.Windows.Controls.DatePicker.SelectedDateProperty,
+            new System.Windows.Data.Binding(nameof(MainViewModel.SelectedDate)) { Source = viewModel });
+        System.Windows.Data.BindingOperations.SetBinding(picker, ActivityDatePicker.AvailableDatesProperty,
+            new System.Windows.Data.Binding(nameof(MainViewModel.AvailableDates)) { Source = viewModel });
+        Require(picker.BlackoutDates.Contains(DateTime.Today.AddDays(-1))
+            && picker.BlackoutDates.Contains(DateTime.Today.AddDays(1))
+            && !picker.BlackoutDates.Contains(DateTime.Today)
+            && !picker.BlackoutDates.Contains(at.Date.AddDays(-4)), "Calendar enabled an empty day or disabled an available day");
+        viewModel.PreviousDayCommand.Execute(null);
+        await Until(() => viewModel.Activities.Count == 1);
+        Require(viewModel.SelectedDate == at.Date.AddDays(-4) && !viewModel.PreviousDayCommand.CanExecute(null)
+            && viewModel.NextDayCommand.CanExecute(null), "Previous navigation did not skip empty dates or disable at the boundary");
         viewModel.SelectedDate = DateTime.Today.AddDays(-1);
-        await Until(() => viewModel.Activities.Count == 0);
-        viewModel.SelectedDate = DateTime.Today;
+        Require(viewModel.SelectedDate == at.Date.AddDays(-4), "An empty date was accepted");
+        viewModel.NextDayCommand.Execute(null);
         await Until(() => viewModel.Activities.Count == 2);
+        Require(viewModel.SelectedDate == DateTime.Today && !viewModel.NextDayCommand.CanExecute(null),
+            "Next navigation did not return to today");
+        viewModel.PreviousDayCommand.Execute(null);
+        await Until(() => viewModel.Activities.Count == 1);
+        await store.DeleteBeforeAsync(at.AddDays(-3));
+        viewModel.RequestRefresh();
+        await Until(() => viewModel.SelectedDate == DateTime.Today && viewModel.Activities.Count == 2);
+        Require(!viewModel.PreviousDayCommand.CanExecute(null) && picker.BlackoutDates.Contains(at.Date.AddDays(-4))
+            && picker.SelectedDate == DateTime.Today,
+            "Retention left a deleted date available");
         Require(resets == 0, "Live updates reset the collection and lost row selection");
         Console.WriteLine("Live view: automatic insert, duration update, URL change, recording stop and date navigation passed without collection resets.");
         await CheckDefaultActivityRulesAsync(directory);

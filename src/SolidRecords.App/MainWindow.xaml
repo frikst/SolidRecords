@@ -88,7 +88,7 @@
             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0"
                         shell:WindowChrome.IsHitTestVisibleInChrome="True">
               <Button Content="‹" Command="{Binding PreviousDayCommand}" Padding="8,3" ToolTip="Predchádzajúci deň" />
-              <DatePicker SelectedDate="{Binding SelectedDate}" Width="124" Height="28" VerticalContentAlignment="Center"
+              <DatePicker SelectedDate="{Binding SelectedDate}" p:ActivityDatePicker.AvailableDates="{Binding AvailableDates}" CalendarStyle="{StaticResource ActivityCalendar}" Width="124" Height="28" VerticalContentAlignment="Center"
                           AutomationProperties.Name="Deň záznamu" />
               <Button Content="›" Command="{Binding NextDayCommand}" Padding="8,3" ToolTip="Nasledujúci deň" />
               <Button Content="Dnes" Command="{Binding TodayCommand}" />

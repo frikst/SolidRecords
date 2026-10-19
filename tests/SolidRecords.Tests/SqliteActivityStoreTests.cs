@@ -15,6 +15,33 @@ public sealed class SqliteActivityStoreTests : IDisposable
     private SqliteActivityStore CreateStore() => new(Path.Combine(_directory, "activity.db"));
 
     [Fact]
+    public async Task ActivityDatesUseLocalSpansExcludeGapsAndFollowRetention()
+    {
+        var store = CreateStore();
+        var zone = TimeZoneInfo.FindSystemTimeZoneById("Central Europe Standard Time");
+        var reports = new DailyReportService(store, zone);
+        Assert.Empty(await reports.ReadActivityDatesAsync());
+        // The local midnight boundary is 22:00 UTC before the autumn DST transition.
+        var at = new DateTimeOffset(2026, 10, 17, 21, 59, 40, TimeSpan.Zero);
+        var leaf = new ActivityInterval(Guid.NewGuid(), Guid.NewGuid(), new(1, 2, "app", "title"),
+            at, at.AddDays(3).AddMinutes(1), false)
+        {
+            Spans = [
+                new(Guid.NewGuid(), at, at.AddSeconds(20)),
+                new(Guid.NewGuid(), at.AddDays(3), at.AddDays(3).AddMinutes(1))]
+        };
+        await store.SaveAsync(Composite(leaf));
+        Assert.Equal(new DateOnly[] { new(2026, 10, 17), new(2026, 10, 20), new(2026, 10, 21) },
+            await reports.ReadActivityDatesAsync());
+        // A zero-length observation must not enable an otherwise empty date.
+        var zero = leaf with { Id = Guid.NewGuid(), Start = at.AddDays(1), End = at.AddDays(1), Spans = [] };
+        await store.SaveAsync(Composite(zero));
+        Assert.Equal(3, (await reports.ReadActivityDatesAsync()).Count);
+        await store.DeleteBeforeAsync(at.AddDays(4));
+        Assert.Empty(await reports.ReadActivityDatesAsync());
+    }
+
+    [Fact]
     public async Task SettingsMigrationPreservesHistoryAndRoundTripsAllValues()
     {
         var store = CreateStore();

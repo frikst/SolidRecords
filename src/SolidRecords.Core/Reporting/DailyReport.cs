@@ -33,6 +33,24 @@ public sealed class DailyReportService(IActivityStore store, TimeZoneInfo? timeZ
 {
     private readonly TimeZoneInfo _timeZone = timeZone ?? TimeZoneInfo.Local;
 
+    public async Task<IReadOnlyList<DateOnly>> ReadActivityDatesAsync(CancellationToken cancellationToken = default)
+    {
+        var dates = new SortedSet<DateOnly>();
+        foreach (var span in await store.ReadActivitySpansAsync(cancellationToken))
+        {
+            if (span.End <= span.Start) continue;
+            var first = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(span.Start, _timeZone).DateTime);
+            // End is exclusive: an activity ending at midnight does not enable the next day.
+            var last = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(span.End.AddTicks(-1), _timeZone).DateTime);
+            for (var date = first; ; date = date.AddDays(1))
+            {
+                dates.Add(date);
+                if (date >= last) break;
+            }
+        }
+        return dates.ToArray();
+    }
+
     public async Task<DailyReport> ReadAsync(DateOnly date, CancellationToken cancellationToken = default)
     {
         var start = date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified);

@@ -15,6 +15,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private readonly DailyReportService _reports;
     private readonly Dispatcher _dispatcher;
     private readonly DispatcherTimer _refresh;
+    private readonly DispatcherTimer _dayChange;
+    private DateTime _today = DateTime.Today;
+    private IReadOnlyList<DateTime> _availableDates = [DateTime.Today];
     private DateTime? _selectedDate = DateTime.Today;
     private string _search = "";
     private string _error = "";
@@ -31,8 +34,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _reports = reports;
         _dispatcher = Dispatcher.CurrentDispatcher;
         ToggleRecordingCommand = new(ToggleRecordingAsync, ShowError);
-        PreviousDayCommand = new(() => SelectedDate = (SelectedDate ?? DateTime.Today).AddDays(-1));
-        NextDayCommand = new(() => SelectedDate = (SelectedDate ?? DateTime.Today).AddDays(1));
+        PreviousDayCommand = new(() => SelectedDate = AdjacentDate(-1), () => AdjacentDate(-1) is not null);
+        NextDayCommand = new(() => SelectedDate = AdjacentDate(1), () => AdjacentDate(1) is not null);
         TodayCommand = new(() => SelectedDate = DateTime.Today);
         _recorder.StateChanged += RecorderChanged;
         _recorder.RecordsChanged += RecordsChanged;
@@ -42,6 +45,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             Interval = TimeSpan.FromMilliseconds(150)
         };
         _refresh.Tick += RefreshTick;
+        _dayChange = new DispatcherTimer(DispatcherPriority.Background, _dispatcher)
+        {
+            Interval = TimeSpan.FromSeconds(1)
+        };
+        _dayChange.Tick += DayChangeTick;
+        _dayChange.Start();
     }
 
     public AsyncCommand ToggleRecordingCommand { get; }
@@ -66,10 +75,17 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public string Count => _report.Intervals.Count.ToString();
     public string Details => $"{Activities.Count} aktivít  ·  {_report.Processes.Count} procesov  ·  časy v miestnom časovom pásme";
     public bool IsEmpty => Activities.Count == 0;
+    public IReadOnlyList<DateTime> AvailableDates => _availableDates;
     public DateTime? SelectedDate
     {
         get => _selectedDate;
-        set { if (Set(ref _selectedDate, value)) _ = RefreshSafelyAsync(); }
+        set
+        {
+            if (value is not { } date || !_availableDates.Contains(date.Date)) return;
+            if (!Set(ref _selectedDate, date.Date)) return;
+            NotifyNavigation();
+            _ = RefreshSafelyAsync();
+        }
     }
     public string Search
     {
@@ -122,17 +138,46 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                         catch (Exception ex) when (ex is FormatException or IOException or NotSupportedException or ArgumentException or InvalidOperationException) { }
                         icons[png] = image;
                     }
-                    return result;
+                    return (Report: result, Dates: await _reports.ReadActivityDatesAsync());
                 });
                 if (_disposed) return;
+                UpdateAvailableDates(report.Dates);
                 if (date != (_selectedDate ?? DateTime.Today).Date) { _reloadRequested = true; continue; }
                 _icons = icons;
-                _report = report;
+                _report = report.Report;
                 FilterRows();
                 foreach (var name in new[] { nameof(Timeline), nameof(TimelineBounds), nameof(Started), nameof(Finished), nameof(TotalDuration), nameof(Count) }) Changed(name);
             } while (_reloadRequested && !_disposed);
         }
         finally { _loading = false; }
+    }
+
+    private DateTime? AdjacentDate(int direction) => direction < 0
+        ? _availableDates.Where(date => date < _selectedDate).Select(date => (DateTime?)date).LastOrDefault()
+        : _availableDates.Where(date => date > _selectedDate).Select(date => (DateTime?)date).FirstOrDefault();
+
+    private void NotifyNavigation()
+    {
+        PreviousDayCommand.NotifyCanExecuteChanged();
+        NextDayCommand.NotifyCanExecuteChanged();
+    }
+
+    private void UpdateAvailableDates(IReadOnlyList<DateOnly> dates)
+    {
+        _today = DateTime.Today;
+        var available = dates.Select(date => date.ToDateTime(TimeOnly.MinValue)).Append(_today).Distinct().Order().ToArray();
+        if (!_availableDates.SequenceEqual(available))
+        {
+            _availableDates = available;
+            Changed(nameof(AvailableDates));
+        }
+        if (!_availableDates.Contains(_selectedDate ?? _today)) SelectedDate = _today;
+        NotifyNavigation();
+    }
+
+    private void DayChangeTick(object? sender, EventArgs e)
+    {
+        if (_today != DateTime.Today) RequestRefresh();
     }
 
     private async Task RefreshSafelyAsync()
@@ -214,6 +259,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _disposed = true;
         _refresh.Stop();
         _refresh.Tick -= RefreshTick;
+        _dayChange.Stop();
+        _dayChange.Tick -= DayChangeTick;
         _recorder.StateChanged -= RecorderChanged;
         _recorder.RecordsChanged -= RecordsChanged;
     }

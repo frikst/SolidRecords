@@ -2,11 +2,12 @@ using System.Windows.Input;
 
 namespace SolidRecords.App.Presentation;
 
-public sealed class RelayCommand(Action execute) : ICommand
+public sealed class RelayCommand(Action execute, Func<bool>? canExecute = null) : ICommand
 {
-    public event EventHandler? CanExecuteChanged { add { } remove { } }
-    public bool CanExecute(object? parameter) => true;
-    public void Execute(object? parameter) => execute();
+    public event EventHandler? CanExecuteChanged;
+    public bool CanExecute(object? parameter) => canExecute?.Invoke() ?? true;
+    public void Execute(object? parameter) { if (CanExecute(parameter)) execute(); }
+    public void NotifyCanExecuteChanged() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
 }
 
 public sealed class AsyncCommand(Func<Task> execute, Action<Exception> onError) : ICommand
