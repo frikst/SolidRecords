@@ -7,6 +7,8 @@ Formát vychádza z [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0
 
 ### Added
 
+- Prepínač Detaily pri vyhľadávaní otvorí pravý panel so stromom aplikácie, jej procesov a všetkých ich aktivít za vybraný deň. Panel sleduje vybranú aktivitu v zozname aj pri vyhľadávaní.
+
 - Samostatná karta Aktualizácie v nastaveniach s tlačidlom „Aktualizovať teraz“ na ručnú kontrolu, stiahnutie a inštaláciu novej verzie aj pri vypnutej dennej kontrole.
 
 ### Changed

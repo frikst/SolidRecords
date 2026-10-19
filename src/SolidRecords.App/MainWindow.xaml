@@ -160,15 +160,64 @@
     <Border Grid.Row="2" Background="{DynamicResource ControlSolidFillColorDefaultBrush}" CornerRadius="5" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" Margin="8,0">
       <Grid>
         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
-        <DockPanel Margin="6,5">
+        <DockPanel Margin="6,5" LastChildFill="False">
+          <ToggleButton DockPanel.Dock="Right" Content="Detaily" IsChecked="{Binding DetailsVisible, Mode=TwoWay}"
+                        Height="32" Padding="10,4" ToolTip="Zobraziť detaily vybranej aplikácie"
+                        AutomationProperties.Name="Detaily aplikácie" />
           <TextBox Style="{StaticResource SearchTextBox}" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}"
                    Width="280" HorizontalAlignment="Left" ToolTip="Hľadať aplikáciu, názov okna alebo URL"
                    AutomationProperties.Name="Hľadať aktivity" />
         </DockPanel>
         <Grid Grid.Row="1">
-          <p:ActivityDataGrid Style="{StaticResource {x:Type DataGrid}}" ItemsSource="{Binding Activities}">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <Border Grid.Column="1" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1,0,0,0"
+                  Width="280" Padding="6" x:Name="DetailsPanel">
+            <Border.Style>
+              <Style TargetType="Border">
+                <Setter Property="Visibility" Value="Collapsed" />
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding DetailsVisible}" Value="True"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </Border.Style>
+            <DockPanel>
+              <TextBlock DockPanel.Dock="Top" Text="Detaily" FontWeight="SemiBold" Margin="4,2,4,6" />
+              <TreeView ItemsSource="{Binding DetailApplications}" BorderThickness="0" Background="Transparent"
+                        ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Detaily vybranej aplikácie">
+                <TreeView.ItemContainerStyle>
+                  <Style TargetType="TreeViewItem" BasedOn="{StaticResource {x:Type TreeViewItem}}">
+                    <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                    <Setter Property="IsExpanded" Value="True" />
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                  </Style>
+                </TreeView.ItemContainerStyle>
+                <TreeView.ItemTemplate>
+                  <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                    <StackPanel Margin="0,2" ToolTip="{Binding Description}">
+                      <DockPanel>
+                        <Image DockPanel.Dock="Left" Source="{Binding Icon}" Width="16" Height="16" Margin="0,0,4,0">
+                          <Image.Style>
+                            <Style TargetType="Image"><Style.Triggers>
+                              <DataTrigger Binding="{Binding Icon}" Value="{x:Null}"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
+                            </Style.Triggers></Style>
+                          </Image.Style>
+                        </Image>
+                        <TextBlock Text="{Binding Label}" Foreground="{DynamicResource TextFillColorPrimaryBrush}" TextTrimming="CharacterEllipsis" MaxWidth="190" HorizontalAlignment="Left" />
+                      </DockPanel>
+                      <TextBlock Text="{Binding Summary}" FontSize="10" MaxWidth="190" HorizontalAlignment="Left" TextTrimming="CharacterEllipsis"
+                                 Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+                  </HierarchicalDataTemplate>
+                </TreeView.ItemTemplate>
+              </TreeView>
+            </DockPanel>
+          </Border>
+          <p:ActivityDataGrid Style="{StaticResource {x:Type DataGrid}}" ItemsSource="{Binding Activities}" SelectedItem="{Binding SelectedActivity, Mode=TwoWay}" SelectionMode="Single">
             <p:ActivityDataGrid.Columns>
-              <DataGridTemplateColumn Header="Aplikácia" SortMemberPath="Application" Width="130">
+              <DataGridTemplateColumn Header="Aplikácia" SortMemberPath="Application" Width="130" MinWidth="130">
                 <DataGridTemplateColumn.CellTemplate>
                   <DataTemplate>
                     <Grid VerticalAlignment="Center" Margin="4,0">
@@ -179,12 +228,12 @@
                   </DataTemplate>
                 </DataGridTemplateColumn.CellTemplate>
               </DataGridTemplateColumn>
-              <DataGridTextColumn Header="PID" Binding="{Binding ProcessId}" Width="52" />
+              <DataGridTextColumn Header="PID" Binding="{Binding ProcessId}" Width="52" MinWidth="52" />
               <DataGridTextColumn Header="Dokument / názov okna" Binding="{Binding Description}" Width="2*" MinWidth="130" ElementStyle="{StaticResource CellText}" />
               <DataGridTextColumn Header="URL" Binding="{Binding Url}" Width="1.5*" MinWidth="110" ElementStyle="{StaticResource CellText}" />
-              <DataGridTextColumn Header="Začiatok" Binding="{Binding Start}" Width="74" />
-              <DataGridTextColumn Header="Koniec" Binding="{Binding End}" Width="74" />
-              <DataGridTextColumn Header="Trvanie" Binding="{Binding Duration}" SortMemberPath="DurationValue" Width="100" />
+              <DataGridTextColumn Header="Začiatok" Binding="{Binding Start}" Width="74" MinWidth="74" />
+              <DataGridTextColumn Header="Koniec" Binding="{Binding End}" Width="74" MinWidth="74" />
+              <DataGridTextColumn Header="Trvanie" Binding="{Binding Duration}" SortMemberPath="DurationValue" Width="100" MinWidth="100" />
             </p:ActivityDataGrid.Columns>
           </p:ActivityDataGrid>
           <TextBlock Text="Žiadne aktivity pre vybraný deň alebo vyhľadávanie." HorizontalAlignment="Center" VerticalAlignment="Center"

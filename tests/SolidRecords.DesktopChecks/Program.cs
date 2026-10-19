@@ -166,7 +166,7 @@ internal static class Program
         var apps = samples.Select(x => x.Item1).Distinct().Select((name, i) => (name, id: i + 20)).ToDictionary(x => x.name, x => x.id);
         foreach (var sample in samples)
         {
-            var pid = apps[sample.Item1];
+            var pid = apps[sample.Item1] + (sample.Item1 == "msedge" && sample.Item4 > 0 ? 1000 : 0);
             Save(new(SignalKind.ForegroundChanged, day.AddMinutes(sample.Item4),
                 new(pid + 100, pid, sample.Item1, sample.Item2, sample.Item3)));
             Save(new(SignalKind.ForegroundChanged, day.AddMinutes(sample.Item4 + sample.Item5)));
@@ -276,11 +276,39 @@ internal static class Program
         var timeline = Descendants<TimelineControl>(content).Single();
         var grid = Descendants<System.Windows.Controls.DataGrid>(content).Single();
         CheckSorting(grid);
+        var detailToggle = Descendants<System.Windows.Controls.Primitives.ToggleButton>(content)
+            .Single(button => System.Windows.Automation.AutomationProperties.GetName(button) == "Detaily aplikácie");
+        detailToggle.IsChecked = true;
+        Require(vm.DetailsVisible, "Details toggle did not update the view model");
+        grid.SelectedItem = vm.Activities.First(row => row.Application == "msedge");
+        var detailApp = vm.DetailApplications.Single();
+        Require(detailApp.Label == "msedge" && detailApp.Children.Count == 2,
+            "Details did not group all application processes");
+        Require(detailApp.Children.Sum(process => process.Children.Count) == 2,
+            "Details did not include all process activities");
+        vm.Search = "Projekt SolidRecords";
+        Require(vm.Activities.Count == 1 && ReferenceEquals(detailApp, vm.DetailApplications.Single())
+            && detailApp.Children.Count == 2, "Search removed sibling processes from details or replaced the application node");
+        Render("main-window-details.png", 1084, 600, 1);
+        Render("main-window-details-150.png", 1000, 600, 1.5);
+        Render("main-window-details-small-150.png", 744, 380, 1.5);
+        vm.Search = "no-matching-activity";
+        Require(vm.SelectedActivity is null && vm.DetailApplications.Count == 0, "Empty search left stale application details");
+        vm.Search = "";
+        grid.SelectedItem = vm.Activities.First(row => row.Application == "devenv");
+        Require(vm.DetailApplications.Single().Label == "devenv"
+            && vm.DetailApplications.Single().Children.Single().Children.Count == 2,
+            "Selection did not switch application details");
+        detailToggle.IsChecked = false;
+        Require(!vm.DetailsVisible, "Details toggle did not close the panel");
         grid.SelectedIndex = 0;
         var selected = grid.SelectedItem;
         var lightBackground = ((SolidColorBrush)window.Background).Color;
         var lightLabel = ((SolidColorBrush)timeline.LabelBrush).Color;
         app.ThemeMode = ThemeMode.Dark;
+        vm.DetailsVisible = true;
+        Render("main-window-details-dark-150.png", 1000, 600, 1.5);
+        vm.DetailsVisible = false;
         Render("main-window-dark.png", 1084, 600, 1);
         RenderCalendar("dark");
         Render("main-window-dark-150.png", 1000, 600, 1.5);
@@ -535,6 +563,7 @@ internal static class Program
         source.Publish(new(SignalKind.Heartbeat, at.AddSeconds(1)));
         await Until(() => viewModel.Activities.Count == 1);
         var existing = viewModel.Activities[0];
+        var existingDetail = viewModel.DetailApplications.Single().Children.Single().Children.Single();
         Require(existing.End == "-" && existing.Duration == "-", "An open activity displays a final end or duration");
         source.Publish(new(SignalKind.ForegroundChanged, at.AddMilliseconds(1500), window));
         await Until(() => existing.Url == window.Url);
@@ -543,11 +572,16 @@ internal static class Program
         source.Publish(new(SignalKind.Heartbeat, at.AddSeconds(2)));
         await Until(() => existing.Interval.Duration == TimeSpan.FromSeconds(2));
         Require(ReferenceEquals(existing, viewModel.Activities[0]), "Live duration replaced an existing row");
+        Require(ReferenceEquals(existingDetail, viewModel.DetailApplications.Single().Children.Single().Children.Single()),
+            "Live duration replaced an existing detail node");
         source.Publish(new(SignalKind.ForegroundChanged, at.AddSeconds(3), window with { Url = "https://example.com/two" }));
         source.Publish(new(SignalKind.Heartbeat, at.AddSeconds(4)));
         await Until(() => viewModel.Activities.Count == 2);
         Require(viewModel.Activities[0].Url.EndsWith("/two", StringComparison.Ordinal), "A new URL did not appear live");
         Require(ReferenceEquals(existing, viewModel.Activities[1]), "Adding a URL replaced the previous row");
+        Require(ReferenceEquals(viewModel.SelectedActivity, existing)
+            && viewModel.DetailApplications.Single().Children.Single().Children.Count == 2,
+            "Live insertion lost selection or did not update process details");
         Require(existing.End != "-" && existing.Duration != "-", "A closed activity did not display final times");
         Require(viewModel.Activities[0].End == "-" && viewModel.Activities[0].Duration == "-",
             "The new open URL displays a final end or duration");

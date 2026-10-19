@@ -23,6 +23,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private string _error = "";
     private DailyReport _report = new([]);
     private ApplicationSettings _settings = new();
+    private bool _detailsVisible;
+    private bool _updatingRows;
+    private ActivityRow? _selectedActivity;
     private bool _loading;
     private bool _reloadRequested;
     private volatile bool _disposed;
@@ -58,6 +61,16 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand NextDayCommand { get; }
     public RelayCommand TodayCommand { get; }
     public ObservableCollection<ActivityRow> Activities { get; } = [];
+    public ObservableCollection<ActivityDetailNode> DetailApplications { get; } = [];
+    public bool DetailsVisible { get => _detailsVisible; set => Set(ref _detailsVisible, value); }
+    public ActivityRow? SelectedActivity
+    {
+        get => _selectedActivity;
+        set
+        {
+            if (Set(ref _selectedActivity, value) && !_updatingRows) UpdateDetails();
+        }
+    }
     public IReadOnlyList<ActivityInterval> Timeline => _report.Intervals;
     public WorkPeriod TimelineBounds => TimelineRange.Calculate(DateOnly.FromDateTime(_selectedDate ?? DateTime.Today), _settings, Timeline);
     public void ApplySettings(ApplicationSettings settings)
@@ -192,6 +205,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             v?.Contains(_search, StringComparison.CurrentCultureIgnoreCase) == true);
         var desired = _report.Intervals.Reverse()
             .Where(interval => Matches(interval.Window.Application, interval.Window.Title, interval.Window.Url)).ToArray();
+        _updatingRows = true;
+        var selectionId = SelectedActivity?.Interval.Id;
         var ids = desired.Select(interval => interval.Id).ToHashSet();
         for (var i = Activities.Count - 1; i >= 0; i--)
             if (!ids.Contains(Activities[i].Interval.Id)) Activities.RemoveAt(i);
@@ -210,8 +225,38 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             row.UpdateIcon(GetIcon(interval));
             if (!ReferenceEquals(Activities[i], row)) Activities.Move(Activities.IndexOf(row), i);
         }
+        _updatingRows = false;
+        SelectedActivity = Activities.FirstOrDefault(row => row.Interval.Id == selectionId) ?? Activities.FirstOrDefault();
+        UpdateDetails();
         Changed(nameof(Details));
         Changed(nameof(IsEmpty));
+    }
+
+    private void UpdateDetails()
+    {
+        var application = SelectedActivity?.Application;
+        var processes = _report.Processes
+            .Where(process => string.Equals(process.Application, application, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(process => process.Start).ToArray();
+        ActivityDetailNode.Synchronize(DetailApplications, application is null ? [] : [application], (app, _) =>
+        {
+            var intervals = processes.SelectMany(process => process.Windows).SelectMany(window => window.Activities).ToArray();
+            app.Update(application!, $"{processes.Length} procesov · {intervals.Length} aktivít", application!, SelectedActivity?.Icon);
+            ActivityDetailNode.Synchronize(app.Children, processes.Select(process => process.Id.ToString()).ToArray(), (node, index) =>
+            {
+                var process = processes[index];
+                var activities = process.Windows.SelectMany(window => window.Activities).OrderBy(activity => activity.Start).ToArray();
+                node.Update($"PID {process.ProcessId}",
+                    $"{activities.Length} aktivít · {ActivityRow.FormatDuration(TimeSpan.FromTicks(activities.Sum(activity => activity.Duration.Ticks)))}",
+                    $"Pozorovaný proces od {process.Start.ToLocalTime():g}");
+                ActivityDetailNode.Synchronize(node.Children, activities.Select(activity => activity.Id.ToString()).ToArray(), (leaf, activityIndex) =>
+                {
+                    var row = new ActivityRow(activities[activityIndex]);
+                    leaf.Update(row.Description, $"{row.Start} – {row.End} · {row.Duration}",
+                        $"{row.Description}\n{row.Url}\n{row.Start} – {row.End} · {row.Duration}");
+                });
+            });
+        });
     }
 
     private ImageSource? GetIcon(ActivityInterval interval) => interval.ApplicationIconPngBase64 is { } png
