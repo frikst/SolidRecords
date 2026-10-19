@@ -26,6 +26,8 @@ public sealed class ActivityDbContext(DbContextOptions<ActivityDbContext> option
             entity.ToTable("process_activities", table => table.HasCheckConstraint("ck_process_time", "end >= start"));
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.Start, x.End }).HasDatabaseName("ix_process_time");
+            entity.HasIndex(x => new { x.ProcessId, x.ProcessStartTicks }).IsUnique()
+                .HasFilter("process_start_ticks IS NOT NULL").HasDatabaseName("ix_process_identity");
         });
         modelBuilder.Entity<WindowRow>(entity =>
         {
@@ -75,6 +77,7 @@ public sealed class ActivityDbContextFactory : IDesignTimeDbContextFactory<Activ
         .UseSqlite("Data Source=artifacts/ef-design.db").Options);
 }
 
+// RecordingId is retained only for compatibility with the adopted legacy schema.
 internal sealed class ProcessRow
 {
     public string Id { get; set; } = "";
@@ -101,6 +104,7 @@ internal sealed class WindowRow
 internal sealed class LeafRow
 {
     public string Id { get; set; } = "";
+    public string RecordingId { get; set; } = "";
     public string WindowActivityId { get; set; } = "";
     public string Title { get; set; } = "";
     public string? Url { get; set; }

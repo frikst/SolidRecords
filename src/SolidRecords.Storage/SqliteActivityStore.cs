@@ -69,6 +69,16 @@ public sealed class SqliteActivityStore : IActivityStore, ISettingsStore
         await transaction.CommitAsync(cancellationToken);
     }
 
+    public async Task<ProcessActivity?> FindProcessAsync(int processId, long processStartTicks, CancellationToken cancellationToken = default)
+    {
+        await InitializeAsync(cancellationToken);
+        await using var db = new ActivityDbContext(_options);
+        var row = await db.Processes.AsNoTracking().SingleOrDefaultAsync(
+            x => x.ProcessId == processId && x.ProcessStartTicks == processStartTicks, cancellationToken);
+        return row is null ? null : new(Guid.Parse(row.Id), row.ProcessId, row.Application, row.ProcessStartTicks,
+            Time(row.Start), Time(row.End), row.IsOpen);
+    }
+
     public async Task DeleteBeforeAsync(DateTimeOffset cutoff, CancellationToken cancellationToken = default)
     {
         await InitializeAsync(cancellationToken);
@@ -106,7 +116,7 @@ public sealed class SqliteActivityStore : IActivityStore, ISettingsStore
             var row = await db.Processes.FindAsync([process.Id.ToString()], cancellationToken);
             if (row is null)
             {
-                row = new() { Id = process.Id.ToString(), RecordingId = process.RecordingId.ToString(),
+                row = new() { Id = process.Id.ToString(), RecordingId = Guid.Empty.ToString(),
                     ProcessId = process.ProcessId, Application = process.Application, ProcessStartTicks = process.ProcessStartTicks,
                     Start = Millis(process.Start) };
                 db.Processes.Add(row);
@@ -132,7 +142,8 @@ public sealed class SqliteActivityStore : IActivityStore, ISettingsStore
             var row = await db.Leaves.FindAsync([interval.Id.ToString()], cancellationToken);
             if (row is null)
             {
-                row = new() { Id = interval.Id.ToString(), WindowActivityId = interval.WindowActivityId.ToString(),
+                row = new() { Id = interval.Id.ToString(), RecordingId = interval.RecordingId.ToString(),
+                    WindowActivityId = interval.WindowActivityId.ToString(),
                     Title = interval.Window.Title, Start = Millis(interval.Start) };
                 db.Leaves.Add(row);
             }
@@ -212,7 +223,7 @@ public sealed class SqliteActivityStore : IActivityStore, ISettingsStore
                            select span).ToArrayAsync(cancellationToken);
         var spansByActivity = spans.ToLookup(x => x.ActivityId,
             x => new ActivitySpan(Guid.Parse(x.Id), Time(x.Start), Time(x.End)));
-        var leavesByWindow = leaves.Select(x => new ActivityInterval(Guid.Parse(x.Leaf.Id), Guid.Parse(x.Process.RecordingId),
+        var leavesByWindow = leaves.Select(x => new ActivityInterval(Guid.Parse(x.Leaf.Id), Guid.Parse(x.Leaf.RecordingId),
             new(x.Window.Handle, x.Process.ProcessId, x.Process.Application, x.Leaf.Title, x.Leaf.Url, x.Process.ProcessStartTicks),
             Time(x.Leaf.Start), Time(x.Leaf.End), x.Leaf.IsOpen, Guid.Parse(x.Process.Id), Guid.Parse(x.Window.Id))
         {
@@ -222,7 +233,7 @@ public sealed class SqliteActivityStore : IActivityStore, ISettingsStore
         var windowsByProcess = windows.Select(x => new WindowActivity(Guid.Parse(x.Id), Guid.Parse(x.ProcessActivityId),
             x.Handle, x.Title, Time(x.Start), Time(x.End), x.IsOpen)
         { Activities = leavesByWindow[Guid.Parse(x.Id)].ToArray() }).ToLookup(x => x.ProcessActivityId);
-        return processes.Select(x => new ProcessActivity(Guid.Parse(x.Id), Guid.Parse(x.RecordingId), x.ProcessId,
+        return processes.Select(x => new ProcessActivity(Guid.Parse(x.Id), x.ProcessId,
             x.Application, x.ProcessStartTicks, Time(x.Start), Time(x.End), x.IsOpen)
         { Windows = windowsByProcess[Guid.Parse(x.Id)].ToArray() }).ToArray();
     }

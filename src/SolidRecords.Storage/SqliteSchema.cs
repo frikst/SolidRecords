@@ -51,25 +51,44 @@ internal static class SqliteSchema
         var legacy = rows.Select(x => new ActivityInterval(Guid.Parse(x.Id), Guid.Parse(x.RecordingId),
             new(x.WindowHandle, x.ProcessId, x.Application, x.Title, x.Url),
             DateTimeOffset.FromUnixTimeMilliseconds(x.Start), DateTimeOffset.FromUnixTimeMilliseconds(x.End), false));
-        var processes = new List<ProcessActivity>();
-        var windows = new List<WindowActivity>();
-        var leaves = new List<ActivityInterval>();
+        // Use the original column layout here: later EF migrations have not run yet.
         foreach (var processGroup in legacy.GroupBy(x => (x.RecordingId, x.Window.ProcessId, x.Window.Application)))
         {
-            var process = new ProcessActivity(Guid.NewGuid(), processGroup.Key.RecordingId,
-                processGroup.Key.ProcessId, processGroup.Key.Application, null,
-                processGroup.Min(x => x.Start), processGroup.Max(x => x.End), false);
-            processes.Add(process);
+            var processId = Guid.NewGuid().ToString();
+            var recordingId = processGroup.Key.RecordingId.ToString();
+            var pid = processGroup.Key.ProcessId;
+            var application = processGroup.Key.Application;
+            var start = processGroup.Min(x => x.Start).ToUnixTimeMilliseconds();
+            var end = processGroup.Max(x => x.End).ToUnixTimeMilliseconds();
+            await db.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO process_activities(id,recording_id,process_id,application,process_start_ticks,start,end,is_open)
+                VALUES({processId},{recordingId},{pid},{application},NULL,{start},{end},0)
+                """, cancellationToken);
             foreach (var windowGroup in processGroup.GroupBy(x => x.Window.Handle))
             {
-                var window = new WindowActivity(Guid.NewGuid(), process.Id, windowGroup.Key,
-                    windowGroup.Last().Window.Title, windowGroup.Min(x => x.Start), windowGroup.Max(x => x.End), false);
-                windows.Add(window);
-                leaves.AddRange(windowGroup.Select(x => x with { ProcessActivityId = process.Id, WindowActivityId = window.Id }));
+                var windowId = Guid.NewGuid().ToString();
+                var handle = windowGroup.Key;
+                var title = windowGroup.Last().Window.Title;
+                start = windowGroup.Min(x => x.Start).ToUnixTimeMilliseconds();
+                end = windowGroup.Max(x => x.End).ToUnixTimeMilliseconds();
+                await db.Database.ExecuteSqlInterpolatedAsync($"""
+                    INSERT INTO window_activities(id,process_activity_id,handle,title,start,end,is_open)
+                    VALUES({windowId},{processId},{handle},{title},{start},{end},0)
+                    """, cancellationToken);
+                foreach (var leaf in windowGroup)
+                {
+                    var leafId = leaf.Id.ToString();
+                    title = leaf.Window.Title;
+                    var url = leaf.Window.Url;
+                    start = leaf.Start.ToUnixTimeMilliseconds();
+                    end = leaf.End.ToUnixTimeMilliseconds();
+                    await db.Database.ExecuteSqlInterpolatedAsync($"""
+                        INSERT INTO activity_leaves(id,window_activity_id,title,url,start,end,is_open)
+                        VALUES({leafId},{windowId},{title},{url},{start},{end},0)
+                        """, cancellationToken);
+                }
             }
         }
-        await SqliteActivityStore.WriteBatchAsync(db,
-            new([], leaves) { Processes = processes, Windows = windows }, cancellationToken);
         // The original intervals table is preserved; migration is transactional and never deletes history.
     }
 }

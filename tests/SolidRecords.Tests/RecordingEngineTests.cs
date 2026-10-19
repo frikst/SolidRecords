@@ -197,4 +197,19 @@ public sealed class RecordingEngineTests
         var next = engine.Apply(new(SignalKind.ForegroundChanged, Origin.AddSeconds(1), Browser with { ProcessStartTicks = 200 }));
         Assert.NotEqual(first.Processes[0].Id, next.Processes[^1].Id);
     }
+    [Theory]
+    [InlineData(100L, true)]
+    [InlineData(null, false)]
+    public void ReopeningLastWindowReusesOnlyKnownProcessIdentity(long? ticks, bool sameProcess)
+    {
+        var engine = Start();
+        var window = Browser with { ProcessStartTicks = ticks };
+        var first = Assert.Single(engine.Apply(new(SignalKind.ForegroundChanged, Origin, window)).Intervals);
+        engine.Apply(new(SignalKind.WindowClosed, Origin.AddSeconds(20), window));
+        var next = Assert.Single(engine.Apply(new(SignalKind.ForegroundChanged, Origin.AddSeconds(25), window)).Intervals);
+        Assert.Equal(sameProcess, first.ProcessActivityId == next.ProcessActivityId);
+        Assert.NotEqual(first.WindowActivityId, next.WindowActivityId);
+        Assert.NotEqual(first.Id, next.Id);
+    }
+
 }

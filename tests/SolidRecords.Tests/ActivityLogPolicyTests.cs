@@ -39,7 +39,7 @@ public sealed class ActivityLogPolicyTests
         var visit = Visit(0, duration);
         var batch = new ActivityLogPolicy(options).Apply(new([], [visit]));
         var window = new WindowActivity(Window, Process, Info.Handle, Info.Title, visit.Start, visit.End, false) { Activities = [visit] };
-        var process = new ProcessActivity(Process, Recording, Info.ProcessId, Info.Application, null, visit.Start, visit.End, false) { Windows = [window] };
+        var process = new ProcessActivity(Process, Info.ProcessId, Info.Application, null, visit.Start, visit.End, false) { Windows = [window] };
         var report = new SolidRecords.Core.Reporting.DailyReport([process], options);
         Assert.Equal(retained ? 1 : 0, batch.Intervals.Count);
         Assert.Equal(retained ? 1 : 0, report.Intervals.Count);

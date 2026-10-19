@@ -3,9 +3,10 @@
 ## Model a čas
 
 - Hierarchia je `ProcessActivity → WindowActivity → ActivityInterval → ActivitySpan`. List s URL predstavuje návštevu URL; list bez URL aktívne okno. V jednom okamihu sa započíta len jeden list.
-- Proces sa založí až po prvom prípustnom foreground okne. `ObservedWindowRegistry` potom enumeruje okná jeho PID a ukončí pozorovaný proces až po zániku posledného evidovaného okna. Nejde o skutočný štart/koniec OS procesu. Čas vytvorenia procesu sa číta len ako identita proti recyklovaniu PID.
+- Proces sa založí až po prvom prípustnom foreground okne. Jeho identitu tvorí PID a dostupný čas vytvorenia OS procesu; Recorder pred prvým pozorovaním v novom zbere vyhľadá uložený proces a obnoví jeho pôvodné ID. Rovnaký proces sa opätovne používa aj po pauze, reštarte aplikácie alebo zatvorení a opätovnom otvorení posledného okna. Bez času vytvorenia sa oddelené pozorovania nespájajú, pretože PID môže Windows recyklovať.
+- `ObservedWindowRegistry` enumeruje okná prijatého PID a ukončí pozorovanie po zániku posledného evidovaného okna. `ProcessActivity.Start/End` ohraničujú pozorovania a `IsOpen` vyjadruje aktuálne pozorovanie, nie skutočnú životnosť OS procesu. Obnovenie pozorovania nevytvára aktivitu za prestávku.
 - Už prijaté okno zostáva evidované aj skryté, minimalizované či na inej virtuálnej ploche. Nové okná sa evidujú pred uzavretím zaniknutých, aby výmena okien nevytvorila falošný koniec procesu. Okno na pozadí vzniknuté a zatvorené medzi kontrolami môže uniknúť.
-- Čas rodičov sa nikdy nesčítava. Zamknutie, odpojenie relácie a uspatie ukončia aktívny list; rodičia môžu zostať otvorení. Pauza a ukončenie záznamu uzavrú aj rodičov, ďalší štart má nové RecordingId.
+- Čas rodičov sa nikdy nesčítava. Zamknutie, odpojenie relácie a uspatie ukončia aktívny list; rodičia môžu zostať otvorení. Pauza a ukončenie záznamu uzavrú aj pozorovanie rodičov, ďalší štart má nové RecordingId na aktivitách a udalostiach. Identita procesu je od RecordingId nezávislá; okná nového zberu sú nové pozorovania aj pri rovnakom HWND, ktorý môže Windows recyklovať.
 - `End` otvoreného záznamu je posledný potvrdený čas, nie odhad do budúcnosti. Heartbeat ho aktualizuje každú sekundu. GUI pre otvorený list zobrazuje koniec a trvanie ako `-`, ale súčet a časová os sa aktualizujú.
 - Report používa miestne polnoci prevedené do UTC, vrátane letného času. Normalizácia prebehne pred orezaním na deň; inak by platná aktivita cez polnoc mohla vypadnúť ako príliš krátka.
 

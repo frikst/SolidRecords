@@ -479,6 +479,7 @@ public sealed class SqliteActivityStoreTests : IDisposable
         {
             await connection.OpenAsync();
             using var command = connection.CreateCommand();
+            await RestoreLegacyProcessLayoutAsync(connection);
             command.CommandText = "DROP TABLE settings; DROP TABLE activity_spans; DELETE FROM __EFMigrationsHistory; PRAGMA user_version=2;";
             await command.ExecuteNonQueryAsync();
         }
@@ -500,6 +501,7 @@ public sealed class SqliteActivityStoreTests : IDisposable
         {
             await connection.OpenAsync();
             using var command = connection.CreateCommand();
+            await RestoreLegacyProcessLayoutAsync(connection);
             command.CommandText = "DROP TABLE settings; DROP TABLE application_icons; DELETE FROM __EFMigrationsHistory; PRAGMA user_version=3;";
             await command.ExecuteNonQueryAsync();
         }
@@ -555,7 +557,7 @@ public sealed class SqliteActivityStoreTests : IDisposable
         await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => store.InitializeAsync()));
         var options = new DbContextOptionsBuilder<ActivityDbContext>().UseSqlite($"Data Source={store.DatabasePath}").Options;
         await using var db = new ActivityDbContext(options);
-        Assert.Equal(2, (await db.Database.GetAppliedMigrationsAsync()).Count());
+        Assert.Equal(3, (await db.Database.GetAppliedMigrationsAsync()).Count());
         Assert.Empty(await db.Database.GetPendingMigrationsAsync());
         Assert.False(db.Database.HasPendingModelChanges());
         var at = DateTimeOffset.UnixEpoch;
@@ -584,6 +586,7 @@ public sealed class SqliteActivityStoreTests : IDisposable
         {
             await connection.OpenAsync();
             using var command = connection.CreateCommand();
+            await RestoreLegacyProcessLayoutAsync(connection);
             command.CommandText = "DROP TABLE settings; DROP TABLE __EFMigrationsHistory;";
             await command.ExecuteNonQueryAsync();
         }
@@ -661,7 +664,7 @@ public sealed class SqliteActivityStoreTests : IDisposable
         command.Parameters.AddWithValue("$id", id.ToString());
         command.Parameters.AddWithValue("$recording", recording.ToString());
         await command.ExecuteNonQueryAsync();
-        await Assert.ThrowsAsync<DbUpdateException>(() => store.InitializeAsync());
+        await Assert.ThrowsAsync<SqliteException>(() => store.InitializeAsync());
         command.CommandText = "PRAGMA user_version;";
         Assert.Equal(1L, await command.ExecuteScalarAsync());
         command.CommandText = "SELECT COUNT(*) FROM process_activities;";
@@ -676,6 +679,130 @@ public sealed class SqliteActivityStoreTests : IDisposable
         Assert.Single(await CreateStore().ReadProcessesAsync(DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddDays(1)));
         command.CommandText = "SELECT COUNT(*) FROM intervals;";
         Assert.Equal(1L, await command.ExecuteScalarAsync());
+    }
+
+    [Theory]
+    [InlineData(100L, 100L, 1)]
+    [InlineData(100L, 200L, 2)]
+    [InlineData(null, null, 3)]
+    [InlineData(100L, null, 3)]
+    public async Task RecorderReusesOnlyKnownProcessIdentityAcrossPauseAndRestart(long? firstTicks, long? nextTicks, int count)
+    {
+        var at = new DateTimeOffset(2026, 10, 19, 8, 0, 0, TimeSpan.Zero);
+        var store = CreateStore();
+        var source = new IconSource();
+        async Task Record(Recorder recorder, IconSource capture, int visit, long? ticks)
+        {
+            var start = at.AddSeconds(visit * 25);
+            await recorder.StartAsync();
+            capture.Publish!(new(SignalKind.SessionActive, start));
+            capture.Publish(new(SignalKind.ForegroundChanged, start, new(100, 42, "editor", "Document", ProcessStartTicks: ticks)));
+            capture.Publish(new(SignalKind.Heartbeat, start.AddSeconds(20)));
+            await recorder.StopAsync();
+        }
+        Guid originalId;
+        await using (var recorder = new Recorder(store, source, new IconClock(at)))
+        {
+            await Record(recorder, source, 0, firstTicks);
+            originalId = Assert.Single(await store.ReadProcessesAsync(at, at.AddDays(1))).Id;
+            await Record(recorder, source, 1, nextTicks);
+        }
+        // A new store and Recorder model restarting SolidRecords, without an in-memory identity cache.
+        store = CreateStore();
+        source = new IconSource();
+        await using (var recorder = new Recorder(store, source, new IconClock(at.AddSeconds(50))))
+            await Record(recorder, source, 2, nextTicks);
+        var processes = await store.ReadProcessesAsync(at, at.AddDays(1));
+        Assert.Equal(count, processes.Count);
+        Assert.Contains(processes, p => p.Id == originalId);
+        var report = new DailyReport(processes);
+        Assert.Equal(TimeSpan.FromSeconds(60), report.ActiveDuration);
+        Assert.Equal(3, report.Intervals.Count);
+        Assert.Equal(3, report.Intervals.Select(x => x.RecordingId).Distinct().Count());
+        Assert.Equal(3, report.Intervals.Select(x => x.Id).Distinct().Count());
+        Assert.All(report.Intervals, leaf => Assert.Equal(TimeSpan.FromSeconds(20), leaf.Duration));
+        if (count == 1)
+        {
+            var process = Assert.Single(processes);
+            Assert.Equal(originalId, process.Id);
+            Assert.Equal(at, process.Start);
+            Assert.Equal(at.AddSeconds(70), process.End);
+            Assert.All(report.Intervals, leaf => Assert.Equal(originalId, leaf.ProcessActivityId));
+        }
+    }
+
+    [Fact]
+    public async Task ProcessIdentityMigrationPreservesActivitiesRecordingsAndSpans()
+    {
+        var store = CreateStore();
+        Directory.CreateDirectory(_directory);
+        var options = new DbContextOptionsBuilder<ActivityDbContext>().UseSqlite($"Data Source={store.DatabasePath}").Options;
+        await using (var db = new ActivityDbContext(options))
+            await db.GetService<Microsoft.EntityFrameworkCore.Migrations.IMigrator>()
+                .MigrateAsync("20261016203531_AddApplicationSettings");
+        var at = new DateTimeOffset(2026, 10, 19, 8, 0, 0, TimeSpan.Zero);
+        var processIds = Enumerable.Range(0, 6).Select(_ => Guid.NewGuid()).ToArray();
+        var recordings = Enumerable.Range(0, 6).Select(_ => Guid.NewGuid()).ToArray();
+        await using var connection = new SqliteConnection($"Data Source={store.DatabasePath};Foreign Keys=True");
+        await connection.OpenAsync();
+        using var command = connection.CreateCommand();
+        for (var i = 0; i < processIds.Length; i++)
+        {
+            command.CommandText = """
+                INSERT INTO process_activities VALUES($id,$recording,42,'editor',$ticks,$start,$end,1);
+                INSERT INTO window_activities VALUES($id,$id,100,'Document',$start,$end,1);
+                INSERT INTO activity_leaves VALUES($id,$id,'Document',NULL,$start,$end,1);
+                INSERT INTO activity_spans VALUES($id,$id,$start,$end);
+                """;
+            command.Parameters.Clear();
+            command.Parameters.AddWithValue("$id", processIds[i].ToString());
+            command.Parameters.AddWithValue("$recording", recordings[i].ToString());
+            command.Parameters.AddWithValue("$ticks", i < 3 ? 100L : i == 3 ? 200L : DBNull.Value);
+            command.Parameters.AddWithValue("$start", at.AddSeconds(i * 25).ToUnixTimeMilliseconds());
+            command.Parameters.AddWithValue("$end", at.AddSeconds(i * 25 + 20).ToUnixTimeMilliseconds());
+            await command.ExecuteNonQueryAsync();
+        }
+        command.CommandText = "PRAGMA user_version=4;";
+        await command.ExecuteNonQueryAsync();
+        await store.InitializeAsync();
+        var processes = await store.ReadProcessesAsync(at, at.AddDays(1));
+        Assert.Equal(4, processes.Count);
+        var combined = Assert.Single(processes, p => p.ProcessStartTicks == 100);
+        Assert.Equal(processIds[0], combined.Id);
+        Assert.Equal(at, combined.Start);
+        Assert.Equal(at.AddSeconds(70), combined.End);
+        Assert.Equal(3, combined.Windows.Count);
+        var report = new DailyReport(processes);
+        Assert.Equal(TimeSpan.FromSeconds(120), report.ActiveDuration);
+        Assert.Equal(processIds.Order(), report.Intervals.Select(x => x.Id).Order());
+        foreach (var leaf in report.Intervals)
+        {
+            var index = Array.IndexOf(processIds, leaf.Id);
+            Assert.Equal(recordings[index], leaf.RecordingId);
+            Assert.Equal(processIds[index], leaf.WindowActivityId);
+            Assert.Equal(processIds[index], Assert.Single(leaf.Spans).Id);
+            Assert.Equal(at.AddSeconds(index * 25), leaf.Start);
+            Assert.False(leaf.IsOpen);
+        }
+        Assert.Equal(combined.Id, (await store.FindProcessAsync(42, 100))!.Id);
+        command.Parameters.Clear();
+        command.CommandText = "PRAGMA foreign_key_check;";
+        await using (var reader = await command.ExecuteReaderAsync()) Assert.False(await reader.ReadAsync());
+        // Recovery and migration are idempotent; they never reconstruct deleted duplicate parents.
+        Assert.Equal(4, (await CreateStore().ReadProcessesAsync(at, at.AddDays(1))).Count);
+    }
+
+    private static async Task RestoreLegacyProcessLayoutAsync(SqliteConnection connection)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            UPDATE process_activities SET recording_id = (
+                SELECT l.recording_id FROM activity_leaves l JOIN window_activities w ON w.id=l.window_activity_id
+                WHERE w.process_activity_id=process_activities.id LIMIT 1);
+            DROP INDEX ix_process_identity;
+            ALTER TABLE activity_leaves DROP COLUMN recording_id;
+            """;
+        await command.ExecuteNonQueryAsync();
     }
 
     private sealed class IconClock(DateTimeOffset at) : TimeProvider
@@ -699,7 +826,7 @@ public sealed class SqliteActivityStoreTests : IDisposable
 
     private static RecordingBatch Composite(ActivityInterval leaf)
     {
-        var process = new ProcessActivity(leaf.Id, leaf.RecordingId, leaf.Window.ProcessId,
+        var process = new ProcessActivity(leaf.Id, leaf.Window.ProcessId,
             leaf.Window.Application, leaf.Window.ProcessStartTicks, leaf.Start, leaf.End, leaf.IsOpen);
         var window = new WindowActivity(leaf.Id, process.Id, leaf.Window.Handle, leaf.Window.Title,
             leaf.Start, leaf.End, leaf.IsOpen);

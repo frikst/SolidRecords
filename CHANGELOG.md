@@ -15,6 +15,10 @@ Formát vychádza z [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0
 
 - Textové polia v nastaveniach majú jednotný vzhľad so zvyškom aplikácie, väčšie vnútorné okraje a rovnakú výšku ako rozbaľovacie polia.
 
+### Fixed
+
+- Rovnaký proces sa v detailoch aplikácie nezobrazuje viackrát po pauze alebo reštarte zaznamenávania, ak je dostupný čas jeho vytvorenia. Oprava spojí aj staršie pozorovania a zachová aktivity aj prestávky.
+
 ## [1.1.0] - 2026-10-18
 
 ### Added

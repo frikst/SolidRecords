@@ -135,7 +135,7 @@ internal static class StartupChecks
                     var recordingId = Guid.NewGuid();
                     await history.SaveAsync(new([], [new(oldId, recordingId, new(1, 2, "test", "old"), oldAt, oldAt.AddMinutes(1), false, oldId, oldId)])
                     {
-                        Processes = [new(oldId, recordingId, 2, "test", null, oldAt, oldAt.AddMinutes(1), false)],
+                        Processes = [new(oldId, 2, "test", null, oldAt, oldAt.AddMinutes(1), false)],
                         Windows = [new(oldId, oldId, 1, "old", oldAt, oldAt.AddMinutes(1), false)]
                     });
                     await app.SaveSettingsAsync(provider.GetRequiredService<PreferencesStore>().Current);

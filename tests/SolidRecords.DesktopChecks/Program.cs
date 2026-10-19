@@ -557,13 +557,14 @@ internal static class Program
             }
         }
         await recorder.StartAsync();
-        var window = new WindowInfo(101, 42, "browser", "Live tab", "https://example.com/one");
+        var window = new WindowInfo(101, 42, "browser", "Live tab", "https://example.com/one", ProcessStartTicks: 100);
         source.Publish(new(SignalKind.SessionActive, at));
         source.Publish(new(SignalKind.ForegroundChanged, at, window with { Url = null }));
         source.Publish(new(SignalKind.Heartbeat, at.AddSeconds(1)));
         await Until(() => viewModel.Activities.Count == 1);
         var existing = viewModel.Activities[0];
-        var existingDetail = viewModel.DetailApplications.Single().Children.Single().Children.Single();
+        var existingProcess = viewModel.DetailApplications.Single().Children.Single();
+        var existingDetail = existingProcess.Children.Single();
         Require(existing.End == "-" && existing.Duration == "-", "An open activity displays a final end or duration");
         source.Publish(new(SignalKind.ForegroundChanged, at.AddMilliseconds(1500), window));
         await Until(() => existing.Url == window.Url);
@@ -595,7 +596,7 @@ internal static class Program
             Start = at.AddDays(-4), End = at.AddDays(-4).AddMinutes(1),
             Spans = [new(Guid.NewGuid(), at.AddDays(-4), at.AddDays(-4).AddMinutes(1))]
         };
-        var process = new ProcessActivity(Guid.NewGuid(), older.RecordingId, 42, "browser", null,
+        var process = new ProcessActivity(Guid.NewGuid(), 42, "browser", null,
             older.Start, older.End, false);
         var parent = new WindowActivity(Guid.NewGuid(), process.Id, 101, "History", older.Start, older.End, false);
         older = older with { ProcessActivityId = process.Id, WindowActivityId = parent.Id };
@@ -628,8 +629,18 @@ internal static class Program
         Require(!viewModel.PreviousDayCommand.CanExecute(null) && picker.BlackoutDates.Contains(at.Date.AddDays(-4))
             && picker.SelectedDate == DateTime.Today,
             "Retention left a deleted date available");
+        var beforeRestartProcess = viewModel.DetailApplications.Single().Children.Single();
+        await recorder.StartAsync();
+        source.Publish(new(SignalKind.SessionActive, at.AddSeconds(10)));
+        source.Publish(new(SignalKind.ForegroundChanged, at.AddSeconds(10), window));
+        source.Publish(new(SignalKind.Heartbeat, at.AddSeconds(12)));
+        await recorder.StopAsync();
+        await Until(() => viewModel.Activities.Count == 3);
+        Require(ReferenceEquals(beforeRestartProcess, viewModel.DetailApplications.Single().Children.Single())
+            && beforeRestartProcess.Id == existingProcess.Id && beforeRestartProcess.Children.Count == 3,
+            "Restarting recording duplicated the process detail node or lost its activities");
         Require(resets == 0, "Live updates reset the collection and lost row selection");
-        Console.WriteLine("Live view: automatic insert, duration update, URL change, recording stop and date navigation passed without collection resets.");
+        Console.WriteLine("Live view: automatic insert, duration update, URL change, recording restart with one process node and date navigation passed without collection resets.");
         await CheckDefaultActivityRulesAsync(directory);
     }
 

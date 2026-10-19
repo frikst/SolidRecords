@@ -13,7 +13,13 @@ public sealed class RecordingEngine
     private ActivityInterval? _current;
     private DateTimeOffset _lastTime;
 
-    public RecordingBatch Apply(CaptureSignal signal)
+    public bool RequiresProcessLookup(WindowInfo info) => _recording && _sessionActive && info.ProcessStartTicks is not null &&
+        !_processes.ContainsKey(Key(info));
+
+    private static ProcessKey Key(WindowInfo info) => new(info.ProcessId,
+        info.ProcessStartTicks is null ? info.Application : "", info.ProcessStartTicks);
+
+    public RecordingBatch Apply(CaptureSignal signal, ProcessActivity? existingProcess = null)
     {
         var events = new List<ActivityEvent>();
         var intervals = new List<ActivityInterval>();
@@ -26,12 +32,11 @@ public sealed class RecordingEngine
             Processes = processes.GroupBy(x => x.Id).Select(group => group.Last()).ToArray(),
             Windows = windows.GroupBy(x => x.Id).Select(group => group.Last()).ToArray()
         };
-        ProcessKey Key(WindowInfo info) => new(info.ProcessId, info.Application, info.ProcessStartTicks);
         void Emit(EventKind kind, WindowInfo? info = null, string? reason = null) => events.Add(new(
             Guid.NewGuid(), _recordingId, kind, at, info, info?.ProcessId, info?.Application, reason ?? signal.Reason));
         void SaveProcess(ProcessActivity process)
         {
-            _processes[new(process.ProcessId, process.Application, process.ProcessStartTicks)] = process;
+            _processes[new(process.ProcessId, process.ProcessStartTicks is null ? process.Application : "", process.ProcessStartTicks)] = process;
             processes.Add(process);
         }
         void SaveWindow(WindowActivity window)
@@ -55,8 +60,18 @@ public sealed class RecordingEngine
             if (!_processes.TryGetValue(Key(info), out var process) || !process.IsOpen)
             {
                 if (!allowNewProcess) throw new InvalidOperationException("An unobserved process cannot own a tracked window.");
-                process = new(Guid.NewGuid(), _recordingId, info.ProcessId, info.Application,
-                    info.ProcessStartTicks, at, at, true);
+                // Closing observation does not end the OS process. Only a known creation time permits reuse.
+                if (info.ProcessStartTicks is not null)
+                {
+                    process ??= existingProcess;
+                    if (process is not null && (process.ProcessId != info.ProcessId ||
+                        process.ProcessStartTicks != info.ProcessStartTicks))
+                        throw new InvalidOperationException("The restored process identity does not match the observation.");
+                }
+                else process = null;
+                process = process is null
+                    ? new(Guid.NewGuid(), info.ProcessId, info.Application, info.ProcessStartTicks, at, at, true)
+                    : process with { IsOpen = true };
             }
             SaveProcess(process with { End = at });
             if (!_windows.TryGetValue((process.Id, info.Handle), out var window) || !window.IsOpen)

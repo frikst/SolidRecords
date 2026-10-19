@@ -130,7 +130,11 @@ public sealed class Recorder : IAsyncDisposable
                 if (_failure is not null) throw new InvalidOperationException("Zápis do databázy bol zastavený.", _failure);
                 if (signal.Kind == SignalKind.CaptureFailed)
                     throw new InvalidOperationException(signal.Reason ?? "Zber udalostí zlyhal.");
-                var batch = _activityLog.Apply(_engine.Apply(signal));
+                ProcessActivity? existingProcess = null;
+                if (signal.Kind == SignalKind.ForegroundChanged && signal.Window is { ProcessStartTicks: { } ticks } window &&
+                    _engine.RequiresProcessLookup(window))
+                    existingProcess = await _store.FindProcessAsync(window.ProcessId, ticks);
+                var batch = _activityLog.Apply(_engine.Apply(signal, existingProcess));
                 if (signal.Icon is { } icon) batch = batch with { ApplicationIcons = [icon] };
                 if (batch.ApplicationIcons.Count > 0 || batch.Events.Count > 0 || batch.Intervals.Count > 0 || batch.Processes.Count > 0 || batch.Windows.Count > 0 || batch.RemovedIntervalIds.Count > 0)
                 {

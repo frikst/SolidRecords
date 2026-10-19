@@ -99,6 +99,11 @@ namespace SolidRecords.Storage.Migrations
                         .HasColumnType("INTEGER")
                         .HasColumnName("is_open");
 
+                    b.Property<string>("RecordingId")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("recording_id");
+
                     b.Property<long>("Start")
                         .HasColumnType("INTEGER")
                         .HasColumnName("start");
@@ -168,6 +173,11 @@ namespace SolidRecords.Storage.Migrations
                         .HasColumnName("start");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ProcessId", "ProcessStartTicks")
+                        .IsUnique()
+                        .HasDatabaseName("ix_process_identity")
+                        .HasFilter("process_start_ticks IS NOT NULL");
 
                     b.HasIndex("Start", "End")
                         .HasDatabaseName("ix_process_time");

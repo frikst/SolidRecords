@@ -57,6 +57,8 @@ public sealed class RecorderTests
         public Task DeleteBeforeAsync(DateTimeOffset cutoff, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<IReadOnlyList<ActivitySpan>> ReadActivitySpansAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<ActivitySpan>>([]);
+        public Task<ProcessActivity?> FindProcessAsync(int processId, long processStartTicks, CancellationToken cancellationToken = default) =>
+            Task.FromResult<ProcessActivity?>(null);
         public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task SaveAsync(RecordingBatch batch, CancellationToken cancellationToken = default)
         {

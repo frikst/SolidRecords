@@ -40,8 +40,8 @@ public sealed record ActivityInterval(Guid Id, Guid RecordingId, WindowInfo Wind
 /// <summary>Actual foreground time. Gaps between spans are never counted as work.</summary>
 public sealed record ActivitySpan(Guid Id, DateTimeOffset Start, DateTimeOffset End);
 
-/// <summary>Observed lifetime, starting with the first foreground window and ending with the last closed window.</summary>
-public sealed record ProcessActivity(Guid Id, Guid RecordingId, int ProcessId, string Application,
+/// <summary>Process identity across recordings. Start/End bound observations; IsOpen means currently observed.</summary>
+public sealed record ProcessActivity(Guid Id, int ProcessId, string Application,
     long? ProcessStartTicks, DateTimeOffset Start, DateTimeOffset End, bool IsOpen)
 {
     public IReadOnlyList<WindowActivity> Windows { get; init; } = [];
@@ -67,6 +67,7 @@ public interface IActivityStore
 {
     Task InitializeAsync(CancellationToken cancellationToken = default);
     Task SaveAsync(RecordingBatch batch, CancellationToken cancellationToken = default);
+    Task<ProcessActivity?> FindProcessAsync(int processId, long processStartTicks, CancellationToken cancellationToken = default);
     Task DeleteBeforeAsync(DateTimeOffset cutoff, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ActivitySpan>> ReadActivitySpansAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ProcessActivity>> ReadProcessesAsync(DateTimeOffset from, DateTimeOffset to,

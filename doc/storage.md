@@ -10,9 +10,9 @@ SQLite používa Entity Framework Core 10.0.12 s providerom `Microsoft.EntityFra
 | --- | --- |
 | `settings` | Jeden riadok s ID 1 a JSON hodnotou `ApplicationSettings`; minimum, téma, pracovné hodiny a maska dní sa validujú pred zápisom aj po načítaní. Staršie JSON hodnoty bez rozvrhu preberú predvolené pracovné hodiny a dni, s vypnutým obmedzením záznamu na pracovný čas; schéma sa nemení. |
 | `application_icons` | Posledná dostupná PNG ikona podľa názvu aplikácie (bez rozlíšenia veľkosti písmen), spoločná aj pre staršie záznamy. |
-| `process_activities` | Pozorovaná životnosť procesu a identita v rámci záznamu. |
+| `process_activities` | Spoločná identita procesu podľa PID a času vytvorenia naprieč záznamami a rozsah jeho pozorovaní. Pôvodný stĺpec `recording_id` zostáva iba pre kompatibilitu starého rozloženia a pri nových procesoch obsahuje prázdny GUID; identitu ani čítanie aktivít neurčuje. |
 | `window_activities` | Životnosť okna, FK na proces. |
-| `activity_leaves` | Prijatá aktivita, historický názov a voliteľná URL, FK na okno. Začiatok/koniec sú obálka aktívnych úsekov. |
+| `activity_leaves` | Prijatá aktivita s vlastným `recording_id`, historický názov a voliteľná URL, FK na okno. Začiatok/koniec sú obálka aktívnych úsekov. |
 | `activity_spans` | Skutočné aktívne úseky, FK na list s ON DELETE CASCADE. Zdroj pracovného trvania. |
 | `events` | Interné udalosti vrátane heartbeat, GUI ich nečíta. |
 | `intervals` | Zachovaná pôvodná tabuľka po migrácii verzie 1. |
@@ -39,6 +39,7 @@ Schému spravujú EF migrácie v `Migrations/` a tabuľka `__EFMigrationsHistory
 - Verzia 2: doplnia sa `activity_spans`, každý pôvodný list dostane jeden úsek.
 - Verzia 3: pridá sa samostatná tabuľka ikon bez zmeny ID, časov a aktívnych úsekov histórie. Ikony sa dopĺňajú pri ďalšom pozorovaní aplikácií; bez dostupnej ikony zostáva miesto vedľa názvu prázdne. PNG sa ukladá raz na názov aplikácie ako BLOB, nie pri každej aktivite.
 - EF migrácia `AddApplicationSettings` pridáva tabuľku nastavení bez zmeny histórie. Chýbajúce nastavenia sa pri štarte vytvoria s predvolenými hodnotami, prípadne s prevzatým `RecordOnLaunch` zo starého JSON. Existujúce databázové nastavenia majú vždy prednosť; starý súbor sa nemení.
+- EF migrácia `UnifyProcessIdentity` najprv prenesie RecordingId z rodičov na jednotlivé aktivity. Pozorovania so známou dvojicou PID a času vytvorenia spojí pod ID najstaršieho pozorovania, presunie podň pôvodné okná a rozšíri rozsah pozorovaní. ID okien, aktivít a úsekov, ich časy aj hranice záznamov zostávajú zachované. Neznáme časy vytvorenia ani rovnaké PID s iným časom sa nespájajú. Čiastočný unikátny index `ix_process_identity` vynucuje jediný proces pre známu dvojicu; zlučovanie pozorovaní nemá spätnú migráciu.
 - EF migrácie spravujú vlastné transakcie. Prevod starých dát aj následné uzavretie otvorených procesov/okien/listov majú samostatné transakcie. Po páde sa nemení posledný potvrdený koniec, iba sa zruší `is_open`, aby prestoj nevytvoril pracovný čas.
 - Novšia neznáma hodnota `user_version` alebo neznámy záznam v `__EFMigrationsHistory` sa odmietne ešte pred migráciami a recovery. Staršiu aplikáciu nepoužívaj na zápis po migrácii. Zmeny schémy musia mať test migrácie s izolovanou databázou.
 
