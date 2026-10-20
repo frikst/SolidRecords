@@ -2,11 +2,15 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:presentation="clr-namespace:SolidRecords.App.Presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Nastavenia SolidRecords" Width="500" Height="520" ResizeMode="NoResize"
+        Title="Nastavenia SolidRecords" Width="520" Height="520" ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False" Icon="Assets/SolidRecords.ico"
         Background="{DynamicResource ApplicationBackgroundBrush}" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
         FontFamily="Segoe UI" FontSize="13" UseLayoutRounding="True">
   <Window.Resources>
+    <Style TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}">
+      <Setter Property="MinWidth" Value="0" />
+      <Setter Property="Padding" Value="10,8" />
+    </Style>
     <Style TargetType="TextBox" BasedOn="{StaticResource SettingsTextBox}" />
     <Style TargetType="presentation:ShortcutBox" BasedOn="{StaticResource SettingsTextBox}" />
     <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
@@ -17,16 +21,14 @@
   </Window.Resources>
   <Grid>
     <Grid.RowDefinitions>
-      <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
       <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
-    <TextBlock Text="Nastavenia" FontSize="24" FontWeight="SemiBold" Margin="24,20,24,16" />
-    <TabControl x:Name="SettingsTabs" Grid.Row="1" Margin="24,0,24,0" IsEnabled="{Binding IsEditable}"
+    <TabControl x:Name="SettingsTabs" Grid.Row="0" Margin="8,8,8,0" IsEnabled="{Binding IsEditable}"
                 Background="{DynamicResource ApplicationBackgroundBrush}" BorderThickness="0" Padding="0">
       <TabItem Header="Všeobecné">
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-          <StackPanel Margin="0,20,8,0" TextElement.Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+          <StackPanel Margin="0,12,0,0" TextElement.Foreground="{DynamicResource TextFillColorPrimaryBrush}">
             <TextBlock Text="SPÚŠŤANIE" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="11" Margin="0,0,0,12" />
             <CheckBox Content="Spustiť program pri prihlásení do Windows" IsChecked="{Binding StartWithWindows}" Margin="0,0,0,12" />
             <CheckBox Content="Spustiť program minimalizovaný v systray" IsChecked="{Binding StartMinimized}" Margin="0,0,0,22" />
@@ -41,7 +43,7 @@
       </TabItem>
       <TabItem Header="Zaznamenávanie">
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-          <StackPanel Margin="0,20,8,0" TextElement.Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+          <StackPanel Margin="0,12,0,0" TextElement.Foreground="{DynamicResource TextFillColorPrimaryBrush}">
             <Label Content="Minimálne trvanie aktivity" Target="{Binding ElementName=MinimumDuration}" Padding="0" />
             <StackPanel Orientation="Horizontal" Margin="0,8,0,6">
               <TextBox x:Name="MinimumDuration" Text="{Binding MinimumActivitySeconds, UpdateSourceTrigger=PropertyChanged}" Width="90" MaxLength="3" VerticalContentAlignment="Center" />
@@ -85,7 +87,7 @@
       </TabItem>
       <TabItem Header="Pracovný čas">
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-          <StackPanel Margin="0,20,8,0" TextElement.Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+          <StackPanel Margin="0,12,0,0" TextElement.Foreground="{DynamicResource TextFillColorPrimaryBrush}">
             <TextBlock Text="PRACOVNÝ ČAS" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="11" Margin="0,4,0,12" />
             <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
               <Label Content="Od" Target="{Binding ElementName=WorkStart}" VerticalAlignment="Center" Padding="0" Margin="0,0,8,0" />
@@ -109,7 +111,7 @@
       </TabItem>
       <TabItem Header="Aktualizácie">
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-          <StackPanel Margin="0,20,8,0" TextElement.Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+          <StackPanel Margin="0,12,0,0" TextElement.Foreground="{DynamicResource TextFillColorPrimaryBrush}">
             <CheckBox Content="Raz denne kontrolovať aktualizácie" IsChecked="{Binding CheckForUpdates}" Margin="0,0,0,16" />
             <TextBlock Text="Nové verzie môžete skontrolovať a nainštalovať aj ručne. Dennú kontrolu tým nezmeníte."
                        TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="12" Margin="0,0,0,16" />
@@ -122,7 +124,7 @@
       </TabItem>
       <TabItem Header="Skratky">
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-          <StackPanel Margin="0,20,8,0" TextElement.Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+          <StackPanel Margin="0,12,0,0" TextElement.Foreground="{DynamicResource TextFillColorPrimaryBrush}">
             <Label Content="Otvoriť / skryť hlavné okno" Target="{Binding ElementName=WindowShortcut}" Padding="0" />
             <presentation:ShortcutBox x:Name="WindowShortcut" Shortcut="{Binding ToggleWindowShortcut}" Margin="0,8,0,16" />
             <Label Content="Spustiť / zastaviť zaznamenávanie" Target="{Binding ElementName=RecordingShortcut}" Padding="0" />
@@ -133,8 +135,8 @@
         </ScrollViewer>
       </TabItem>
     </TabControl>
-    <StackPanel Grid.Row="2" Margin="24,0,24,24" IsEnabled="{Binding IsEditable}">
-      <TextBlock Text="{Binding Error}" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,12,0,0" />
+    <StackPanel Grid.Row="1" Margin="8" IsEnabled="{Binding IsEditable}">
+      <TextBlock Text="{Binding Error}" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
         <Button Content="Zrušiť" IsCancel="True" MinWidth="96" Padding="16,7" Margin="0,0,8,0" />
         <Button Content="Uložiť" IsDefault="True" Command="{Binding SaveCommand}" MinWidth="96" Padding="16,7" />
