@@ -306,7 +306,7 @@ internal partial class App : Application
     {
         // The capture source has its own dispatcher, so flushing from a worker does
         // not depend on the UI thread that Windows is currently shutting down.
-        try { Task.Run(() => _recorder.StopAsync()).Wait(TimeSpan.FromSeconds(3)); }
+        try { Task.Run(() => _recorder.StopForSessionEndAsync(e.ReasonSessionEnding == ReasonSessionEnding.Logoff)).Wait(TimeSpan.FromSeconds(3)); }
         catch (AggregateException) { }
         base.OnSessionEnding(e);
     }

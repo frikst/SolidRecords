@@ -16,9 +16,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private readonly Dispatcher _dispatcher;
     private readonly DispatcherTimer _refresh;
     private readonly DispatcherTimer _dayChange;
-    private DateTime _today = DateTime.Today;
-    private IReadOnlyList<DateTime> _availableDates = [DateTime.Today];
-    private DateTime? _selectedDate = DateTime.Today;
+    private readonly TimeProvider _clock;
+    private DateTime Today => _clock.GetLocalNow().Date;
+    private DateTime _today;
+    private IReadOnlyList<DateTime> _availableDates;
+    private DateTime? _selectedDate;
     private string _search = "";
     private string _error = "";
     private DailyReport _report = new([]);
@@ -31,15 +33,19 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private volatile bool _disposed;
     private int _refreshPending;
 
-    public MainViewModel(Recorder recorder, DailyReportService reports)
+    public MainViewModel(Recorder recorder, DailyReportService reports, TimeProvider? clock = null)
     {
+        _clock = clock ?? TimeProvider.System;
+        _today = Today;
+        _availableDates = [_today];
+        _selectedDate = _today;
         _recorder = recorder;
         _reports = reports;
         _dispatcher = Dispatcher.CurrentDispatcher;
         ToggleRecordingCommand = new(ToggleRecordingAsync, ShowError);
         PreviousDayCommand = new(() => SelectedDate = AdjacentDate(-1), () => AdjacentDate(-1) is not null);
         NextDayCommand = new(() => SelectedDate = AdjacentDate(1), () => AdjacentDate(1) is not null);
-        TodayCommand = new(() => SelectedDate = DateTime.Today);
+        TodayCommand = new(() => SelectedDate = Today);
         _recorder.StateChanged += RecorderChanged;
         _recorder.RecordsChanged += RecordsChanged;
         // Coalesce bursts of window events; a continuous event stream cannot postpone a refresh.
@@ -80,7 +86,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         set { if (value is null or ActivityRow) SelectedActivity = value as ActivityRow; }
     }
     public IReadOnlyList<ActivityInterval> Timeline => _report.Intervals;
-    public WorkPeriod TimelineBounds => TimelineRange.Calculate(DateOnly.FromDateTime(_selectedDate ?? DateTime.Today), _settings, Timeline);
+    public WorkPeriod TimelineBounds => TimelineRange.Calculate(DateOnly.FromDateTime(_selectedDate ?? Today), _settings, Timeline);
     public void ApplySettings(ApplicationSettings settings)
     {
         _settings = settings;
@@ -134,7 +140,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             do
             {
                 _reloadRequested = false;
-                var date = (_selectedDate ?? DateTime.Today).Date;
+                var date = (_selectedDate ?? Today).Date;
                 // SQLite executes much of its work synchronously. Keep reads off the UI thread.
                 var icons = new Dictionary<string, ImageSource?>(_icons);
                 var report = await Task.Run(async () =>
@@ -163,7 +169,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 });
                 if (_disposed) return;
                 UpdateAvailableDates(report.Dates);
-                if (date != (_selectedDate ?? DateTime.Today).Date) { _reloadRequested = true; continue; }
+                if (date != (_selectedDate ?? Today).Date) { _reloadRequested = true; continue; }
                 _icons = icons;
                 _report = report.Report;
                 FilterRows();
@@ -185,20 +191,22 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private void UpdateAvailableDates(IReadOnlyList<DateOnly> dates)
     {
-        _today = DateTime.Today;
+        var today = Today;
+        var dayChanged = _today != today;
+        _today = today;
         var available = dates.Select(date => date.ToDateTime(TimeOnly.MinValue)).Append(_today).Distinct().Order().ToArray();
         if (!_availableDates.SequenceEqual(available))
         {
             _availableDates = available;
             Changed(nameof(AvailableDates));
         }
-        if (!_availableDates.Contains(_selectedDate ?? _today)) SelectedDate = _today;
+        if (dayChanged || !_availableDates.Contains(_selectedDate ?? _today)) SelectedDate = _today;
         NotifyNavigation();
     }
 
     private void DayChangeTick(object? sender, EventArgs e)
     {
-        if (_today != DateTime.Today) RequestRefresh();
+        if (_today != Today) RequestRefresh();
     }
 
     private async Task RefreshSafelyAsync()

@@ -10,6 +10,7 @@ public sealed class RecordingEngine
     private bool _recording;
     private bool _sessionActive;
     private bool _sessionKnown;
+    private string? _sessionEndReason;
     private ActivityInterval? _current;
     private DateTimeOffset _lastTime;
 
@@ -94,6 +95,7 @@ public sealed class RecordingEngine
             _windows.Clear();
             _recording = true;
             _sessionActive = _sessionKnown = false;
+            _sessionEndReason = null;
             Emit(EventKind.RecordingStarted);
             return Batch();
         }
@@ -115,11 +117,14 @@ public sealed class RecordingEngine
             case SignalKind.SessionActive:
                 if (!_sessionKnown || !_sessionActive) Emit(EventKind.SessionActive);
                 _sessionActive = _sessionKnown = true;
+                _sessionEndReason = null;
                 break;
             case SignalKind.SessionInactive:
                 CloseActivity();
-                if (!_sessionKnown || _sessionActive || signal.Reason is "Logoff" or "Shutdown")
+                if (!_sessionKnown || _sessionActive ||
+                    (signal.Reason is "Logoff" or "Shutdown" && signal.Reason != _sessionEndReason))
                     Emit(EventKind.SessionInactive);
+                if (signal.Reason is "Logoff" or "Shutdown") _sessionEndReason = signal.Reason;
                 _sessionActive = false;
                 _sessionKnown = true;
                 break;

@@ -62,6 +62,16 @@ internal static class SessionCaptureChecks
         try
         {
             var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+            var published = new List<CaptureSignal>();
+            typeof(WindowsActivitySource).GetField("_publish", flags)!.SetValue(source, (Action<CaptureSignal>)published.Add);
+            source.PublishInitialSession(true);
+            source.PublishInitialSession(true);
+            Require(published.Count == 2 && published[0].Reason == "ApplicationStartup"
+                && published[1].Reason == "RecordingBaseline", "Recording restart repeated the application startup observation");
+            var startup = new SolidRecords.App.Presentation.SessionEventRow(new(Guid.NewGuid(), Guid.NewGuid(),
+                EventKind.SessionActive, at, Reason: published[0].Reason));
+            Require(startup.Summary == "Aktívna relácia — Stav pri spustení aplikácie",
+                "Startup observation is presented as a precise logon");
             var onMessage = typeof(WindowsActivitySource).GetMethod("OnMessage", flags)!;
             onMessage.Invoke(source, new object[] { (nint)0, 0x02B1, (nint)7, (nint)0, false });
             onMessage.Invoke(source, new object[] { (nint)0, 0x0218, (nint)18, (nint)0, false });

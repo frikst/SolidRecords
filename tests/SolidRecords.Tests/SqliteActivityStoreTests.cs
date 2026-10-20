@@ -629,6 +629,28 @@ public sealed class SqliteActivityStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task ApplicationStartupObservationAndShutdownSurvivePersistenceWithoutAddingWorkTime()
+    {
+        var store = CreateStore();
+        var at = new DateTimeOffset(2026, 10, 20, 8, 0, 0, TimeSpan.Zero);
+        var source = new IconSource
+        {
+            StartupSignals = [new(SignalKind.SessionActive, at, Reason: "ApplicationStartup")]
+        };
+        await using var recorder = new Recorder(store, source, new IconClock(at));
+        await recorder.StartAsync();
+        source.Publish!(new(SignalKind.SessionInactive, at, Reason: "DesktopState"));
+        await recorder.StopForSessionEndAsync(false);
+        var reports = new DailyReportService(store, TimeZoneInfo.Utc);
+        var report = await reports.ReadAsync(new(2026, 10, 20));
+        Assert.Equal(new[] { "ApplicationStartup", "DesktopState", "Shutdown" },
+            report.SessionEvents.Select(x => x.Reason));
+        Assert.Empty(report.Intervals);
+        Assert.Equal(TimeSpan.Zero, report.ActiveDuration);
+        Assert.Equal(new DateOnly[] { new(2026, 10, 20) }, await reports.ReadActivityDatesAsync());
+    }
+
+    [Fact]
     public async Task SessionEventsRespectLocalDayAndDoNotAddWorkTime()
     {
         var store = CreateStore();

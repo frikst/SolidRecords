@@ -36,9 +36,11 @@ public sealed class SessionEventRow(ActivityEvent entry) : ObservableObject, IAc
         "WTS:1" or "WTS:3" => "Pripojenie relácie",
         "WTS:2" or "WTS:4" => "Odpojenie relácie",
         "SessionEnding" => "Odhlásenie alebo vypnutie počítača",
+        "ApplicationStartup" => "Stav pri spustení aplikácie",
         "RecordingBaseline" => "Stav pri spustení záznamu",
         _ => "Zmena stavu relácie"
     };
-    public string Summary => $"{(IsActive ? "Aktivovaná relácia" : "Deaktivovaná relácia")} — {Description}";
+    public string Summary => $"{(Event.Reason == "ApplicationStartup" ? "Aktívna relácia" :
+        IsActive ? "Aktivovaná relácia" : "Deaktivovaná relácia")} — {Description}";
     public string Label => $"{Start}  ·  {Summary}";
 }

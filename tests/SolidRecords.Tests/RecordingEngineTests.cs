@@ -35,6 +35,17 @@ public sealed class RecordingEngineTests
     }
 
     [Fact]
+    public void CancelledShutdownAllowsAnotherShutdownAfterReactivation()
+    {
+        var engine = Start();
+        var first = engine.Apply(new(SignalKind.SessionInactive, Origin.AddMinutes(1), Reason: "Shutdown"));
+        Assert.Single(first.Events);
+        Assert.Empty(engine.Apply(new(SignalKind.SessionInactive, Origin.AddMinutes(2), Reason: "Shutdown")).Events);
+        engine.Apply(new(SignalKind.SessionActive, Origin.AddMinutes(3), Reason: "SessionEndingCancelled"));
+        Assert.Single(engine.Apply(new(SignalKind.SessionInactive, Origin.AddMinutes(4), Reason: "Shutdown")).Events);
+    }
+
+    [Fact]
     public void StartingWhileLockedRecordsInactiveBaselineOnlyOnce()
     {
         var engine = new RecordingEngine();

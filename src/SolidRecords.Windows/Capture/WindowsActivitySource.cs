@@ -26,6 +26,7 @@ public sealed class WindowsActivitySource : IActivitySource
     private WindowInfo? _foreground;
     private SessionCaptureState _sessionState = new();
     private bool _active;
+    private bool _hasStarted;
     private bool _suspended;
     private long _generation;
 
@@ -58,8 +59,7 @@ public sealed class WindowsActivitySource : IActivitySource
                 _destroyHook = NativeMethods.SetWinEventHook(0x8001, 0x8001, 0, _callback, 0, 0, 0);
                 if (_foregroundHook == 0 || _nameHook == 0 || _destroyHook == 0)
                     throw new Win32Exception("Nepodarilo sa zaregistrovať sledovanie okien.");
-                _active = IsSessionActive();
-                Emit(_active ? SignalKind.SessionActive : SignalKind.SessionInactive, "RecordingBaseline");
+                PublishInitialSession(IsSessionActive());
                 CaptureForeground();
                 _timer = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background,
                     (_, _) => Tick(), _dispatcher);
@@ -207,6 +207,14 @@ public sealed class WindowsActivitySource : IActivitySource
             CaptureForeground();
         }
         return 0;
+    }
+
+    internal void PublishInitialSession(bool active)
+    {
+        _active = active;
+        Emit(active ? SignalKind.SessionActive : SignalKind.SessionInactive,
+            active && !_hasStarted ? "ApplicationStartup" : "RecordingBaseline");
+        _hasStarted = true;
     }
 
     private bool IsSessionActive() => _sessionState.CanCapture(NativeMethods.IsDesktopActive());

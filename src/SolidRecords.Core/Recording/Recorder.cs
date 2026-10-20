@@ -64,7 +64,12 @@ public sealed class Recorder : IAsyncDisposable
         }
     }
 
-    public async Task StopAsync()
+    public Task StopAsync() => StopAsync(null);
+
+    /// <summary>Persists the known session end even if the source has not received its native notification yet.</summary>
+    public Task StopForSessionEndAsync(bool isLogoff) => StopAsync(isLogoff ? "Logoff" : "Shutdown");
+
+    private async Task StopAsync(string? sessionEndReason)
     {
         await _lifecycle.WaitAsync();
         try
@@ -72,6 +77,8 @@ public sealed class Recorder : IAsyncDisposable
             // Keep accepting until the source has stopped; then flush the queue.
             await _source.StopAsync();
             _accepting = false;
+            if (_isRecording && sessionEndReason is not null)
+                await SubmitAsync(SignalKind.SessionInactive, sessionEndReason);
             if (_isRecording || _failure is not null) await SubmitAsync(SignalKind.RecordingStopped);
         }
         finally
@@ -101,10 +108,10 @@ public sealed class Recorder : IAsyncDisposable
         if (_accepting && _failure is null) _queue.Writer.TryWrite(new(signal));
     }
 
-    private Task SubmitAsync(SignalKind kind)
+    private Task SubmitAsync(SignalKind kind, string? reason = null)
     {
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        if (!_queue.Writer.TryWrite(new(new(kind, _clock.GetUtcNow()), completion)))
+        if (!_queue.Writer.TryWrite(new(new(kind, _clock.GetUtcNow(), Reason: reason), completion)))
             completion.SetException(new ObjectDisposedException(nameof(Recorder)));
         return completion.Task;
     }

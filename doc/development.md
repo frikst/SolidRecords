@@ -19,7 +19,7 @@ git diff --check
 
 `--no-restore` je vhodné po úspešnom restore, zvlášť v prostredí s obmedzeným prístupom k NuGet konfigurácii alebo sieti; nenahrádza chýbajúce balíky/assets po zmene závislostí. Samotná úprava dokumentácie nevyžaduje build ani desktop testy.
 
-Samostatná izolovaná kontrola priority WTS správ voči priebežnej kontrole plochy: `dotnet run --project tests/SolidRecords.DesktopChecks -c Release --no-restore -- --session-only`. Overuje zamknutie, odpojenie, odhlásenie, ukončenie relácie a dvojicu lock/unlock bez falošných medziľahlých udalostí. Nemení skutočný stav relácie ani používateľskú databázu; beží aj ako súčasť náhľadu.
+Samostatná izolovaná kontrola priority WTS správ voči priebežnej kontrole plochy: `dotnet run --project tests/SolidRecords.DesktopChecks -c Release --no-restore -- --session-only`. Overuje zamknutie, odpojenie, odhlásenie, ukončenie relácie a dvojicu lock/unlock bez falošných medziľahlých udalostí; prvé pozorovanie aktívnej relácie sa zobrazí s popisom stavu pri spustení aplikácie a neopakuje sa po pauze. Nemení skutočný stav relácie ani používateľskú databázu; beží aj ako súčasť náhľadu.
 
 ## Rozsah kontrol
 

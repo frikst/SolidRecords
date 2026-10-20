@@ -274,7 +274,7 @@ internal static class Program
         var engine = new RecordingEngine();
         void Save(CaptureSignal signal) => store.SaveAsync(engine.Apply(signal)).GetAwaiter().GetResult();
         Save(new(SignalKind.RecordingStarted, day));
-        Save(new(SignalKind.SessionActive, day, Reason: "WTS:5"));
+        Save(new(SignalKind.SessionActive, day, Reason: "ApplicationStartup"));
         var apps = samples.Select(x => x.Item1).Distinct().Select((name, i) => (name, id: i + 20)).ToDictionary(x => x.name, x => x.id);
         foreach (var sample in samples)
         {
@@ -303,7 +303,7 @@ internal static class Program
         Require(separators.Length == 4 && separators[0].Description == "Vypnutie počítača"
             && separators[1].Description == "Odomknutie počítača"
             && separators[2].Description == "Zamknutie počítača"
-            && separators[3].Description == "Prihlásenie používateľa", "Session separators lost their order or type");
+            && separators[3].Summary == "Aktívna relácia — Stav pri spustení aplikácie", "Session separators lost their order or type");
         var separator = separators[0];
         var refreshSeparators = vm.RefreshAsync();
         var separatorFrame = new DispatcherFrame();
@@ -759,6 +759,31 @@ internal static class Program
         older = older with { ProcessActivityId = process.Id, WindowActivityId = parent.Id };
         await store.SaveAsync(new([], [older]) { Processes = [process], Windows = [parent] });
         await viewModel.RefreshAsync();
+        var dateClock = new AdjustableClock(at);
+        using (var dateViewModel = new MainViewModel(recorder, new DailyReportService(store, options: options), dateClock))
+        {
+            await dateViewModel.RefreshAsync();
+            Require(dateViewModel.SelectedDate == at.Date && dateViewModel.Activities.Count == 2,
+                "Startup did not select the current local date");
+            dateViewModel.PreviousDayCommand.Execute(null);
+            await Until(() => dateViewModel.Activities.Count == 1);
+            await dateViewModel.RefreshAsync();
+            Require(dateViewModel.SelectedDate == older.Start.LocalDateTime.Date,
+                "A same-day refresh discarded the selected history date");
+            dateClock.Now = at.AddDays(1);
+            await Until(() => dateViewModel.SelectedDate == dateClock.GetLocalNow().Date
+                && dateViewModel.Activities.Count == 0);
+            Require(dateViewModel.AvailableDates.Contains(dateClock.GetLocalNow().Date)
+                && !dateViewModel.NextDayCommand.CanExecute(null) && !recorder.IsRecording,
+                "Day rollover did not enable and select an empty today while paused");
+            dateViewModel.PreviousDayCommand.Execute(null);
+            await Until(() => dateViewModel.Activities.Count == 2);
+            dateClock.Now = at.AddDays(4);
+            // A records refresh may observe the new day before the day-change timer.
+            await dateViewModel.RefreshAsync();
+            Require(dateViewModel.SelectedDate == dateClock.GetLocalNow().Date && dateViewModel.Activities.Count == 0,
+                "A refresh after several days did not switch history to the current date");
+        }
         var picker = new System.Windows.Controls.DatePicker();
         System.Windows.Data.BindingOperations.SetBinding(picker, System.Windows.Controls.DatePicker.SelectedDateProperty,
             new System.Windows.Data.Binding(nameof(MainViewModel.SelectedDate)) { Source = viewModel });
@@ -889,6 +914,12 @@ internal static class Program
             Require(WindowFilter.CanTrackForeground(candidate), "Window filter rejected a document/dialog: " + candidate);
         Require(WindowFilter.IsUserWindow(document with { IsCloaked = true }), "A window on another desktop lost its lifetime");
         Console.WriteLine($"Window filter: {ignored.Length} shell/helper cases excluded; {accepted.Length} document/dialog cases preserved.");
+    }
+
+    private sealed class AdjustableClock(DateTimeOffset at) : TimeProvider
+    {
+        public DateTimeOffset Now { get; set; } = at;
+        public override DateTimeOffset GetUtcNow() => Now.ToUniversalTime();
     }
 
     private sealed class FixedClock(DateTimeOffset at) : TimeProvider

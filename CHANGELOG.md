@@ -5,6 +5,13 @@ Formát vychádza z [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0
 
 ## Unreleased
 
+### Fixed
+
+- Pri prechode na nový deň sa zobrazenie automaticky prepne na aktuálny dátum aj pri prezeraní staršej histórie, skrytom okne alebo pozastavenom zaznamenávaní.
+
+- Pri vypnutí počítača alebo odhlásení sa dôvod dopíše aj vtedy, keď sa zber ukončí skôr, než dostane oznámenie Windows. Rovnaké oznámenie sa nezobrazí dvakrát.
+- Pri prvom spustení zaznamenávania v aplikácii sa aktívna relácia zobrazí ako „Stav pri spustení aplikácie“. Čas označuje zachytený stav, nie presný okamih prihlásenia; obnovenie záznamu po pauze ďalší takýto riadok nepridá.
+
 ## [1.3.0] - 2026-10-19
 
 ### Added
