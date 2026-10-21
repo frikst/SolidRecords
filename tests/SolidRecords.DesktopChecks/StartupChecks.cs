@@ -1,3 +1,4 @@
+using SolidRecords.Core.Localization;
 using System.IO;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -59,6 +60,21 @@ internal static class StartupChecks
                     await viewModel.ToggleRecordingAsync();
                     if (provider.GetRequiredService<PreferencesStore>().RecordOnLaunch == paused)
                         throw new InvalidOperationException("Recording toggle changed the launch preference.");
+                    foreach (var language in Enum.GetValues<ApplicationLanguage>())
+                    {
+                        ApplicationSettings? languageSettings = null;
+                        var languageEditor = new SettingsViewModel(new(Language: language), saved =>
+                        {
+                            languageSettings = saved;
+                            return Task.CompletedTask;
+                        });
+                        if (languageEditor.LanguageIndex != (int)language)
+                            throw new InvalidOperationException("Settings editor did not load the saved language.");
+                        languageEditor.LanguageIndex = (int)ApplicationLanguage.English;
+                        languageEditor.SaveCommand.Execute(null);
+                        if (languageSettings?.Language != ApplicationLanguage.English)
+                            throw new InvalidOperationException("Settings editor did not save the selected language.");
+                    }
                     var saveCalls = 0;
                     var editor = new SettingsViewModel(new(), _ => { saveCalls++; return Task.CompletedTask; });
                     foreach (var invalid in new[] { "", "-1", "601", "1.5", "abc" })
@@ -129,7 +145,6 @@ internal static class StartupChecks
                     failedUpdate.UpdateNowCommand.Execute(null);
                     if (!failedUpdate.IsEditable || failedUpdate.IsUpdating || !failedUpdate.UpdateStatus.Contains("Test update failure", StringComparison.Ordinal))
                         throw new InvalidOperationException("Manual update did not recover from failure.");
-                    await ShortcutChecks.RunAsync(app, provider);
                     var history = provider.GetRequiredService<IActivityStore>();
                     var oldAt = DateTimeOffset.UtcNow.AddDays(-60);
                     var oldId = Guid.NewGuid();
@@ -142,7 +157,7 @@ internal static class StartupChecks
                     await app.SaveSettingsAsync(provider.GetRequiredService<PreferencesStore>().Current);
                     if ((await history.ReadIntervalsAsync(oldAt, oldAt.AddHours(1))).Count != 1)
                         throw new InvalidOperationException("Never retention removed history.");
-                    var settings = new ApplicationSettings(0, false, false, false, ApplicationTheme.Dark, false, ActivityRetentionDays: 30);
+                    var settings = new ApplicationSettings(0, false, false, false, ApplicationTheme.Dark, false, ActivityRetentionDays: 30, Language: ApplicationLanguage.English);
                     var recordingBeforeSave = recorder.IsRecording;
                     await app.SaveSettingsAsync(settings);
                     if ((await history.ReadIntervalsAsync(oldAt, oldAt.AddHours(1))).Count != 0)
@@ -152,6 +167,12 @@ internal static class StartupChecks
                     if (await provider.GetRequiredService<ISettingsStore>().ReadSettingsAsync() != settings
                         || provider.GetRequiredService<ActivityTrackingOptions>().MinimumActivityDuration != TimeSpan.Zero)
                         throw new InvalidOperationException("Settings did not persist or update shared thresholds.");
+                    if (Strings.Culture.TwoLetterISOLanguageName != "en" || app.MainWindow.Title != Strings.Get("MainTitle"))
+                        throw new InvalidOperationException("Saving settings did not apply English to the running app.");
+                    await app.SaveSettingsAsync(settings with { Language = ApplicationLanguage.Slovak });
+                    if (Strings.Culture.TwoLetterISOLanguageName != "sk" || app.MainWindow.Title != Strings.Get("MainTitle"))
+                        throw new InvalidOperationException("Saving settings did not apply Slovak to the running app.");
+                    await app.SaveSettingsAsync(settings);
                     var scheduled = settings with { RecordOnLaunch = true, RecordOnlyDuringWorkHours = true,
                         WorkStartMinutes = 0, WorkEndMinutes = 1440, WorkingDays = WorkDays.None };
                     await app.SaveSettingsAsync(scheduled);
@@ -169,6 +190,8 @@ internal static class StartupChecks
                     await provider.GetRequiredService<PreferencesStore>().LoadAsync();
                     if (provider.GetRequiredService<PreferencesStore>().Current != settings)
                         throw new InvalidOperationException("Legacy JSON overwrote database settings.");
+                    Console.WriteLine("PASS: Settings validation, English/Slovak editor and live switching, SQLite language persistence, retention and recording schedule.");
+                    await ShortcutChecks.RunAsync(app, provider);
                 }
                 catch (Exception ex) { failure = ex; }
                 finally { await app.ExitAsync(); }

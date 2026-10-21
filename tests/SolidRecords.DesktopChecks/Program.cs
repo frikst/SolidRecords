@@ -1,3 +1,4 @@
+using SolidRecords.Core.Localization;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
@@ -23,6 +24,7 @@ internal static class Program
     {
         try
         {
+            Strings.Apply(args.Contains("--english", StringComparer.Ordinal) ? ApplicationLanguage.English : ApplicationLanguage.Slovak);
             if (args.Contains("--updates-only", StringComparer.Ordinal))
             {
                 UpdateChecks.RunAsync().GetAwaiter().GetResult();
@@ -65,7 +67,7 @@ internal static class Program
             sorting.Invoke(grid, new object[] { new System.Windows.Controls.DataGridSortingEventArgs(column) });
         ActivityRow[] Visible() => grid.Items.Cast<ActivityRow>().ToArray();
         void Drain() => grid.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
-        var duration = grid.Columns.Single(column => Equals(column.Header, "Trvanie"));
+        var duration = grid.Columns.Single(column => Equals(column.Header, Strings.Get("Duration")));
         Click(duration);
         Require(Visible().SequenceEqual(rows.OrderBy(row => row.Interval.Duration)), "Duration ASC used formatted text");
         Click(duration);
@@ -249,6 +251,7 @@ internal static class Program
         // single-instance registration or user database initialization from a preview.
 #pragma warning disable WPF0001 // Exercise the same built-in Fluent theme mode as App.xaml.
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown, ThemeMode = ThemeMode.Light };
+        app.Resources.MergedDictionaries.Add(new LocalizationDictionary());
         app.Resources.MergedDictionaries.Add(new ResourceDictionary
         {
             Source = new Uri("pack://application:,,,/SolidRecords.App;component/Resources/Styles.xaml")
@@ -300,10 +303,10 @@ internal static class Program
         refresh.GetAwaiter().GetResult();
         Require(vm.Activities.All(row => row.Icon is { IsFrozen: true }), "Stored icons were not decoded and frozen");
         var separators = vm.EventRows.OfType<SessionEventRow>().ToArray();
-        Require(separators.Length == 4 && separators[0].Description == "Vypnutie počítača"
-            && separators[1].Description == "Odomknutie počítača"
-            && separators[2].Description == "Zamknutie počítača"
-            && separators[3].Summary == "Aktívna relácia — Stav pri spustení aplikácie", "Session separators lost their order or type");
+        Require(separators.Length == 4 && separators[0].Description == Strings.Get("Shutdown")
+            && separators[1].Description == Strings.Get("Unlock")
+            && separators[2].Description == Strings.Get("Lock")
+            && separators[3].Summary == Strings.Get("ActiveSession") + " — " + Strings.Get("ApplicationStartup"), "Session separators lost their order or type");
         var separator = separators[0];
         var refreshSeparators = vm.RefreshAsync();
         var separatorFrame = new DispatcherFrame();
@@ -342,7 +345,7 @@ internal static class Program
             window.Show();
             window.Activate();
             var search = Descendants<System.Windows.Controls.TextBox>(content)
-                .Single(x => System.Windows.Automation.AutomationProperties.GetName(x) == "Hľadať aktivity");
+                .Single(x => System.Windows.Automation.AutomationProperties.GetName(x) == Strings.Get("SearchActivities"));
             search.Focus();
             window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
             Require(search.IsKeyboardFocusWithin, "Search preview did not receive keyboard focus");
@@ -383,6 +386,44 @@ internal static class Program
             var popup = (System.Windows.Controls.Primitives.Popup)picker.Template.FindName("PART_Popup", picker);
             var popupContent = (FrameworkElement)popup.Child;
             popupContent.UpdateLayout();
+            var calendar = popupContent as System.Windows.Controls.Calendar
+                ?? Descendants<System.Windows.Controls.Calendar>(popupContent).Single();
+            void CheckCalendarLanguage()
+            {
+                calendar.UpdateLayout();
+                var culture = Strings.Culture;
+                Require(string.Equals(calendar.Language.IetfLanguageTag, culture.IetfLanguageTag, StringComparison.OrdinalIgnoreCase),
+                    "Popup calendar did not receive the application language.");
+                Require(calendar.FirstDayOfWeek == culture.DateTimeFormat.FirstDayOfWeek,
+                    "Popup calendar uses the wrong first day of week.");
+                var item = Descendants<System.Windows.Controls.Primitives.CalendarItem>(calendar).Single();
+                var header = (System.Windows.Controls.Button)item.Template.FindName("PART_HeaderButton", item);
+                Require(Equals(header.Content, calendar.DisplayDate.ToString("Y", culture)),
+                    $"Calendar month heading did not change language: {header.Content}.");
+                var month = (System.Windows.Controls.Grid)item.Template.FindName("PART_MonthView", item);
+                var dayTitles = month.Children.OfType<System.Windows.Controls.TextBlock>()
+                    .Where(text => System.Windows.Controls.Grid.GetRow(text) == 0)
+                    .OrderBy(System.Windows.Controls.Grid.GetColumn).Select(text => text.Text).ToArray();
+                var expected = Enumerable.Range(0, 7).Select(index => culture.DateTimeFormat.ShortestDayNames[
+                    ((int)calendar.FirstDayOfWeek + index) % 7]);
+                Require(dayTitles.SequenceEqual(expected), "Calendar weekday names did not change language.");
+            }
+            var originalLanguage = Strings.Culture.TwoLetterISOLanguageName == "sk" ? ApplicationLanguage.Slovak : ApplicationLanguage.English;
+            foreach (var language in new[] { originalLanguage, ApplicationLanguage.English, ApplicationLanguage.Slovak, originalLanguage })
+            {
+                var selectedDate = picker.SelectedDate;
+                var displayDate = calendar.DisplayDate;
+                var blackoutCount = calendar.BlackoutDates.Count;
+                LocalizationDictionary.Apply(language);
+                picker.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                CheckCalendarLanguage();
+                Require(picker.IsDropDownOpen && picker.SelectedDate == selectedDate && calendar.DisplayDate == displayDate
+                    && calendar.BlackoutDates.Count == blackoutCount, "Changing language reset the open calendar or date restrictions.");
+            }
+            picker.IsDropDownOpen = false;
+            picker.IsDropDownOpen = true;
+            picker.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+            CheckCalendarLanguage();
             var days = Descendants<System.Windows.Controls.Primitives.CalendarDayButton>(popupContent)
                 .Where(button => button.Visibility == Visibility.Visible).ToArray();
             var blocked = days.First(button => button.IsBlackedOut);
@@ -409,6 +450,31 @@ internal static class Program
         }
         Render("main-window.png", 1084, 600, 1);
         RenderCalendar("light");
+        var originalLanguage = Strings.Culture.TwoLetterISOLanguageName == "sk" ? ApplicationLanguage.Slovak : ApplicationLanguage.English;
+        var datePicker = Descendants<System.Windows.Controls.DatePicker>(content).Single();
+        var dateTextBox = (System.Windows.Controls.Primitives.DatePickerTextBox)datePicker.Template.FindName("PART_TextBox", datePicker);
+        var originalDate = datePicker.SelectedDate;
+        var dateChanges = 0;
+        datePicker.SelectedDateChanged += (_, _) => dateChanges++;
+        var originalRows = vm.Activities.ToArray();
+        var originalSelection = vm.SelectedActivity;
+        foreach (var language in new[] { ApplicationLanguage.English, ApplicationLanguage.Slovak, originalLanguage })
+        {
+            LocalizationDictionary.Apply(language);
+            vm.ApplySettings(new ApplicationSettings(Language: language));
+            window.UpdateLayout();
+            datePicker.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+            var expectedDateText = originalDate!.Value.ToString(datePicker.SelectedDateFormat == System.Windows.Controls.DatePickerFormat.Short ? "d" : "D", Strings.Culture);
+            Require(!datePicker.IsDropDownOpen && datePicker.Text == expectedDateText && dateTextBox.Text == expectedDateText,
+                $"Closed date picker did not reformat immediately: {dateTextBox.Text}; expected {expectedDateText}.");
+            Require(datePicker.SelectedDate == originalDate && vm.SelectedDate == originalDate && dateChanges == 0,
+                "Reformatting the date changed the selected day or raised a selection event.");
+            Require(window.Title == Strings.Get("MainTitle"), "Existing window title did not change language.");
+            Require(Descendants<System.Windows.Controls.DataGrid>(content).Single().Columns.Any(column => Equals(column.Header, Strings.Get("Duration"))), "Column header did not change language.");
+            Require(vm.Activities.SequenceEqual(originalRows) && ReferenceEquals(vm.SelectedActivity, originalSelection),
+                "Language change replaced activity rows or selection.");
+            Require(string.Equals(window.Language.IetfLanguageTag, Strings.Culture.IetfLanguageTag, StringComparison.OrdinalIgnoreCase), "Window formatting language did not change.");
+        }
         Render("main-window-150.png", 1000, 600, 1.5);
         Render("main-window-small-150.png", 744, 380, 1.5);
         var timeline = Descendants<TimelineControl>(content).Single();
@@ -432,7 +498,7 @@ internal static class Program
                 "Mixed session/activity rows did not restore their chronological order");
         }
         var detailToggle = Descendants<System.Windows.Controls.Primitives.ToggleButton>(content)
-            .Single(button => System.Windows.Automation.AutomationProperties.GetName(button) == "Detaily aplikácie");
+            .Single(button => System.Windows.Automation.AutomationProperties.GetName(button) == Strings.Get("ApplicationDetails"));
         detailToggle.IsChecked = true;
         Require(vm.DetailsVisible, "Details toggle did not update the view model");
         grid.SelectedItem = vm.Activities.First(row => row.Application == "msedge");

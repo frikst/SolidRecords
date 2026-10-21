@@ -2,6 +2,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using SolidRecords.Core;
 using SolidRecords.Core.Recording;
+using SolidRecords.Core.Localization;
 
 namespace SolidRecords.Storage;
 
@@ -44,7 +45,7 @@ public sealed class SqliteActivityStore : IActivityStore, ISettingsStore
         var row = await db.Settings.AsNoTracking().SingleOrDefaultAsync(x => x.Id == 1, cancellationToken);
         if (row is null) return null;
         var settings = System.Text.Json.JsonSerializer.Deserialize<ApplicationSettings>(row.Value)
-            ?? throw new InvalidOperationException("Nastavenia v databáze nie sú platné.");
+            ?? throw new InvalidOperationException(Strings.Get("InvalidStoredSettings"));
         settings.Validate();
         return settings;
     }

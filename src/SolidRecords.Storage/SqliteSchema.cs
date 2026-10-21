@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using SolidRecords.Core;
+using SolidRecords.Core.Localization;
 
 namespace SolidRecords.Storage;
 
@@ -13,11 +14,11 @@ internal static class SqliteSchema
         await db.Database.OpenConnectionAsync(cancellationToken);
         var versions = await db.Database.SqlQueryRaw<long>("PRAGMA user_version;").ToArrayAsync(cancellationToken);
         var version = versions.Single();
-        if (version > 4) throw new InvalidOperationException("Databázu vytvorila novšia verzia SolidRecords.");
+        if (version > 4) throw new InvalidOperationException(Strings.Get("NewerDatabase"));
         var known = db.Database.GetMigrations().ToHashSet(StringComparer.Ordinal);
         var applied = (await db.Database.GetAppliedMigrationsAsync(cancellationToken)).ToArray();
         if (applied.Any(x => !known.Contains(x)))
-            throw new InvalidOperationException("Databázu vytvorila novšia verzia SolidRecords.");
+            throw new InvalidOperationException(Strings.Get("NewerDatabase"));
         await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;", cancellationToken);
         if (version < 4)
         {

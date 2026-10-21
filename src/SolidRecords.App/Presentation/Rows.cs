@@ -1,5 +1,6 @@
 using System.Windows.Media;
 using SolidRecords.Core;
+using SolidRecords.Core.Localization;
 
 namespace SolidRecords.App.Presentation;
 
@@ -31,15 +32,14 @@ public sealed class ActivityRow(ActivityInterval interval) : ObservableObject, I
 
     public string Application => Interval.Window.Application;
     public int ProcessId => Interval.Window.ProcessId;
-    public string Description => string.IsNullOrWhiteSpace(Interval.Window.Title) ? "Bez názvu" : Interval.Window.Title;
+    public string Description => string.IsNullOrWhiteSpace(Interval.Window.Title) ? Strings.Get("NoTitle") : Interval.Window.Title;
     public string Url => Interval.Window.Url ?? "—";
     public string Start => Interval.Start.ToLocalTime().ToString("HH:mm:ss");
     public string End => Interval.IsOpen ? "-" : Interval.End.ToLocalTime().ToString("HH:mm:ss");
     public TimeSpan DurationValue => Interval.Duration;
     public string Duration => Interval.IsOpen ? "-" : FormatDuration(Interval.Duration);
-    public string State => Interval.IsOpen ? "Práve aktívne" : "";
+    public string State => Interval.IsOpen ? Strings.Get("CurrentlyActive") : "";
     public static string FormatDuration(TimeSpan duration) => duration.TotalHours >= 1
-        ? $"{(int)duration.TotalHours} h {duration.Minutes:00} min"
-        : duration.TotalMinutes >= 1 ? $"{(int)duration.TotalMinutes} min {duration.Seconds:00} s" : $"{duration.Seconds} s";
+        ? Strings.Format("DurationHours", (int)duration.TotalHours, duration.Minutes)
+        : duration.TotalMinutes >= 1 ? Strings.Format("DurationMinutes", (int)duration.TotalMinutes, duration.Seconds) : Strings.Format("DurationSeconds", duration.Seconds);
 }
-

@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:p="clr-namespace:SolidRecords.App.Presentation"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
-        Title="SolidRecords · Záznam práce" Width="1100" Height="650" MinWidth="760" MinHeight="420"
+        Title="{DynamicResource Text.MainTitle}" Width="1100" Height="650" MinWidth="760" MinHeight="420"
         WindowStartupLocation="CenterScreen" Background="{DynamicResource ApplicationBackgroundBrush}" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Icon="Assets/SolidRecords.ico"
         FontFamily="Segoe UI" FontSize="12" UseLayoutRounding="True">
   <shell:WindowChrome.WindowChrome>
@@ -92,28 +92,28 @@
             </Grid>
             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0"
                         shell:WindowChrome.IsHitTestVisibleInChrome="True">
-              <Button Style="{StaticResource HeaderButton}" Content="‹" Command="{Binding PreviousDayCommand}" ToolTip="Predchádzajúci deň" />
+              <Button Style="{StaticResource HeaderButton}" Content="‹" Command="{Binding PreviousDayCommand}" ToolTip="{DynamicResource Text.PreviousDay}" />
               <DatePicker Style="{StaticResource MainWindowDatePicker}" SelectedDate="{Binding SelectedDate}" p:ActivityDatePicker.AvailableDates="{Binding AvailableDates}" CalendarStyle="{StaticResource ActivityCalendar}" Width="124" Height="28" VerticalContentAlignment="Center"
-                          AutomationProperties.Name="Deň záznamu" />
-              <Button Style="{StaticResource HeaderButton}" Content="›" Command="{Binding NextDayCommand}" ToolTip="Nasledujúci deň" />
-              <Button Style="{StaticResource HeaderButton}" Content="Dnes" Command="{Binding TodayCommand}" />
+                          AutomationProperties.Name="{DynamicResource Text.RecordDate}" />
+              <Button Style="{StaticResource HeaderButton}" Content="›" Command="{Binding NextDayCommand}" ToolTip="{DynamicResource Text.NextDay}" />
+              <Button Style="{StaticResource HeaderButton}" Content="{DynamicResource Text.Today}" Command="{Binding TodayCommand}" />
             </StackPanel>
             <StackPanel Grid.Column="3" Orientation="Horizontal">
-              <Button Style="{StaticResource CaptionButton}" Click="MinimizeWindow" ToolTip="Minimalizovať" AutomationProperties.Name="Minimalizovať">
+              <Button Style="{StaticResource CaptionButton}" Click="MinimizeWindow" ToolTip="{DynamicResource Text.Minimize}" AutomationProperties.Name="{DynamicResource Text.Minimize}">
                 <Path Data="M 0,5 L 10,5" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1" />
               </Button>
               <Button Click="ToggleMaximizeWindow">
                 <Button.Style>
                   <Style TargetType="Button" BasedOn="{StaticResource CaptionButton}">
-                    <Setter Property="ToolTip" Value="Maximalizovať" />
-                    <Setter Property="AutomationProperties.Name" Value="Maximalizovať" />
+                    <Setter Property="ToolTip" Value="{DynamicResource Text.Maximize}" />
+                    <Setter Property="AutomationProperties.Name" Value="{DynamicResource Text.Maximize}" />
                     <Setter Property="Content">
                       <Setter.Value><Path Data="M 0,0 L 10,0 10,10 0,10 Z" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1" /></Setter.Value>
                     </Setter>
                     <Style.Triggers>
                       <DataTrigger Binding="{Binding WindowState, RelativeSource={RelativeSource AncestorType=Window}}" Value="Maximized">
-                        <Setter Property="ToolTip" Value="Obnoviť veľkosť" />
-                        <Setter Property="AutomationProperties.Name" Value="Obnoviť veľkosť" />
+                        <Setter Property="ToolTip" Value="{DynamicResource Text.Restore}" />
+                        <Setter Property="AutomationProperties.Name" Value="{DynamicResource Text.Restore}" />
                         <Setter Property="Content">
                           <Setter.Value><Path Data="M 3,0 L 10,0 10,7 M 0,3 L 7,3 7,10 0,10 Z" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1" /></Setter.Value>
                         </Setter>
@@ -122,7 +122,7 @@
                   </Style>
                 </Button.Style>
               </Button>
-              <Button Style="{StaticResource CloseCaptionButton}" Click="CloseWindow" ToolTip="Skryť do systémovej lišty" AutomationProperties.Name="Zavrieť">
+              <Button Style="{StaticResource CloseCaptionButton}" Click="CloseWindow" ToolTip="{DynamicResource Text.HideToTray}" AutomationProperties.Name="{DynamicResource Text.Close}">
                 <Path Data="M 0,0 L 10,10 M 10,0 L 0,10" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1" />
               </Button>
             </StackPanel>
@@ -131,19 +131,19 @@
 
         <UniformGrid Grid.Row="1" Columns="4" Margin="0,0,12,8">
           <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-            <TextBlock Text="Prvá aktivita" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
+            <TextBlock Text="{DynamicResource Text.FirstActivity}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
             <TextBlock Text="{Binding Started}" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center" />
           </StackPanel>
           <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-            <TextBlock Text="Posledná aktivita" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
+            <TextBlock Text="{DynamicResource Text.LastActivity}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
             <TextBlock Text="{Binding Finished}" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center" />
           </StackPanel>
           <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-            <TextBlock Text="Aktívny čas" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
+            <TextBlock Text="{DynamicResource Text.ActiveTime}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
             <TextBlock Text="{Binding TotalDuration}" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center" />
           </StackPanel>
           <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-            <TextBlock Text="Aktivity" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
+            <TextBlock Text="{DynamicResource Text.Activities}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
             <TextBlock Text="{Binding Count}" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center" />
           </StackPanel>
         </UniformGrid>
@@ -152,7 +152,7 @@
 
     <Border Grid.Row="1" Background="{DynamicResource ControlSolidFillColorDefaultBrush}" CornerRadius="5" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" Padding="8,4" Margin="8,0,8,6">
       <StackPanel>
-        <TextBlock Text="Časová os" FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+        <TextBlock Text="{DynamicResource Text.Timeline}" FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
         <p:TimelineControl Items="{Binding Timeline}" Bounds="{Binding TimelineBounds}" Height="44" />
       </StackPanel>
     </Border>
@@ -161,12 +161,12 @@
       <Grid>
         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
         <DockPanel Margin="6,5" LastChildFill="False">
-          <ToggleButton DockPanel.Dock="Right" Content="Detaily" IsChecked="{Binding DetailsVisible, Mode=TwoWay}"
-                        Height="32" Padding="10,4" ToolTip="Zobraziť detaily vybranej aplikácie"
-                        AutomationProperties.Name="Detaily aplikácie" />
+          <ToggleButton DockPanel.Dock="Right" Content="{DynamicResource Text.Details}" IsChecked="{Binding DetailsVisible, Mode=TwoWay}"
+                        Height="32" Padding="10,4" ToolTip="{DynamicResource Text.ShowDetails}"
+                        AutomationProperties.Name="{DynamicResource Text.ApplicationDetails}" />
           <TextBox Style="{StaticResource SearchTextBox}" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}"
-                   Width="280" HorizontalAlignment="Left" ToolTip="Hľadať aplikáciu, názov okna alebo URL"
-                   AutomationProperties.Name="Hľadať aktivity">
+                   Width="280" HorizontalAlignment="Left" ToolTip="{DynamicResource Text.SearchHelp}"
+                   AutomationProperties.Name="{DynamicResource Text.SearchActivities}">
             <TextBox.InputBindings>
               <KeyBinding Key="Escape" Command="{Binding ClearSearchCommand}" />
             </TextBox.InputBindings>
@@ -188,9 +188,9 @@
               </Style>
             </Border.Style>
             <DockPanel>
-              <TextBlock DockPanel.Dock="Top" Text="Detaily" FontWeight="SemiBold" Margin="4,2,4,6" />
+              <TextBlock DockPanel.Dock="Top" Text="{DynamicResource Text.Details}" FontWeight="SemiBold" Margin="4,2,4,6" />
               <TreeView ItemsSource="{Binding DetailApplications}" BorderThickness="0" Background="Transparent"
-                        ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Detaily vybranej aplikácie">
+                        ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="{DynamicResource Text.SelectedApplicationDetails}">
                 <TreeView.ItemContainerStyle>
                   <Style TargetType="TreeViewItem" BasedOn="{StaticResource {x:Type TreeViewItem}}">
                     <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
@@ -260,7 +260,7 @@
               </Style>
             </p:ActivityDataGrid.RowStyle>
             <p:ActivityDataGrid.Columns>
-              <DataGridTemplateColumn Header="Aplikácia" SortMemberPath="Application" Width="130" MinWidth="130">
+              <DataGridTemplateColumn Header="{Binding [Application], Source={x:Static p:LocalizedText.Instance}}" SortMemberPath="Application" Width="130" MinWidth="130">
                 <DataGridTemplateColumn.CellTemplate>
                   <DataTemplate>
                     <Grid VerticalAlignment="Center" Margin="4,0">
@@ -272,14 +272,14 @@
                 </DataGridTemplateColumn.CellTemplate>
               </DataGridTemplateColumn>
               <DataGridTextColumn Header="PID" Binding="{Binding ProcessId}" Width="52" MinWidth="52" />
-              <DataGridTextColumn Header="Dokument / názov okna" Binding="{Binding Description}" Width="2*" MinWidth="130" ElementStyle="{StaticResource CellText}" />
+              <DataGridTextColumn Header="{Binding [DocumentTitle], Source={x:Static p:LocalizedText.Instance}}" Binding="{Binding Description}" Width="2*" MinWidth="130" ElementStyle="{StaticResource CellText}" />
               <DataGridTextColumn Header="URL" Binding="{Binding Url}" Width="1.5*" MinWidth="110" ElementStyle="{StaticResource CellText}" />
-              <DataGridTextColumn Header="Začiatok" Binding="{Binding Start}" Width="74" MinWidth="74" />
-              <DataGridTextColumn Header="Koniec" Binding="{Binding End}" Width="74" MinWidth="74" />
-              <DataGridTextColumn Header="Trvanie" Binding="{Binding Duration}" SortMemberPath="DurationValue" Width="100" MinWidth="100" />
+              <DataGridTextColumn Header="{Binding [Start], Source={x:Static p:LocalizedText.Instance}}" Binding="{Binding Start}" Width="74" MinWidth="74" />
+              <DataGridTextColumn Header="{Binding [End], Source={x:Static p:LocalizedText.Instance}}" Binding="{Binding End}" Width="74" MinWidth="74" />
+              <DataGridTextColumn Header="{Binding [Duration], Source={x:Static p:LocalizedText.Instance}}" Binding="{Binding Duration}" SortMemberPath="DurationValue" Width="100" MinWidth="100" />
             </p:ActivityDataGrid.Columns>
           </p:ActivityDataGrid>
-          <TextBlock Text="Žiadne aktivity pre vybraný deň alebo vyhľadávanie." HorizontalAlignment="Center" VerticalAlignment="Center"
+          <TextBlock Text="{DynamicResource Text.NoActivities}" HorizontalAlignment="Center" VerticalAlignment="Center"
                      Foreground="{DynamicResource TextFillColorSecondaryBrush}" IsHitTestVisible="False">
             <TextBlock.Style>
               <Style TargetType="TextBlock">

@@ -12,6 +12,7 @@ public partial class MainWindow : Window
     public MainWindow(MainViewModel viewModel)
     {
         InitializeComponent();
+        Language = System.Windows.Markup.XmlLanguage.GetLanguage(SolidRecords.Core.Localization.Strings.Culture.IetfLanguageTag);
         AppLogo.Source = (ImageSource)Application.LoadComponent(
             new System.Uri("/SolidRecords.App;component/Assets/SolidRecords.xaml", System.UriKind.Relative));
         // WPF uses logical units; fit the initial size to the available desktop at its DPI scale.

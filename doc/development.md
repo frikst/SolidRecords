@@ -14,6 +14,7 @@ dotnet run --project tests/SolidRecords.DesktopChecks -c Release --no-restore --
 dotnet run --project tests/SolidRecords.DesktopChecks -c Release --no-restore -- --startup-only --paused
 dotnet run --project tests/SolidRecords.DesktopChecks -c Release --no-restore -- --updates-only
 dotnet run --project tests/SolidRecords.DesktopChecks -c Release --no-restore -- --preview-only
+dotnet run --project tests/SolidRecords.DesktopChecks -c Release --no-restore -- artifacts/desktop-checks-en --preview-only --english
 git diff --check
 ```
 
@@ -96,3 +97,9 @@ WiX stačí nainštalovať raz; výstup je v `artifacts/release/`. Pri kontrole 
 - Zatiaľ bez ďalších filtrov, konfigurácie prahu zlúčenia, detekcie idle podľa vstupu a šifrovania. Používateľské nastavenia vrátane minima aktivity sa ukladajú do databázy.
 - Zber vidí len reláciu bežiacej aplikácie; neobnovuje udalosti z obdobia, keď nebežala alebo bola pozastavená. URL a privilegované okná závisia od dostupnosti Windows/accessibility API.
 - Pri poslednej implementácii pravidiel aktivity prešlo 49 xUnit prípadov a desktop náhľad so živými aktualizáciami. Ide o historický výsledok; po zmene spusti príslušné kontroly znova.
+
+## Overenie jazykov
+
+Desktop náhľad predvolene používa slovenčinu, `--english` angličtinu; adresár zadaj samostatne, aby sa náhľady neprepísali. Obe spustenia overujú aj prepnutie už vytvoreného okna medzi jazykmi, hlavičky stĺpcov, zachovanie riadkov a výberu a jazyk formátovania. Pri zatvorenom kalendári sa kontroluje okamžitá zmena textu dátumu v samotnom `DatePicker` aj jeho textovom poli bez udalosti zmeny výberu a bez zmeny vybraného dňa. Otvorený popup kalendár sa prepína medzi oboma jazykmi; overujú sa skutočný nadpis mesiaca, všetkých sedem názvov dní, prvý deň týždňa a zachovanie výberu aj zakázaných dní pri prepnutí a opätovnom otvorení. Náhľady nastavení vrátane voľby jazyka, hlavného okna, kalendára a O aplikácii sa vytvárajú pri 100 % a 150 %. Testy lokalizácie kontrolujú úplnosť oboch `.resx`, kompatibilitu formátovacích argumentov, výber podľa prostredia a fallback, staršie nastavenia a SQLite uloženie voľby v izolovanej DB. Ručne over aj uloženie jazyka v Nastaveniach → Všeobecné, opätovné otvorenie dialógu, menu pri hodinách a zachovanie voľby po reštarte; náhľad nenahrádza živú kontrolu pri 150 % DPI.
+
+README je rozdelený na predvolený anglický `README.md` a slovenský `README.sk.md` s odkazmi medzi nimi. Pri zmenách používateľskej dokumentácie udržiavaj obe jazykové verzie. Changelog sa vedie iba v anglickom `CHANGELOG.md`, ktorý zostáva zdrojom poznámok vydania pre existujúci workflow.

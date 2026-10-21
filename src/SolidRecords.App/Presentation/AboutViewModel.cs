@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Reflection;
 using System.Windows.Input;
+using SolidRecords.Core.Localization;
 
 namespace SolidRecords.App.Presentation;
 
@@ -18,7 +19,7 @@ public sealed class AboutViewModel : ObservableObject
         {
             var version = typeof(AboutViewModel).Assembly
                 .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
-            return string.IsNullOrWhiteSpace(version) ? "Vývojová zostava" : $"Verzia {version.Split('+')[0]}";
+            return string.IsNullOrWhiteSpace(version) ? Strings.Get("DevelopmentBuild") : Strings.Format("Version", version.Split('+')[0]);
         }
     }
     public ICommand OpenWebsiteCommand { get; }
@@ -40,7 +41,7 @@ public sealed class AboutViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is Win32Exception or InvalidOperationException)
         {
-            WebsiteError = "Web sa nepodarilo otvoriť. Adresa: https://www.fri.uniza.sk/pracoviska/KST";
+            WebsiteError = Strings.Get("WebsiteFailed");
         }
     }
 }

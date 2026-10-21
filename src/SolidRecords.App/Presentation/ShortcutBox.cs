@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using SolidRecords.Core;
+using SolidRecords.Core.Localization;
 
 namespace SolidRecords.App.Presentation;
 
@@ -26,7 +27,7 @@ public sealed class ShortcutBox : TextBox
 
     private void UpdateText()
     {
-        if (Shortcut is not { } shortcut) { Text = "Nenastavená"; return; }
+        if (Shortcut is not { } shortcut) { Text = Strings.Get("ShortcutUnset"); return; }
         var parts = new List<string>();
         if (shortcut.Modifiers.HasFlag(ShortcutModifiers.Control)) parts.Add("Ctrl");
         if (shortcut.Modifiers.HasFlag(ShortcutModifiers.Alt)) parts.Add("Alt");

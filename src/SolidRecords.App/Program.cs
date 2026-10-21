@@ -4,6 +4,7 @@ using SolidRecords.Windows.Shell;
 using Microsoft.Extensions.DependencyInjection;
 using SolidRecords.App.Infrastructure;
 using SolidRecords.Core.Recording;
+using SolidRecords.Core.Localization;
 
 namespace SolidRecords.App;
 
@@ -63,7 +64,7 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            MessageBox.Show("Aplikáciu sa nepodarilo spustiť alebo ukončiť:\n" + ex.Message,
+            MessageBox.Show(Strings.Get("AppFailed") + ex.Message,
                 "SolidRecords", MessageBoxButton.OK, MessageBoxImage.Error);
             return 1;
         }

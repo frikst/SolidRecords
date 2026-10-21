@@ -5,6 +5,7 @@ using System.Windows.Threading;
 using SolidRecords.Core;
 using SolidRecords.Core.Recording;
 using SolidRecords.Core.Reporting;
+using SolidRecords.Core.Localization;
 
 namespace SolidRecords.App.Presentation;
 
@@ -92,17 +93,21 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public void ApplySettings(ApplicationSettings settings)
     {
         _settings = settings;
+        foreach (var row in EventRows.OfType<ObservableObject>()) row.RefreshLanguage();
+        UpdateDetails();
+        NotifyState();
+        Changed(nameof(Details));
         Changed(nameof(TimelineBounds));
     }
-    public string ToggleLabel => _recorder.IsRecording ? "■  Zastaviť záznam" : "▶  Spustiť záznam";
-    public string Status => _recorder.Error is not null ? "Zápis zlyhal" : _recorder.IsRecording ? "Zaznamenávanie je aktívne" : "Zaznamenávanie je pozastavené";
+    public string ToggleLabel => _recorder.IsRecording ? Strings.Get("StopRecordingButton") : Strings.Get("StartRecordingButton");
+    public string Status => _recorder.Error is not null ? Strings.Get("WriteFailed") : _recorder.IsRecording ? Strings.Get("RecordingActive") : Strings.Get("RecordingPaused");
     public string StatusColor => _recorder.Error is not null ? "#D63D4F" : _recorder.IsRecording ? "#16A078" : "#8A96AA";
-    public string Notice => _error.Length > 0 ? _error : "Údaje zostávajú v tomto počítači. Zatvorením okna aplikácia pokračuje v systray.";
+    public string Notice => _error.Length > 0 ? _error : Strings.Get("PrivacyNotice");
     public string Started => _report.FirstActivity?.ToLocalTime().ToString("HH:mm") ?? "—";
     public string Finished => _report.LastActivity?.ToLocalTime().ToString("HH:mm") ?? "—";
     public string TotalDuration => ActivityRow.FormatDuration(_report.ActiveDuration);
     public string Count => _report.Intervals.Count.ToString();
-    public string Details => $"{Activities.Count} aktivít  ·  {_report.Processes.Count} procesov  ·  časy v miestnom časovom pásme";
+    public string Details => Strings.Format("ActivityCounts", Activities.Count, _report.Processes.Count);
     public bool IsEmpty => EventRows.Count == 0;
     public IReadOnlyList<DateTime> AvailableDates => _availableDates;
     public DateTime? SelectedDate
@@ -284,14 +289,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         ActivityDetailNode.Synchronize(DetailApplications, application is null ? [] : [application], (app, _) =>
         {
             var intervals = processes.SelectMany(process => process.Windows).SelectMany(window => window.Activities).ToArray();
-            app.Update(application!, $"{processes.Length} procesov · {intervals.Length} aktivít", application!, SelectedActivity?.Icon);
+            app.Update(application!, Strings.Format("ProcessCounts", processes.Length, intervals.Length), application!, SelectedActivity?.Icon);
             ActivityDetailNode.Synchronize(app.Children, processes.Select(process => process.Id.ToString()).ToArray(), (node, index) =>
             {
                 var process = processes[index];
                 var activities = process.Windows.SelectMany(window => window.Activities).OrderBy(activity => activity.Start).ToArray();
                 node.Update($"PID {process.ProcessId}",
-                    $"{activities.Length} aktivít · {ActivityRow.FormatDuration(TimeSpan.FromTicks(activities.Sum(activity => activity.Duration.Ticks)))}",
-                    $"Pozorovaný proces od {process.Start.ToLocalTime():g}");
+                    Strings.Format("ActivityDuration", activities.Length, ActivityRow.FormatDuration(TimeSpan.FromTicks(activities.Sum(activity => activity.Duration.Ticks)))),
+                    Strings.Format("ProcessObserved", process.Start.ToLocalTime()));
                 ActivityDetailNode.Synchronize(node.Children, activities.Select(activity => activity.Id.ToString()).ToArray(), (leaf, activityIndex) =>
                 {
                     var row = new ActivityRow(activities[activityIndex]);
@@ -307,7 +312,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public void ShowError(Exception exception)
     {
-        _error = "Chyba: " + exception.Message;
+        _error = Strings.Get("ErrorPrefix") + exception.Message;
         Changed(nameof(Notice));
     }
 

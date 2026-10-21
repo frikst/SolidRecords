@@ -34,7 +34,7 @@ internal static class ShortcutChecks
                 Require(field.Focus(), "Shortcut field did not accept focus.");
                 Press(second);
                 await Task.Delay(150);
-                Require(field.Shortcut == second, "Shortcut field did not capture an already registered combination.");
+                Require(field.Shortcut == second, $"Shortcut field did not capture an already registered combination. Active: {dialog.IsActive}, keyboard focus: {field.IsKeyboardFocusWithin}, captured: {field.Shortcut}, expected: {second}.");
                 Require(app.MainWindow!.IsVisible, "Editing shortcuts triggered a global action.");
                 var editor = (SettingsViewModel)dialog.DataContext;
                 editor.SaveCommand.Execute(null);

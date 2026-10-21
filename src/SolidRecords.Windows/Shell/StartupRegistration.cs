@@ -1,5 +1,6 @@
 using Microsoft.Win32;
 using System.IO;
+using SolidRecords.Core.Localization;
 
 namespace SolidRecords.Windows.Shell;
 
@@ -18,9 +19,9 @@ public static class StartupRegistration
         using var key = Registry.CurrentUser.CreateSubKey(RunKey);
         if (enabled)
         {
-            var executable = Environment.ProcessPath ?? throw new InvalidOperationException("Cesta aplikácie nie je dostupná.");
+            var executable = Environment.ProcessPath ?? throw new InvalidOperationException(Strings.Get("ExecutableUnavailable"));
             if (!Path.GetFileNameWithoutExtension(executable).Equals("SolidRecords.App", StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException("Automatické spúšťanie nastavte zo zostavenej alebo publikovanej aplikácie.");
+                throw new InvalidOperationException(Strings.Get("StartupFromBuild"));
             key.SetValue(Name, $"\"{executable}\" --background");
         }
         else key.DeleteValue(Name, false);

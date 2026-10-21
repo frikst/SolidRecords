@@ -2,6 +2,7 @@ using System.Diagnostics;
 using SolidRecords.Core.Updates;
 using SolidRecords.Windows.Shell;
 using SolidRecords.App.Infrastructure;
+using SolidRecords.Core.Localization;
 
 namespace SolidRecords.App.Updates;
 
@@ -24,7 +25,7 @@ internal sealed class UpdateController(UpdateChecker checker, UpdateInstaller in
     {
         try { await checker.TickAsync(preferences.Current.CheckForUpdates, _stop.Token); }
         catch (OperationCanceledException) when (_stop.IsCancellationRequested) { }
-        catch (Exception ex) { Trace.TraceWarning("Kontrola aktualizácií zlyhala: {0}", ex.Message); }
+        catch (Exception ex) { Trace.TraceWarning(Strings.Get("UpdateCheckFailed"), ex.Message); }
     }
 
     private async Task RunAsync()
@@ -52,45 +53,45 @@ internal sealed class UpdateController(UpdateChecker checker, UpdateInstaller in
     {
         var result = await Task.Run(() => checker.CheckNowAsync(_stop.Token));
         if (result.RetryAt is { } retryAt)
-            throw new InvalidOperationException($"Server dočasne obmedzil kontrolu aktualizácií. Skúste to po {retryAt.LocalDateTime:g}.");
+            throw new InvalidOperationException(Strings.Format("RetryUpdate", retryAt.LocalDateTime));
         return result.Release;
     }, exit, requireEnabled: false);
 
     private async Task<string> RunActionAsync(Func<Task<UpdateRelease?>> getRelease, Func<Task> exit, bool requireEnabled)
     {
-        if (_stop.IsCancellationRequested) return "Aplikácia sa ukončuje.";
-        if (!_actions.Wait(0)) return "Aktualizácia už prebieha.";
+        if (_stop.IsCancellationRequested) return Strings.Get("AppExiting");
+        if (!_actions.Wait(0)) return Strings.Get("UpdateInProgress");
         var shouldExit = false;
         string? downloadedPath = null;
         try
         {
-            if (_installing) return "Inštalácia už prebieha.";
+            if (_installing) return Strings.Get("InstallInProgress");
             var release = await getRelease();
-            if (release is null) return "Nie je dostupná novšia verzia na inštaláciu.";
+            if (release is null) return Strings.Get("NoUpdate");
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_stop.Token);
             timeout.CancelAfter(TimeSpan.FromMinutes(15));
             var path = await installer.DownloadAsync(release, timeout.Token);
             downloadedPath = path;
             if ((requireEnabled && !preferences.Current.CheckForUpdates) || _stop.IsCancellationRequested)
-                return "Aktualizácia bola zrušená.";
+                return Strings.Get("UpdateCanceled");
             // Obtain UAC consent while the app is still alive; the helper waits for this process to exit.
             using var helper = UpdateInstaller.LaunchAfterExit(path, release.Sha256);
             _installing = true;
             shouldExit = true;
         }
-        catch (OperationCanceledException) when (_stop.IsCancellationRequested) { return "Aktualizácia bola zrušená."; }
-        catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 1223) { return "Inštalácia bola zrušená."; }
+        catch (OperationCanceledException) when (_stop.IsCancellationRequested) { return Strings.Get("UpdateCanceled"); }
+        catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 1223) { return Strings.Get("InstallCanceled"); }
         finally
         {
             if (!shouldExit && downloadedPath is not null)
             {
                 try { File.Delete(downloadedPath); Directory.Delete(Path.GetDirectoryName(downloadedPath)!); }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { Trace.TraceWarning("Čistenie inštalátora zlyhalo: {0}", ex.Message); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { Trace.TraceWarning(Strings.Get("InstallerCleanupFailed"), ex.Message); }
             }
             _actions.Release();
         }
         if (shouldExit) await exit();
-        return "Spúšťa sa inštalácia aktualizácie.";
+        return Strings.Get("Installing");
     }
 
     public async Task StopAsync()

@@ -1,3 +1,4 @@
+using SolidRecords.Core.Localization;
 using SolidRecords.Core;
 using SolidRecords.Core.Recording;
 using SolidRecords.Windows.Capture;
@@ -70,7 +71,7 @@ internal static class SessionCaptureChecks
                 && published[1].Reason == "RecordingBaseline", "Recording restart repeated the application startup observation");
             var startup = new SolidRecords.App.Presentation.SessionEventRow(new(Guid.NewGuid(), Guid.NewGuid(),
                 EventKind.SessionActive, at, Reason: published[0].Reason));
-            Require(startup.Summary == "Aktívna relácia — Stav pri spustení aplikácie",
+            Require(startup.Summary == Strings.Get("ActiveSession") + " — " + Strings.Get("ApplicationStartup"),
                 "Startup observation is presented as a precise logon");
             var onMessage = typeof(WindowsActivitySource).GetMethod("OnMessage", flags)!;
             onMessage.Invoke(source, new object[] { (nint)0, 0x02B1, (nint)7, (nint)0, false });

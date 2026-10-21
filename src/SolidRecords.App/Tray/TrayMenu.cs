@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
+using SolidRecords.Core.Localization;
 
 namespace SolidRecords.App.Tray;
 
@@ -23,19 +24,23 @@ internal sealed class TrayMenu : ContextMenuStrip
     internal static TrayMenu Create(Action showWindow, Action toggleRecording, Action showSettings, Action showAbout, Func<Task> exit)
     {
         var menu = new TrayMenu();
-        menu.Items.Add(new ToolStripMenuItem("Otvoriť SolidRecords", null, (_, _) => showWindow()) { Tag = TrayMenuSymbol.Window });
-        menu.Items.Add(new ToolStripMenuItem("Spustiť záznam", null, (_, _) => toggleRecording()) { Tag = TrayMenuSymbol.Play });
-        menu.Items.Add(new ToolStripMenuItem("Nastavenia…", null, (_, _) => showSettings()) { Tag = TrayMenuSymbol.Settings });
+        menu.Items.Add(new ToolStripMenuItem(Strings.Get("OpenApp"), null, (_, _) => showWindow()) { Tag = TrayMenuSymbol.Window });
+        menu.Items.Add(new ToolStripMenuItem(Strings.Get("StartRecording"), null, (_, _) => toggleRecording()) { Tag = TrayMenuSymbol.Play });
+        menu.Items.Add(new ToolStripMenuItem(Strings.Get("SettingsMenu"), null, (_, _) => showSettings()) { Tag = TrayMenuSymbol.Settings });
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add(new ToolStripMenuItem("O aplikácii", null, (_, _) => showAbout()) { Tag = TrayMenuSymbol.Info });
-        menu.Items.Add(new ToolStripMenuItem("Ukončiť aplikáciu", null, async (_, _) => await exit()) { Tag = TrayMenuSymbol.Power });
+        menu.Items.Add(new ToolStripMenuItem(Strings.Get("About"), null, (_, _) => showAbout()) { Tag = TrayMenuSymbol.Info });
+        menu.Items.Add(new ToolStripMenuItem(Strings.Get("Exit"), null, async (_, _) => await exit()) { Tag = TrayMenuSymbol.Power });
         return menu;
     }
 
     internal void UpdateRecordingState(bool isRecording, bool canToggle = true)
     {
+        Items[0].Text = Strings.Get("OpenApp");
+        Items[2].Text = Strings.Get("SettingsMenu");
+        Items[4].Text = Strings.Get("About");
+        Items[5].Text = Strings.Get("Exit");
         var toggle = Items[1];
-        toggle.Text = isRecording ? "Zastaviť záznam" : "Spustiť záznam";
+        toggle.Text = isRecording ? Strings.Get("StopRecording") : Strings.Get("StartRecording");
         toggle.Tag = isRecording ? TrayMenuSymbol.Stop : TrayMenuSymbol.Play;
         toggle.Enabled = canToggle;
     }

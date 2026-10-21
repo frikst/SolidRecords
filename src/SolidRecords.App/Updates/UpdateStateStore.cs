@@ -1,5 +1,6 @@
 using System.Text.Json;
 using SolidRecords.Core.Updates;
+using SolidRecords.Core.Localization;
 
 namespace SolidRecords.App.Updates;
 
@@ -12,7 +13,7 @@ internal sealed class UpdateStateStore(string directory) : IUpdateStateStore
         if (!File.Exists(_path)) return new();
         // Fail closed on corrupt state: the background service retries locally, without flooding the API.
         return JsonSerializer.Deserialize<UpdateState>(await File.ReadAllTextAsync(_path, cancellationToken))
-            ?? throw new JsonException("Neplatný stav kontroly aktualizácií.");
+            ?? throw new JsonException(Strings.Get("InvalidUpdateState"));
     }
 
     public async Task SaveAsync(UpdateState state, CancellationToken cancellationToken)

@@ -1,6 +1,6 @@
 # Pokyny pre vývoj SolidRecords
 
-SolidRecords je lokálny Windows tracker (.NET 10, WPF, SQLite). Rozhranie a dokumentácia sú v slovenčine, identifikátory v kóde v angličtine. Aktuálnu implementáciu overuj v zdrojovom kóde; dokumentácia nevymedzuje nové funkcie.
+SolidRecords je lokálny Windows tracker (.NET 10, WPF, SQLite). Rozhranie je v angličtine a slovenčine, všetky preklady textov aplikácie patria do `src/SolidRecords.Core/Localization/Strings*.resx`. README je rozdelený na predvolený anglický `README.md` a slovenský `README.sk.md`; changelog je iba v angličtine. Vývojová dokumentácia je v slovenčine, identifikátory v kóde v angličtine. Aktuálnu implementáciu overuj v zdrojovom kóde; dokumentácia nevymedzuje nové funkcie.
 
 ## Kde začať
 

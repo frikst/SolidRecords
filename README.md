@@ -1,101 +1,104 @@
 # SolidRecords
 
-Lokálny záznam práce na počítači pre Windows, postavený na **.NET 10 / WPF**. Aplikácia beží v systémovej lište a ukladá udalosti a časové intervaly do SQLite. Rozhranie je v slovenčine.
+English | [Slovenčina](README.sk.md)
 
-## Inštalácia
+Local computer activity tracking for Windows, built with **.NET 10 / WPF**. The app runs in the system tray and stores events and time intervals in SQLite. The interface supports English and Slovak.
 
-V GitHub Releases repozitára nájdete MSI inštalátor a prenosný ZIP pre Windows x64 s pribaleným .NET runtime. MSI vyžaduje administrátorské oprávnenia na inštaláciu a pridá SolidRecords do ponuky Štart. Na poslednej stránke je predvolene zaškrtnuté **Spustiť SolidRecords po dokončení inštalácie**; pred dokončením môžete voľbu vypnúť. Samotná aplikácia administrátorské oprávnenia nevyžaduje. Pred ručnou aktualizáciou aplikáciu ukončite cez systray; pred odinštalovaním vypnite aj spúšťanie po prihlásení. Odinštalovanie ponechá lokálnu históriu a nastavenia.
+## Installation
 
-## Spustenie
+The repository's GitHub Releases provide an MSI installer and a portable ZIP for Windows x64 with the .NET runtime included. Installing the MSI requires administrator access and adds SolidRecords to the Start menu. **Launch SolidRecords after installation** is enabled on the final page; you can clear it before finishing. Running the app itself does not require administrator access. Before a manual update, exit the app through the tray menu; before uninstalling, also disable startup at sign-in. Uninstalling keeps local history and settings.
 
-Vyžaduje Windows 10/11 a .NET 10 SDK pre zostavenie, prípadne .NET 10 Desktop Runtime pre framework-dependent publikáciu.
+## Running
+
+Building requires Windows 10/11 and the .NET 10 SDK. Framework-dependent publications require the .NET 10 Desktop Runtime.
 
 ```powershell
 dotnet build SolidRecords.slnx
 dotnet run --project src/SolidRecords.App -- --show
 ```
 
-Pri predvolenom nastavení sa aplikácia spustí v systray a začne zaznamenávať automaticky. Prepínač `--show` vždy otvorí prehľad. Dvojklik na ikonu alebo položka **Otvoriť SolidRecords** zobrazí prehľad. Zatvorenie okna ponechá aplikáciu bežať; položka **Ukončiť aplikáciu** zastaví zber, dopíše front udalostí a aplikáciu ukončí.
+By default the app starts in the tray and begins recording automatically. `--show` always opens the overview. Double-click the tray icon or select **Open SolidRecords** to show it. Closing the window keeps the app running; **Exit application** stops capture, saves queued events and exits.
 
-Záznam sa spúšťa a zastavuje tlačidlom v okne alebo položkou kontextového menu ikony. Stav záznamu nemení nastavenie automatického záznamu pri ďalšom spustení.
+Start and stop recording using the window button or the tray menu. Toggling recording does not change automatic recording on the next launch.
 
-Pravým kliknutím na ikonu pri hodinách otvorte **Nastavenia…**. Tlačidlo **Uložiť** uloží všetky voľby do databázy; **Zrušiť** ich zahodí.
+Right-click the tray icon and open **Settings…**. **Save** stores all preferences in the database; **Cancel** discards edits.
 
-| Nastavenie | Predvolená hodnota |
+| Setting | Default |
 | --- | --- |
-| Minimálne trvanie aktivity | 15 sekúnd; rozsah 0–600, pri 0 sa minimum vypne. |
-| Automaticky mazať záznamy aktivity | Nikdy; voliteľne po kladnom počte dní. |
-| Automatický záznam | Pri spustení aplikácie – stále; voliteľne iba v pracovnom čase alebo vypnutý (ručné spúšťanie). |
-| Pracovný čas a dni | 07:00–15:00, pondelok až piatok. |
-| Spustenie programu pri prihlásení do Windows | Zapnuté. |
-| Spustenie minimalizované v systray | Zapnuté. |
-| Téma | Podľa systému; voliteľne svetlá alebo tmavá. |
-| Globálne klávesové skratky | Nenastavené; voliteľne na otvorenie/skrytie okna a spustenie/zastavenie záznamu. |
-| Denná kontrola aktualizácií | Zapnutá; možno ju vypnúť. |
+| Minimum activity duration | 15 seconds; range 0–600, with 0 disabling the minimum. |
+| Automatically delete activity records | Never; optionally after a positive number of days. |
+| Automatic recording | On launch – continuously; optionally during work hours only or off (manual). |
+| Work hours and days | 07:00–15:00, Monday to Friday. |
+| Start when signing in to Windows | Enabled. |
+| Start minimized in the system tray | Enabled. |
+| Language | System default; English for other system languages. English and Slovenčina can be selected explicitly. |
+| Theme | System default; optionally light or dark. |
+| Global keyboard shortcuts | Not set; optional shortcuts to show/hide the window and start/stop recording. |
+| Daily update checks | Enabled; can be disabled. |
 
-Na záložke **Skratky** kliknite do príslušného poľa a stlačte Ctrl, Alt alebo Win spolu s písmenom, číslicou alebo F1–F24; voliteľne pridajte Shift. Delete alebo Backspace skratku zruší. Skratky sa aktivujú po uložení a fungujú aj pri skrytom okne. Obsadenú alebo systémom vyhradenú kombináciu aplikácia odmietne; vyberte inú. Počas otvorených nastavení sa akcie skratiek nevykonávajú.
+Change the language in **Settings → General**. Language, theme and minimum duration apply after saving without restarting. Changing the minimum completes the current activity and continues with the new threshold. It also affects the history view but cannot restore short activities that were never saved. Startup preferences take effect on the next launch. Automatic startup uses the current application path in `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, so launch the portable app from its final directory.
 
-Téma a minimum sa použijú po uložení. Pri zmene minima sa aktívny záznam dopíše a pokračuje s novým prahom; nové minimum sa použije aj na zobrazenie histórie, ale neobnoví predtým neuložené krátke aktivity. Voľby spúšťania sa prejavia pri ďalšom štarte. Automatické spustenie používa aktuálnu cestu aplikácie v `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, preto prenosnú aplikáciu spúšťajte z finálneho priečinka.
+On the **Shortcuts** tab, click a field and press Ctrl, Alt or Win with a letter, digit or F1–F24; Shift is optional. Delete or Backspace clears the shortcut. Saved shortcuts work with the window hidden and outside the app. Combinations in use or reserved by Windows are rejected; choose another one. Shortcut actions are suspended while settings are open.
 
-V režime **Iba v pracovnom čase** aplikácia podľa miestneho času záznam automaticky spustí na začiatku a zastaví na konci nastaveného času vo vybraných dňoch, aj pri skrytom okne. Pri uložení zmeny pracovného režimu alebo rozvrhu sa stav hneď prispôsobí. Ručné prepnutie platí do ďalšej hranice pracovného času. Časy musia patriť jednému dňu; koniec môže byť 24:00. Bez vybraných dní pracovný čas neexistuje. Časová os v každom pracovnom dni zahŕňa aspoň nastavené hodiny, aj bez aktivít a pri inom režime záznamu; skoršie či neskoršie aktivity jej rozsah rozšíria. Pracovný rozvrh nemení denný súčet skutočnej aktivity.
+With **During work hours only**, recording starts and stops at the configured local times on selected days, including with the window hidden. Saving a changed schedule or recording mode immediately adjusts recording. A manual toggle lasts until the next work hours boundary. Times must belong to one day; the end can be 24:00. Selecting no days leaves no work hours. On working days the timeline covers at least the configured hours, even without activities or in another recording mode; earlier or later activities expand it. The schedule does not change daily totals of actual activity.
 
-Položka **O aplikácii** v kontextovom menu ikony pri hodinách otvorí dialóg s verziou, autorom, organizáciou a odkazom na web katedry. Dialóg zatvoríte aj klávesom Esc.
+**About** in the tray menu shows the version, author, organization and a link to the department website. Esc also closes the dialog.
 
-## Aktualizácie
+## Updates
 
-Aplikácia raz za 24 hodín skontroluje GitHub Releases. Pri novej verzii zobrazí Windows notifikáciu: **Stiahnuť a inštalovať**, pripomenutie **O 4 hodiny** alebo **Ignorovať verziu**. Odloženie aj ignorovanie zostávajú uložené po reštarte. Kontrolu môžete vypnúť v **Nastaveniach → Aktualizácie**. Tlačidlo **Aktualizovať teraz** skontroluje novú verziu a pri jej dostupnosti spustí stiahnutie a inštaláciu aj pri vypnutej dennej kontrole. Výsledok sa zobrazí priamo v tejto karte.
+The app checks GitHub Releases once every 24 hours. A new version triggers a Windows notification with **Download and install**, **In 4 hours** or **Ignore this version**. Deferrals and ignored versions persist across restarts. Disable automatic checks in **Settings → Updates**. **Update now** checks for a new version and downloads and installs it when available, even with daily checks disabled. The result appears on that tab.
 
-Po stiahnutí a overení MSI Windows požiada o oprávnenie správcu. Aplikácia dopíše záznam, ukončí sa a inštalácia prebehne bez ďalších otázok a automatického reštartu počítača. Po úspešnej aktualizácii sa nainštalovaná aplikácia automaticky spustí pod pôvodným používateľom bez administrátorských práv a použije uložené nastavenia zobrazenia a záznamu. Pri odmietnutí oprávnenia aplikácia pokračuje v zázname. Prenosná verzia ponúka rovnaké MSI, ktoré vytvorí inštaláciu v Program Files; prenosný priečinok sa neprepíše. Po automatickom spustení nainštalovanej aplikácie sa spúšťanie po prihlásení nastaví pre novú cestu podľa uloženej voľby.
+After downloading and verifying the MSI, Windows requests administrator access. The app saves recording, exits and installs the update without further prompts or an automatic computer restart. After a successful update, the installed app restarts as the original user without administrator access and follows the saved display and recording preferences. Declining elevation leaves recording running. The portable version offers the same MSI, creating an installation in Program Files without replacing the portable directory. When the installed app starts automatically, startup at sign-in is updated to the new path according to the saved preference.
 
-## Funkcie
+## Features
 
-- Aktívna a neaktívna používateľská relácia: prihlásenie, odhlásenie, zamknutie, odomknutie, pripojenie a odpojenie RDP; zaznamenáva sa aj uspatie a obnovenie.
-- Životnosť procesu odvodená z okien: od prvého aktívneho okna až po zatvorenie posledného evidovaného okna procesu.
-- Aktivovanie a deaktivovanie okna, zmena názvu okna a zmena dostupnej URL.
-- Kompozitná evidencia proces → okná → aktívne úseky okna alebo URL. GUI zobrazuje plochý zoznam listových aktivít s PID, názvom okna, URL a časmi. Udalosti sa v GUI nezobrazujú.
-- Téma podľa systému sleduje režim aplikácií vo Windows aj počas behu; v nastaveniach možno zvoliť stálu svetlú alebo tmavú tému.
-- Denná časová os s farbami aplikácií, denný súčet času v aktívnych oknách, prvá a posledná aktivita.
-- Výber dňa a textové vyhľadávanie podľa aplikácie, dokumentu alebo URL. Okno je živé: po zápise zmien sa aktualizuje zoznam, súhrn aj časová os. Otvorená aktivita má pri konci a trvaní pomlčku; hodnoty sa zobrazia až po jej ukončení. Denný súčet a časová os sa priebežne aktualizujú aj počas aktivity. Tlačidlo na manuálne obnovenie nie je potrebné. Ďalšie filtre zatiaľ nie sú pridané.
-- Žiadny skupinový pohľad, zaškrtávacie políčka ani pridávanie, zlučovanie a mazanie položiek timetrackingu.
+- Active and inactive user sessions: sign-in, sign-out, lock, unlock, RDP connection and disconnection, as well as suspend and resume.
+- Process lifetimes inferred from windows, from the first active window to the last tracked window closing.
+- Window activation and deactivation, title changes and available URL changes.
+- Composite storage: process → windows → active window or URL spans. The flat activity list shows PID, document/window title, URL and times. Session changes appear as time separators; internal events remain hidden.
+- The system theme follows Windows app mode while running; settings also offer fixed light and dark themes.
+- A daily timeline colored by application, total active window time, and first and last activity times.
+- Day selection and search by application, document or URL. The list, totals and timeline update after records are saved. Open activities show a dash for end and duration until completed; daily totals and the timeline continue updating. No manual refresh is needed. Additional filters are not yet available.
+- An optional Details panel shows an application, its processes and all their activities for the selected day. There are no checkboxes or features for adding, merging or deleting timetracking items.
 
-Súčet sa počíta výhradne z listových aktivít: v každom okamihu sa započíta aktívne okno alebo jeho aktívna URL, nikdy oba súčasne. Životnosť procesu a otvoreného okna sa nesčítava. Aplikácia na pozadí, minimalizované okno a čas medzi opakovanými aktiváciami nepridávajú pracovný čas. Nie je to detekcia nečinnosti podľa klávesnice a myši. Zamknutie, odpojenie a uspatie aktívny úsek uzatvoria; rodičovské záznamy môžu zostať otvorené. Intervaly sa v dennom prehľade orežú na miestnu polnoc vrátane prechodov letného času. Vyhľadávanie filtruje zoznam; denný súčet a časová os zobrazujú celý deň.
+Totals include only leaf activities: at any moment, either the active window or its active URL counts, never both. Process and window lifetimes are not added together. Background applications, minimized windows and gaps between activations add no work time. This is not keyboard/mouse idle detection. Locking, disconnecting and suspending close the active span; parent records may remain open. Daily reports clip intervals to local midnight, including daylight saving transitions. Search filters the list; daily totals and the timeline cover the entire day.
 
-Aktivita kratšia než nastavené minimum (predvolene **15 sekúnd**) sa do pracovného logu neuloží a nezobrazí. Otvorená aktivita sa objaví až po dosiahnutí tejto hranice, so zachovaním pôvodného začiatku. Každý samostatný aktívny úsek musí hranicu dosiahnuť; viac krátkych návštev sa nesčítava na splnenie minima. Ak po vyradení krátkych aktivít zostanú dve totožné aktivity priamo po sebe a medzera medzi nimi je **menšia než 15 sekúnd**, uložia sa ako jedna aktivita. Presne 15-sekundová aktivita sa prijme, presne 15-sekundová medzera sa nezlúči. Identita zahŕňa záznam procesu a okna, názov dokumentu aj URL; dve rôzne inštancie programu sa nezlúčia.
+Activities shorter than the configured minimum (**15 seconds** by default) are neither saved nor shown. An open activity appears once it reaches the threshold, retaining its original start time. Every individual active span must meet the threshold; several short visits cannot combine to qualify. If removing short activities leaves two identical activities next to each other with a gap **shorter than 15 seconds**, they are saved as one. Exactly 15 seconds of activity qualifies; a gap of exactly 15 seconds does not merge. Identity includes the process and window records, document title and URL; different program instances do not merge.
 
-Zlúčenie zachová skutočné aktívne úseky: 20 s práce + 5 s prestávka + 20 s práce = jeden záznam s trvaním 40 s. Časová os naďalej zobrazuje prestávku. Rovnaké pravidlá sa používajú aj pri zobrazení pôvodnej histórie bez jej hromadného mazania. Minima sa posudzujú pred orezaním na deň, aby sa nestratila platná aktivita zasahujúca cez polnoc. Minimum možno meniť v nastaveniach; prah zlúčenia zostáva 15 sekúnd.
+Merging preserves actual active spans: 20 seconds of work + a 5-second break + 20 seconds of work becomes one 40-second record. The break remains visible on the timeline. The same rules apply when displaying older history without bulk deletion. Minimums are evaluated before clipping to the day, preserving valid activity across midnight. The minimum can be changed in settings; the merge threshold remains 15 seconds.
 
-## Hranice zberu
+## Capture limits
 
-Aplikácia funguje bez administrátorských práv. Sleduje iba reláciu, v ktorej beží, a iba počas zapnutého záznamu. Druhé spustenie otvorí okno už bežiacej inštancie. Systémové a pomocné okná (menu, taskbar, prepínač úloh, zamykacia obrazovka) sa vynechávajú; čas v nich tvorí prestávku.
+The app runs without administrator access. It observes only its own session and only while recording is enabled. Launching it again opens the running instance. System and helper windows (menus, taskbar, task switcher, lock screen) are excluded; time spent there forms a break.
 
-URL sa zisťuje približne raz za sekundu z adresného riadka Chrome, Edge, Firefoxu, Brave, Opery a Vivaldi. Dostupnosť závisí od verzie, jazyka, accessibility podpory a oprávnení. Pri nedostupnej URL zostane názov okna. Počas písania do adresného riadka sa jeho obsah neukladá. Veľmi krátke návštevy nemusia byť zachytené; nejde o úplnú históriu prehliadača.
+URLs are read approximately once a second from the address bar of Chrome, Edge, Firefox, Brave, Opera and Vivaldi. Availability depends on the browser version, language, accessibility support and permissions. If no URL is available, the window title remains. Address bar text is not saved while being edited. Very short visits may be missed; this is not a complete browser history.
 
-Pri vynútenom ukončení alebo výpadku napájania nemusia byť uložené posledné udalosti. Po ďalšom štarte sa otvorená aktivita uzavrie na poslednom potvrdenom čase, takže prestoj nevytvorí pracovný čas. Pri chybe zápisu aplikácia zobrazí chybu a prestane hlásiť zaznamenávanie; po odstránení príčiny ju treba reštartovať.
+Forced termination or power loss may leave the last events unsaved. On the next launch, open activity ends at the last confirmed time, excluding downtime from work totals. A write error is displayed and the app stops reporting active recording; restart it after fixing the cause.
 
-## Údaje
+## Data
 
 ```text
 %LOCALAPPDATA%\SolidRecords\activity.db
 ```
 
-Údaje zostávajú lokálne; aplikácia ich nikam neposiela. Databáza nie je šifrovaná. V záložke Zaznamenávanie môžete zapnúť automatické mazanie ukončených záznamov po zadanom počte dní; predvolene je nastavené **Nikdy**. Mazanie sa vykoná po uložení nastavení, pri štarte a potom každú hodinu. Aktívne záznamy a záznamy zasahujúce do ponechaného obdobia zostávajú celé. Názvy dokumentov a celé dostupné URL vrátane query parametrov sú súčasťou záznamu.
+Data stays local and is never sent elsewhere. The database is not encrypted. On the Recording tab, enable automatic deletion of completed records after a chosen number of days; the default is **Never**. Deletion runs after saving settings, at startup and every hour. Active records and records overlapping the retained period are kept in full. Document titles and complete available URLs, including query parameters, are recorded.
 
-Pred súborovou zálohou aplikáciu ukončite. Databáza sa pri spustení automaticky aktualizuje na aktuálnu schému; po migrácii do nej nezapisujte staršou verziou aplikácie.
+Exit the app before making a file backup. Startup automatically upgrades the database schema; do not write to a migrated database with an older app version.
 
-## Licencia
+## License
 
-SolidRecords je dostupný pod licenciou **GNU General Public License, verzia 3 (GPL-3.0-only)**. Úplné znenie je v súbore [LICENSE](LICENSE), ktorý je pribalený aj k nainštalovanej a prenosnej aplikácii. Aplikácia sa poskytuje bez záruky v rozsahu uvedenom v licencii. Použité súčasti tretích strán si zachovávajú vlastné licencie.
+SolidRecords is available under the **GNU General Public License, version 3 (GPL-3.0-only)**. The full text is in [LICENSE](LICENSE), also included with installed and portable copies. The app is provided without warranty as described in the license. Third-party components retain their own licenses.
 
-## Pre vývojárov
+## For developers
 
-Vstupným bodom sú [AGENTS.md](AGENTS.md), [architektúra](doc/architecture.md), [pravidlá záznamu](doc/recording.md), [úložisko a diagnostika](doc/storage.md) a [vývojový postup](doc/development.md).
+Start with [AGENTS.md](AGENTS.md), [architecture](doc/architecture.md), [recording rules](doc/recording.md), [storage and diagnostics](doc/storage.md), and the [development workflow](doc/development.md). These development documents are in Slovak.
 
-## Publikovanie
+## Publishing
 
-Prenosná publikácia s pribaleným .NET runtime pre Windows x64:
+Create a portable Windows x64 publication with the .NET runtime included:
 
 ```powershell
 dotnet publish src/SolidRecords.App -c Release -r win-x64 --self-contained true -o artifacts/publish/win-x64
 ```
 
-Spúšťa sa `artifacts/publish/win-x64/SolidRecords.App.exe`. Inštalátor nie je potrebný. Pri prvom spustení sa automatické spúšťanie predvolene zapne pre aktuálnu cestu.
+Run `artifacts/publish/win-x64/SolidRecords.App.exe`. No installer is needed. On first launch, automatic startup is enabled for the current path by default.

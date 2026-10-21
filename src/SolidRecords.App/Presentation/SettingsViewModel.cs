@@ -1,5 +1,6 @@
 using System.Globalization;
 using SolidRecords.Core;
+using SolidRecords.Core.Localization;
 
 namespace SolidRecords.App.Presentation;
 
@@ -19,6 +20,7 @@ public sealed class SettingsViewModel : ObservableObject
     private bool _startWithWindows;
     private bool _startMinimized;
     private int _themeIndex;
+    private int _languageIndex;
     private bool _checkForUpdates;
     private string _error = "";
     private bool _isSaving;
@@ -30,8 +32,8 @@ public sealed class SettingsViewModel : ObservableObject
         _toggleWindowShortcut = settings.ToggleWindowShortcut;
         _toggleRecordingShortcut = settings.ToggleRecordingShortcut;
         _save = save;
-        _updateNow = updateNow ?? (() => Task.FromResult("Aktualizácie nie sú v tomto náhľade dostupné."));
-        UpdateNowCommand = new(UpdateNowAsync, ex => UpdateStatus = "Aktualizácia sa nepodarila: " + ex.Message);
+        _updateNow = updateNow ?? (() => Task.FromResult(Strings.Get("PreviewUpdates")));
+        UpdateNowCommand = new(UpdateNowAsync, ex => UpdateStatus = Strings.Get("UpdateFailed") + ex.Message);
         _deleteOldActivities = settings.ActivityRetentionDays.HasValue;
         _activityRetentionDays = settings.ActivityRetentionDays?.ToString() ?? "30";
         _minimumActivitySeconds = settings.MinimumActivitySeconds.ToString();
@@ -42,8 +44,9 @@ public sealed class SettingsViewModel : ObservableObject
         _startWithWindows = settings.StartWithWindows;
         _startMinimized = settings.StartMinimized;
         _themeIndex = (int)settings.Theme;
+        _languageIndex = (int)settings.Language;
         _checkForUpdates = settings.CheckForUpdates;
-        SaveCommand = new(SaveAsync, ex => Error = "Nastavenia sa nepodarilo uložiť: " + ex.Message);
+        SaveCommand = new(SaveAsync, ex => Error = Strings.Get("SaveFailed") + ex.Message);
     }
 
     public GlobalShortcut? ToggleWindowShortcut { get => _toggleWindowShortcut; set => Set(ref _toggleWindowShortcut, value); }
@@ -74,6 +77,7 @@ public sealed class SettingsViewModel : ObservableObject
     public bool StartWithWindows { get => _startWithWindows; set => Set(ref _startWithWindows, value); }
     public bool StartMinimized { get => _startMinimized; set => Set(ref _startMinimized, value); }
     public bool CheckForUpdates { get => _checkForUpdates; set => Set(ref _checkForUpdates, value); }
+    public int LanguageIndex { get => _languageIndex; set => Set(ref _languageIndex, value); }
     public int ThemeIndex { get => _themeIndex; set => Set(ref _themeIndex, value); }
     public string Error { get => _error; private set => Set(ref _error, value); }
     public bool IsSaving { get => _isSaving; private set { if (Set(ref _isSaving, value)) Changed(nameof(IsEditable)); } }
@@ -85,7 +89,7 @@ public sealed class SettingsViewModel : ObservableObject
     private async Task UpdateNowAsync()
     {
         IsUpdating = true;
-        UpdateStatus = "Kontrolujem aktualizácie. Nová verzia sa stiahne a spustí sa inštalácia…";
+        UpdateStatus = Strings.Get("CheckingUpdates");
         try { UpdateStatus = await _updateNow(); }
         finally { IsUpdating = false; }
     }
@@ -98,7 +102,7 @@ public sealed class SettingsViewModel : ObservableObject
         Error = "";
         if (!int.TryParse(MinimumActivitySeconds, out var seconds) || seconds is < 0 or > 600)
         {
-            Error = "Zadajte celé číslo od 0 do 600 sekúnd.";
+            Error = Strings.Get("InvalidSeconds");
             return;
         }
         int? retentionDays = null;
@@ -106,7 +110,7 @@ public sealed class SettingsViewModel : ObservableObject
         {
             if (!int.TryParse(ActivityRetentionDays, out var days) || days <= 0)
             {
-                Error = "Zadajte kladný celý počet dní.";
+                Error = Strings.Get("InvalidDays");
                 return;
             }
             retentionDays = days;
@@ -121,16 +125,16 @@ public sealed class SettingsViewModel : ObservableObject
         var end = ParseTime(WorkEnd);
         if (start is null or >= 1440 || end is null || end <= start)
         {
-            Error = "Zadajte čas od–do vo formáte HH:mm. Koniec musí byť po začiatku v rovnaký deň (najneskôr 24:00).";
+            Error = Strings.Get("InvalidWorkHours");
             return;
         }
         if (RecordingModeIndex is < 0 or > 2)
         {
-            Error = "Vyberte režim zaznamenávania.";
+            Error = Strings.Get("SelectRecordingMode");
             return;
         }
         var settings = new ApplicationSettings(seconds, RecordingModeIndex != 0, StartWithWindows, StartMinimized,
-            (ApplicationTheme)ThemeIndex, CheckForUpdates, start.Value, end.Value, _workingDays, RecordingModeIndex == 2, retentionDays, ToggleWindowShortcut, ToggleRecordingShortcut);
+            (ApplicationTheme)ThemeIndex, CheckForUpdates, start.Value, end.Value, _workingDays, RecordingModeIndex == 2, retentionDays, ToggleWindowShortcut, ToggleRecordingShortcut, (ApplicationLanguage)LanguageIndex);
         settings.Validate();
         IsSaving = true;
         try { await _save(settings); }

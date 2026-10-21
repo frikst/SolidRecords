@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+  <data name="SettingsTitle" xml:space="preserve"><value>Nastavenia SolidRecords</value></data>
+  <data name="General" xml:space="preserve"><value>Všeobecné</value></data>
+  <data name="Startup" xml:space="preserve"><value>SPÚŠŤANIE</value></data>
+  <data name="StartWithWindows" xml:space="preserve"><value>Spustiť program pri prihlásení do Windows</value></data>
+  <data name="StartMinimized" xml:space="preserve"><value>Spustiť program minimalizovaný v systray</value></data>
+  <data name="Theme" xml:space="preserve"><value>Téma</value></data>
+  <data name="System" xml:space="preserve"><value>Podľa systému</value></data>
+  <data name="Light" xml:space="preserve"><value>Svetlá</value></data>
+  <data name="Dark" xml:space="preserve"><value>Tmavá</value></data>
+  <data name="Recording" xml:space="preserve"><value>Zaznamenávanie</value></data>
+  <data name="MinimumDuration" xml:space="preserve"><value>Minimálne trvanie aktivity</value></data>
+  <data name="SecondsRange" xml:space="preserve"><value>sekúnd (0 – 600)</value></data>
+  <data name="MinimumHelp" xml:space="preserve"><value>Kratšie aktivity sa neuložia. Hodnota 0 vypne minimum. Zmena sa použije po uložení a ovplyvní aj zobrazenie histórie.</value></data>
+  <data name="AutomaticRecording" xml:space="preserve"><value>Automatický záznam</value></data>
+  <data name="ManualRecording" xml:space="preserve"><value>Vypnutý – spúšťať ručne</value></data>
+  <data name="RecordOnLaunch" xml:space="preserve"><value>Pri spustení aplikácie – stále</value></data>
+  <data name="WorkHoursOnly" xml:space="preserve"><value>Iba v pracovnom čase</value></data>
+  <data name="Retention" xml:space="preserve"><value>Automaticky mazať záznamy aktivity</value></data>
+  <data name="Never" xml:space="preserve"><value>Nikdy</value></data>
+  <data name="After" xml:space="preserve"><value>Po</value></data>
+  <data name="RetentionDays" xml:space="preserve"><value>Počet dní uchovávania aktivity</value></data>
+  <data name="Days" xml:space="preserve"><value>dňoch</value></data>
+  <data name="RetentionHelp" xml:space="preserve"><value>Staršie ukončené záznamy sa natrvalo vymažú pri štarte, po uložení a potom každú hodinu. Aktívne záznamy zostanú zachované.</value></data>
+  <data name="WorkHours" xml:space="preserve"><value>Pracovný čas</value></data>
+  <data name="WorkHoursHeading" xml:space="preserve"><value>PRACOVNÝ ČAS</value></data>
+  <data name="From" xml:space="preserve"><value>Od</value></data>
+  <data name="To" xml:space="preserve"><value>Do</value></data>
+  <data name="Monday" xml:space="preserve"><value>Po</value></data>
+  <data name="Tuesday" xml:space="preserve"><value>Ut</value></data>
+  <data name="Wednesday" xml:space="preserve"><value>St</value></data>
+  <data name="Thursday" xml:space="preserve"><value>Št</value></data>
+  <data name="Friday" xml:space="preserve"><value>Pi</value></data>
+  <data name="Saturday" xml:space="preserve"><value>So</value></data>
+  <data name="Sunday" xml:space="preserve"><value>Ne</value></data>
+  <data name="WorkHoursHelp" xml:space="preserve"><value>Pracovný čas určuje aj minimálny rozsah časovej osi. Záznam môžete kedykoľvek ručne prepnúť; automatika sa znova použije pri najbližšej hranici pracovného času.</value></data>
+  <data name="Updates" xml:space="preserve"><value>Aktualizácie</value></data>
+  <data name="DailyUpdates" xml:space="preserve"><value>Raz denne kontrolovať aktualizácie</value></data>
+  <data name="ManualUpdatesHelp" xml:space="preserve"><value>Nové verzie môžete skontrolovať a nainštalovať aj ručne. Dennú kontrolu tým nezmeníte.</value></data>
+  <data name="UpdateNow" xml:space="preserve"><value>Aktualizovať teraz</value></data>
+  <data name="InstallHelp" xml:space="preserve"><value>Po stiahnutí potvrďte oprávnenie správcu. Aplikácia sa ukončí a nainštaluje aktualizáciu.</value></data>
+  <data name="Shortcuts" xml:space="preserve"><value>Skratky</value></data>
+  <data name="ToggleWindow" xml:space="preserve"><value>Otvoriť / skryť hlavné okno</value></data>
+  <data name="ToggleRecording" xml:space="preserve"><value>Spustiť / zastaviť zaznamenávanie</value></data>
+  <data name="ShortcutHelp" xml:space="preserve"><value>Stlačte Ctrl, Alt alebo Win + písmeno, číslicu alebo F1–F24; môžete pridať Shift. Delete / Backspace skratku zruší. Platia po uložení aj mimo aplikácie.</value></data>
+  <data name="Cancel" xml:space="preserve"><value>Zrušiť</value></data>
+  <data name="Save" xml:space="preserve"><value>Uložiť</value></data>
+  <data name="PreviousDay" xml:space="preserve"><value>Predchádzajúci deň</value></data>
+  <data name="RecordDate" xml:space="preserve"><value>Deň záznamu</value></data>
+  <data name="NextDay" xml:space="preserve"><value>Nasledujúci deň</value></data>
+  <data name="Today" xml:space="preserve"><value>Dnes</value></data>
+  <data name="Minimize" xml:space="preserve"><value>Minimalizovať</value></data>
+  <data name="HideToTray" xml:space="preserve"><value>Skryť do systémovej lišty</value></data>
+  <data name="Close" xml:space="preserve"><value>Zavrieť</value></data>
+  <data name="FirstActivity" xml:space="preserve"><value>Prvá aktivita</value></data>
+  <data name="LastActivity" xml:space="preserve"><value>Posledná aktivita</value></data>
+  <data name="ActiveTime" xml:space="preserve"><value>Aktívny čas</value></data>
+  <data name="Activities" xml:space="preserve"><value>Aktivity</value></data>
+  <data name="Timeline" xml:space="preserve"><value>Časová os</value></data>
+  <data name="Details" xml:space="preserve"><value>Detaily</value></data>
+  <data name="ShowDetails" xml:space="preserve"><value>Zobraziť detaily vybranej aplikácie</value></data>
+  <data name="ApplicationDetails" xml:space="preserve"><value>Detaily aplikácie</value></data>
+  <data name="SearchHelp" xml:space="preserve"><value>Hľadať aplikáciu, názov okna alebo URL</value></data>
+  <data name="SearchActivities" xml:space="preserve"><value>Hľadať aktivity</value></data>
+  <data name="SelectedApplicationDetails" xml:space="preserve"><value>Detaily vybranej aplikácie</value></data>
+  <data name="Application" xml:space="preserve"><value>Aplikácia</value></data>
+  <data name="DocumentTitle" xml:space="preserve"><value>Dokument / názov okna</value></data>
+  <data name="Start" xml:space="preserve"><value>Začiatok</value></data>
+  <data name="End" xml:space="preserve"><value>Koniec</value></data>
+  <data name="Duration" xml:space="preserve"><value>Trvanie</value></data>
+  <data name="NoActivities" xml:space="preserve"><value>Žiadne aktivity pre vybraný deň alebo vyhľadávanie.</value></data>
+  <data name="OpenCalendar" xml:space="preserve"><value>Otvoriť kalendár</value></data>
+  <data name="ClearFilterEsc" xml:space="preserve"><value>Vymazať filter (Esc)</value></data>
+  <data name="ClearFilter" xml:space="preserve"><value>Vymazať filter</value></data>
+  <data name="AboutTitle" xml:space="preserve"><value>O aplikácii SolidRecords</value></data>
+  <data name="Tagline" xml:space="preserve"><value>Váš pracovný deň v súvislostiach.</value></data>
+  <data name="AppDescription" xml:space="preserve"><value>Lokálny záznam práce na počítači.</value></data>
+  <data name="Author" xml:space="preserve"><value>AUTOR</value></data>
+  <data name="Organization" xml:space="preserve"><value>ORGANIZÁCIA</value></data>
+  <data name="Department" xml:space="preserve"><value>Katedra softvérových technológií</value></data>
+  <data name="Faculty" xml:space="preserve"><value>Fakulta riadenia a informatiky</value></data>
+  <data name="University" xml:space="preserve"><value>Žilinská univerzita v Žiline</value></data>
+  <data name="DepartmentWebsite" xml:space="preserve"><value>Web katedry ↗</value></data>
+  <data name="PreviewUpdates" xml:space="preserve"><value>Aktualizácie nie sú v tomto náhľade dostupné.</value></data>
+  <data name="UpdateFailed" xml:space="preserve"><value>Aktualizácia sa nepodarila: </value></data>
+  <data name="SaveFailed" xml:space="preserve"><value>Nastavenia sa nepodarilo uložiť: </value></data>
+  <data name="CheckingUpdates" xml:space="preserve"><value>Kontrolujem aktualizácie. Nová verzia sa stiahne a spustí sa inštalácia…</value></data>
+  <data name="InvalidSeconds" xml:space="preserve"><value>Zadajte celé číslo od 0 do 600 sekúnd.</value></data>
+  <data name="InvalidDays" xml:space="preserve"><value>Zadajte kladný celý počet dní.</value></data>
+  <data name="InvalidWorkHours" xml:space="preserve"><value>Zadajte čas od–do vo formáte HH:mm. Koniec musí byť po začiatku v rovnaký deň (najneskôr 24:00).</value></data>
+  <data name="SelectRecordingMode" xml:space="preserve"><value>Vyberte režim zaznamenávania.</value></data>
+  <data name="ShortcutUnset" xml:space="preserve"><value>Nenastavená</value></data>
+  <data name="NoTitle" xml:space="preserve"><value>Bez názvu</value></data>
+  <data name="CurrentlyActive" xml:space="preserve"><value>Práve aktívne</value></data>
+  <data name="StopRecordingButton" xml:space="preserve"><value>■  Zastaviť záznam</value></data>
+  <data name="StartRecordingButton" xml:space="preserve"><value>▶  Spustiť záznam</value></data>
+  <data name="WriteFailed" xml:space="preserve"><value>Zápis zlyhal</value></data>
+  <data name="RecordingActive" xml:space="preserve"><value>Zaznamenávanie je aktívne</value></data>
+  <data name="RecordingPaused" xml:space="preserve"><value>Zaznamenávanie je pozastavené</value></data>
+  <data name="PrivacyNotice" xml:space="preserve"><value>Údaje zostávajú v tomto počítači. Zatvorením okna aplikácia pokračuje v systray.</value></data>
+  <data name="DevelopmentBuild" xml:space="preserve"><value>Vývojová zostava</value></data>
+  <data name="WebsiteFailed" xml:space="preserve"><value>Web sa nepodarilo otvoriť. Adresa: https://www.fri.uniza.sk/pracoviska/KST</value></data>
+  <data name="OpenApp" xml:space="preserve"><value>Otvoriť SolidRecords</value></data>
+  <data name="StartRecording" xml:space="preserve"><value>Spustiť záznam</value></data>
+  <data name="StopRecording" xml:space="preserve"><value>Zastaviť záznam</value></data>
+  <data name="SettingsMenu" xml:space="preserve"><value>Nastavenia…</value></data>
+  <data name="About" xml:space="preserve"><value>O aplikácii</value></data>
+  <data name="Exit" xml:space="preserve"><value>Ukončiť aplikáciu</value></data>
+  <data name="Logon" xml:space="preserve"><value>Prihlásenie používateľa</value></data>
+  <data name="Unlock" xml:space="preserve"><value>Odomknutie počítača</value></data>
+  <data name="Logoff" xml:space="preserve"><value>Odhlásenie používateľa</value></data>
+  <data name="Lock" xml:space="preserve"><value>Zamknutie počítača</value></data>
+  <data name="Shutdown" xml:space="preserve"><value>Vypnutie počítača</value></data>
+  <data name="PowerOn" xml:space="preserve"><value>Zapnutie počítača</value></data>
+  <data name="Suspend" xml:space="preserve"><value>Uspatie počítača</value></data>
+  <data name="Resume" xml:space="preserve"><value>Prebudenie počítača</value></data>
+  <data name="SessionConnected" xml:space="preserve"><value>Pripojenie relácie</value></data>
+  <data name="SessionDisconnected" xml:space="preserve"><value>Odpojenie relácie</value></data>
+  <data name="SessionEnding" xml:space="preserve"><value>Odhlásenie alebo vypnutie počítača</value></data>
+  <data name="ApplicationStartup" xml:space="preserve"><value>Stav pri spustení aplikácie</value></data>
+  <data name="RecordingBaseline" xml:space="preserve"><value>Stav pri spustení záznamu</value></data>
+  <data name="SessionChanged" xml:space="preserve"><value>Zmena stavu relácie</value></data>
+  <data name="ActiveSession" xml:space="preserve"><value>Aktívna relácia</value></data>
+  <data name="ActivatedSession" xml:space="preserve"><value>Aktivovaná relácia</value></data>
+  <data name="DeactivatedSession" xml:space="preserve"><value>Deaktivovaná relácia</value></data>
+  <data name="ErrorPrefix" xml:space="preserve"><value>Chyba: </value></data>
+  <data name="AppExiting" xml:space="preserve"><value>Aplikácia sa ukončuje.</value></data>
+  <data name="UpdateInProgress" xml:space="preserve"><value>Aktualizácia už prebieha.</value></data>
+  <data name="InstallInProgress" xml:space="preserve"><value>Inštalácia už prebieha.</value></data>
+  <data name="NoUpdate" xml:space="preserve"><value>Nie je dostupná novšia verzia na inštaláciu.</value></data>
+  <data name="UpdateCanceled" xml:space="preserve"><value>Aktualizácia bola zrušená.</value></data>
+  <data name="InstallCanceled" xml:space="preserve"><value>Inštalácia bola zrušená.</value></data>
+  <data name="Installing" xml:space="preserve"><value>Spúšťa sa inštalácia aktualizácie.</value></data>
+  <data name="DuplicateShortcut" xml:space="preserve"><value>Každá akcia musí mať inú klávesovú skratku.</value></data>
+  <data name="InvalidShortcut" xml:space="preserve"><value>Skratka musí obsahovať Ctrl, Alt alebo Win a písmeno, číslicu alebo F1–F24.</value></data>
+  <data name="StorageFailed" xml:space="preserve"><value>Úložisko zlyhalo. Reštartujte aplikáciu.</value></data>
+  <data name="RecordsWriteFailed" xml:space="preserve"><value>Zápis záznamov zlyhal.</value></data>
+  <data name="DatabaseWriteStopped" xml:space="preserve"><value>Zápis do databázy bol zastavený.</value></data>
+  <data name="CaptureFailed" xml:space="preserve"><value>Zber udalostí zlyhal.</value></data>
+  <data name="NewerDatabase" xml:space="preserve"><value>Databázu vytvorila novšia verzia SolidRecords.</value></data>
+  <data name="InvalidStoredSettings" xml:space="preserve"><value>Nastavenia v databáze nie sú platné.</value></data>
+  <data name="InvalidInstaller" xml:space="preserve"><value>Neplatný inštalátor aktualizácie.</value></data>
+  <data name="InstallerSizeMismatch" xml:space="preserve"><value>Veľkosť inštalátora nezodpovedá vydaniu.</value></data>
+  <data name="InstallerTooLarge" xml:space="preserve"><value>Inštalátor presiahol očakávanú veľkosť.</value></data>
+  <data name="IncompleteDownload" xml:space="preserve"><value>Inštalátor sa nestiahol celý.</value></data>
+  <data name="ChecksumMismatch" xml:space="preserve"><value>Kontrolný súčet inštalátora nesúhlasí. Inštalácia bola zrušená.</value></data>
+  <data name="RestartNotReady" xml:space="preserve"><value>Pomocník reštartu sa nepripravil. Aplikácia zostáva spustená.</value></data>
+  <data name="InstallerStartFailed" xml:space="preserve"><value>Inštalátor sa nepodarilo spustiť.</value></data>
+  <data name="ShortcutsBusy" xml:space="preserve"><value>Prebieha zmena klávesových skratiek.</value></data>
+  <data name="ShortcutConflict" xml:space="preserve"><value>Klávesovú skratku sa nepodarilo zaregistrovať. Používa ju iná aplikácia alebo ju vyhradil Windows. Vyberte inú kombináciu.</value></data>
+  <data name="ExecutableUnavailable" xml:space="preserve"><value>Cesta aplikácie nie je dostupná.</value></data>
+  <data name="StartupFromBuild" xml:space="preserve"><value>Automatické spúšťanie nastavte zo zostavenej alebo publikovanej aplikácie.</value></data>
+  <data name="Language" xml:space="preserve"><value>Jazyk</value></data>
+  <data name="English" xml:space="preserve"><value>English</value></data>
+  <data name="Slovak" xml:space="preserve"><value>Slovenčina</value></data>
+  <data name="LanguageHelp" xml:space="preserve"><value>Zmena sa použije po uložení. Pre iné jazyky prostredia sa použije angličtina.</value></data>
+  <data name="ActivityCounts" xml:space="preserve"><value>{0} aktivít  ·  {1} procesov  ·  časy v miestnom časovom pásme</value></data>
+  <data name="ProcessCounts" xml:space="preserve"><value>{0} procesov · {1} aktivít</value></data>
+  <data name="ActivityDuration" xml:space="preserve"><value>{0} aktivít · {1}</value></data>
+  <data name="ProcessObserved" xml:space="preserve"><value>Pozorovaný proces od {0:g}</value></data>
+  <data name="Version" xml:space="preserve"><value>Verzia {0}</value></data>
+  <data name="UpdateAvailable" xml:space="preserve"><value>SolidRecords {0} je k dispozícii</value></data>
+  <data name="RetryUpdate" xml:space="preserve"><value>Server dočasne obmedzil kontrolu aktualizácií. Skúste to po {0:g}.</value></data>
+  <data name="UpdateFailedLine" xml:space="preserve"><value>Aktualizácia sa nepodarila:
+</value></data>
+  <data name="StartupFailed" xml:space="preserve"><value>Aplikáciu sa nepodarilo spustiť:
+</value></data>
+  <data name="AppFailed" xml:space="preserve"><value>Aplikáciu sa nepodarilo spustiť alebo ukončiť:
+</value></data>
+  <data name="FlushFailed" xml:space="preserve"><value>Zápis posledných udalostí zlyhal:
+</value></data>
+  <data name="ToastInstallHelp" xml:space="preserve"><value>Stiahnuť MSI a nainštalovať na pozadí? Windows požiada o oprávnenie správcu. Aplikácia sa pri inštalácii ukončí.</value></data>
+  <data name="DownloadInstall" xml:space="preserve"><value>Stiahnuť a inštalovať</value></data>
+  <data name="Later" xml:space="preserve"><value>O 4 hodiny</value></data>
+  <data name="IgnoreVersion" xml:space="preserve"><value>Ignorovať verziu</value></data>
+  <data name="DurationHours" xml:space="preserve"><value>{0} h {1:00} min</value></data>
+  <data name="DurationMinutes" xml:space="preserve"><value>{0} min {1:00} s</value></data>
+  <data name="DurationSeconds" xml:space="preserve"><value>{0} s</value></data>
+  <data name="RestartDisconnected" xml:space="preserve"><value>Pomocník reštartu sa nepripojil.</value></data>
+  <data name="HelperChecksum" xml:space="preserve"><value>Kontrolný súčet inštalátora nesúhlasí.</value></data>
+  <data name="InstallFailure" xml:space="preserve"><value>Inštalácia zlyhala ({0}). Protokol: {1}</value></data>
+  <data name="UpdateTitle" xml:space="preserve"><value>Aktualizácia SolidRecords</value></data>
+  <data name="RestartTitle" xml:space="preserve"><value>Reštart SolidRecords po aktualizácii</value></data>
+  <data name="MissingInstallPath" xml:space="preserve"><value>Chýba cesta aplikácie. Spustite SolidRecords z ponuky Štart.</value></data>
+  <data name="MainTitle" xml:space="preserve"><value>SolidRecords · Záznam práce</value></data>
+  <data name="Maximize" xml:space="preserve"><value>Maximalizovať</value></data>
+  <data name="Restore" xml:space="preserve"><value>Obnoviť veľkosť</value></data>
+  <data name="HookFailed" xml:space="preserve"><value>Nepodarilo sa zaregistrovať sledovanie okien.</value></data>
+  <data name="InvalidUpdateState" xml:space="preserve"><value>Neplatný stav kontroly aktualizácií.</value></data>
+  <data name="UpdateCheckFailed" xml:space="preserve"><value>Kontrola aktualizácií zlyhala: {0}</value></data>
+  <data name="InstallerCleanupFailed" xml:space="preserve"><value>Čistenie inštalátora zlyhalo: {0}</value></data>
+</root>

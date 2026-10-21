@@ -1,4 +1,5 @@
 using System.Threading.Channels;
+using SolidRecords.Core.Localization;
 
 namespace SolidRecords.Core.Recording;
 
@@ -39,7 +40,7 @@ public sealed class Recorder : IAsyncDisposable
         try
         {
             if (_isRecording) return;
-            if (_failure is not null) throw new InvalidOperationException("Úložisko zlyhalo. Reštartujte aplikáciu.", _failure);
+            if (_failure is not null) throw new InvalidOperationException(Strings.Get("StorageFailed"), _failure);
             await _store.InitializeAsync();
             await SubmitAsync(SignalKind.RecordingStarted);
             _accepting = true;
@@ -47,7 +48,7 @@ public sealed class Recorder : IAsyncDisposable
             {
                 await _source.StartAsync(Publish);
                 _isRecording = _failure is null;
-                if (_failure is not null) throw new InvalidOperationException("Zápis záznamov zlyhal.", _failure);
+                if (_failure is not null) throw new InvalidOperationException(Strings.Get("RecordsWriteFailed"), _failure);
             }
             catch
             {
@@ -134,9 +135,9 @@ public sealed class Recorder : IAsyncDisposable
             var signal = work.Signal!;
             try
             {
-                if (_failure is not null) throw new InvalidOperationException("Zápis do databázy bol zastavený.", _failure);
+                if (_failure is not null) throw new InvalidOperationException(Strings.Get("DatabaseWriteStopped"), _failure);
                 if (signal.Kind == SignalKind.CaptureFailed)
-                    throw new InvalidOperationException(signal.Reason ?? "Zber udalostí zlyhal.");
+                    throw new InvalidOperationException(signal.Reason ?? Strings.Get("CaptureFailed"));
                 ProcessActivity? existingProcess = null;
                 if (signal.Kind == SignalKind.ForegroundChanged && signal.Window is { ProcessStartTicks: { } ticks } window &&
                     _engine.RequiresProcessLookup(window))

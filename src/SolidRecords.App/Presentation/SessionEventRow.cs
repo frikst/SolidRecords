@@ -1,4 +1,5 @@
 using SolidRecords.Core;
+using SolidRecords.Core.Localization;
 
 namespace SolidRecords.App.Presentation;
 
@@ -25,22 +26,22 @@ public sealed class SessionEventRow(ActivityEvent entry) : ObservableObject, IAc
     public TimeSpan DurationValue => TimeSpan.Zero;
     public string Description => Event.Reason switch
     {
-        "WTS:5" or "Logon" => "Prihlásenie používateľa",
-        "WTS:8" or "Unlock" => "Odomknutie počítača",
-        "WTS:6" or "Logoff" => "Odhlásenie používateľa",
-        "WTS:7" or "Lock" => "Zamknutie počítača",
-        "Shutdown" => "Vypnutie počítača",
-        "PowerOn" => "Zapnutie počítača",
-        "Suspend" => "Uspatie počítača",
-        "Resume" => "Prebudenie počítača",
-        "WTS:1" or "WTS:3" => "Pripojenie relácie",
-        "WTS:2" or "WTS:4" => "Odpojenie relácie",
-        "SessionEnding" => "Odhlásenie alebo vypnutie počítača",
-        "ApplicationStartup" => "Stav pri spustení aplikácie",
-        "RecordingBaseline" => "Stav pri spustení záznamu",
-        _ => "Zmena stavu relácie"
+        "WTS:5" or "Logon" => Strings.Get("Logon"),
+        "WTS:8" or "Unlock" => Strings.Get("Unlock"),
+        "WTS:6" or "Logoff" => Strings.Get("Logoff"),
+        "WTS:7" or "Lock" => Strings.Get("Lock"),
+        "Shutdown" => Strings.Get("Shutdown"),
+        "PowerOn" => Strings.Get("PowerOn"),
+        "Suspend" => Strings.Get("Suspend"),
+        "Resume" => Strings.Get("Resume"),
+        "WTS:1" or "WTS:3" => Strings.Get("SessionConnected"),
+        "WTS:2" or "WTS:4" => Strings.Get("SessionDisconnected"),
+        "SessionEnding" => Strings.Get("SessionEnding"),
+        "ApplicationStartup" => Strings.Get("ApplicationStartup"),
+        "RecordingBaseline" => Strings.Get("RecordingBaseline"),
+        _ => Strings.Get("SessionChanged")
     };
-    public string Summary => $"{(Event.Reason == "ApplicationStartup" ? "Aktívna relácia" :
-        IsActive ? "Aktivovaná relácia" : "Deaktivovaná relácia")} — {Description}";
+    public string Summary => $"{(Event.Reason == "ApplicationStartup" ? Strings.Get("ActiveSession") :
+        IsActive ? Strings.Get("ActivatedSession") : Strings.Get("DeactivatedSession"))} — {Description}";
     public string Label => $"{Start}  ·  {Summary}";
 }

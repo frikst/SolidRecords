@@ -5,6 +5,7 @@ namespace SolidRecords.App.Presentation;
 
 public abstract class ObservableObject : INotifyPropertyChanged
 {
+    public void RefreshLanguage() => Changed(string.Empty);
     public event PropertyChangedEventHandler? PropertyChanged;
     protected void Changed([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new(name));
     protected bool Set<T>(ref T field, T value, [CallerMemberName] string? name = null)

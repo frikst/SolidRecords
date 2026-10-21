@@ -5,6 +5,7 @@ using System.Windows.Interop;
 using System.Windows.Threading;
 using SolidRecords.Core;
 using SolidRecords.Windows.Interop;
+using SolidRecords.Core.Localization;
 
 namespace SolidRecords.Windows.Capture;
 
@@ -58,7 +59,7 @@ public sealed class WindowsActivitySource : IActivitySource
                 _nameHook = NativeMethods.SetWinEventHook(0x800C, 0x800C, 0, _callback, 0, 0, 0);
                 _destroyHook = NativeMethods.SetWinEventHook(0x8001, 0x8001, 0, _callback, 0, 0, 0);
                 if (_foregroundHook == 0 || _nameHook == 0 || _destroyHook == 0)
-                    throw new Win32Exception("Nepodarilo sa zaregistrovať sledovanie okien.");
+                    throw new Win32Exception(Strings.Get("HookFailed"));
                 PublishInitialSession(IsSessionActive());
                 CaptureForeground();
                 _timer = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background,

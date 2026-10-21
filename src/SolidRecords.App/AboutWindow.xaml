@@ -1,7 +1,7 @@
 <Window x:Class="SolidRecords.App.AboutWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="O aplikácii SolidRecords" Width="480" SizeToContent="Height" ResizeMode="NoResize"
+        Title="{DynamicResource Text.AboutTitle}" Width="480" SizeToContent="Height" ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False" Icon="Assets/SolidRecords.ico"
         Background="{DynamicResource ApplicationBackgroundBrush}" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
         FontFamily="Segoe UI" FontSize="13" UseLayoutRounding="True">
@@ -15,20 +15,20 @@
           <TextBlock Text="{Binding Version}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,3,0,0" />
         </StackPanel>
       </Grid>
-      <TextBlock Text="Váš pracovný deň v súvislostiach." FontSize="16" FontWeight="SemiBold" />
-      <TextBlock Text="Lokálny záznam práce na počítači." Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,6,0,20" TextWrapping="Wrap" />
+      <TextBlock Text="{DynamicResource Text.Tagline}" FontSize="16" FontWeight="SemiBold" />
+      <TextBlock Text="{DynamicResource Text.AppDescription}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,6,0,20" TextWrapping="Wrap" />
       <Border Background="{DynamicResource ControlSolidFillColorDefaultBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
               BorderThickness="1" CornerRadius="8" Padding="18">
         <StackPanel>
-          <TextBlock Text="AUTOR" FontSize="10" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+          <TextBlock Text="{DynamicResource Text.Author}" FontSize="10" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
           <TextBlock Text="Ján Janech" FontSize="18" FontWeight="SemiBold" Margin="0,4,0,18" />
-          <TextBlock Text="ORGANIZÁCIA" FontSize="10" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-          <TextBlock Text="Katedra softvérových technológií" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,5,0,4" />
-          <TextBlock Text="Fakulta riadenia a informatiky" TextWrapping="Wrap" />
-          <TextBlock Text="Žilinská univerzita v Žiline" TextWrapping="Wrap" Margin="0,3,0,14" />
+          <TextBlock Text="{DynamicResource Text.Organization}" FontSize="10" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+          <TextBlock Text="{DynamicResource Text.Department}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,5,0,4" />
+          <TextBlock Text="{DynamicResource Text.Faculty}" TextWrapping="Wrap" />
+          <TextBlock Text="{DynamicResource Text.University}" TextWrapping="Wrap" Margin="0,3,0,14" />
           <TextBlock TextWrapping="Wrap">
             <Hyperlink Command="{Binding OpenWebsiteCommand}" ToolTip="https://www.fri.uniza.sk/pracoviska/KST"
-                       Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}">Web katedry ↗</Hyperlink>
+                       Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"><Run Text="{DynamicResource Text.DepartmentWebsite}" /></Hyperlink>
           </TextBlock>
           <TextBlock Text="{Binding WebsiteError}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap">
             <TextBlock.Style>
@@ -43,7 +43,7 @@
       <Grid Margin="0,22,0,0">
         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
         <TextBlock Text="GNU GPL v3" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="11" VerticalAlignment="Center" />
-        <Button Grid.Column="1" Content="Zavrieť" IsCancel="True" IsDefault="True" MinWidth="96" Padding="16,7" />
+        <Button Grid.Column="1" Content="{DynamicResource Text.Close}" IsCancel="True" IsDefault="True" MinWidth="96" Padding="16,7" />
       </Grid>
     </StackPanel>
   </ScrollViewer>

@@ -13,6 +13,7 @@ public partial class SettingsWindow : Window
     public SettingsWindow(SettingsViewModel viewModel)
     {
         InitializeComponent();
+        Language = System.Windows.Markup.XmlLanguage.GetLanguage(SolidRecords.Core.Localization.Strings.Culture.IetfLanguageTag);
         DataContext = _viewModel = viewModel;
         _viewModel.Saved += Saved;
         Closed += (_, _) => _viewModel.Saved -= Saved;

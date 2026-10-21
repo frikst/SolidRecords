@@ -8,6 +8,7 @@ using SolidRecords.App.Presentation;
 using SolidRecords.App.Tray;
 using SolidRecords.Core;
 using SolidRecords.Core.Recording;
+using SolidRecords.Core.Localization;
 
 namespace SolidRecords.App;
 
@@ -61,6 +62,7 @@ internal partial class App : Application
         {
             await Task.Run(() => _store.InitializeAsync());
             await Task.Run(_preferences.LoadAsync);
+            LocalizationDictionary.Apply(_preferences.Current.Language);
             try { await ApplyRetentionAsync(force: true); }
             catch (Exception ex) { _viewModel.ShowError(ex); ShowWindow(); }
             _trackingOptions.SetMinimumActivityDuration(TimeSpan.FromSeconds(_preferences.Current.MinimumActivitySeconds));
@@ -83,7 +85,7 @@ internal partial class App : Application
             _scheduleTimer.Tick += ScheduleTick;
             _scheduleTimer.Start();
             await _viewModel.RefreshAsync();
-            _updates.Start(ex => Dispatcher.Invoke(() => MessageBox.Show("Aktualizácia sa nepodarila:\n" + ex.Message,
+            _updates.Start(ex => Dispatcher.Invoke(() => MessageBox.Show(Strings.Get("UpdateFailedLine") + ex.Message,
                 "SolidRecords", MessageBoxButton.OK, MessageBoxImage.Error)));
             _startupComplete = true;
             while (_pendingUpdateActions.TryDequeue(out var pending)) HandleUpdateActionAsync(pending.Action, pending.Tag);
@@ -93,7 +95,7 @@ internal partial class App : Application
         }
         catch (Exception ex)
         {
-            MessageBox.Show("Aplikáciu sa nepodarilo spustiť:\n" + ex.Message, "SolidRecords", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(Strings.Get("StartupFailed") + ex.Message, "SolidRecords", MessageBoxButton.OK, MessageBoxImage.Error);
             await ExitAsync();
         }
     }
@@ -265,6 +267,7 @@ internal partial class App : Application
             else await PersistAsync();
             _trackingOptions.SetMinimumActivityDuration(TimeSpan.FromSeconds(settings.MinimumActivitySeconds));
             ApplyTheme(settings.Theme);
+            LocalizationDictionary.Apply(settings.Language);
         }
         finally { if (resume && !_exiting) await _recorder.StartAsync(); }
         _viewModel.ApplySettings(settings);
@@ -292,7 +295,7 @@ internal partial class App : Application
         try { await _recorder.StopAsync(); }
         catch (Exception ex)
         {
-            MessageBox.Show("Zápis posledných udalostí zlyhal:\n" + ex.Message, "SolidRecords", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(Strings.Get("FlushFailed") + ex.Message, "SolidRecords", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {

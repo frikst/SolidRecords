@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Net.Http;
 using System.Security.Cryptography;
 using SolidRecords.Core.Updates;
+using SolidRecords.Core.Localization;
 
 namespace SolidRecords.Windows.Shell;
 
@@ -10,7 +11,7 @@ public sealed class UpdateInstaller(HttpClient http, string directory)
 {
     public async Task<string> DownloadAsync(UpdateRelease release, CancellationToken cancellationToken)
     {
-        if (!release.IsValid) throw new InvalidOperationException("Neplatný inštalátor aktualizácie.");
+        if (!release.IsValid) throw new InvalidOperationException(Strings.Get("InvalidInstaller"));
         var destination = Path.Combine(directory, "updates", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(destination);
         var path = Path.Combine(destination, "SolidRecords.msi");
@@ -19,7 +20,7 @@ public sealed class UpdateInstaller(HttpClient http, string directory)
             using var response = await http.GetAsync(release.DownloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             response.EnsureSuccessStatusCode();
             if (response.Content.Headers.ContentLength is long length && length != release.Size)
-                throw new IOException("Veľkosť inštalátora nezodpovedá vydaniu.");
+                throw new IOException(Strings.Get("InstallerSizeMismatch"));
             await using var source = await response.Content.ReadAsStreamAsync(cancellationToken);
             await using (var target = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, true))
             {
@@ -29,15 +30,15 @@ public sealed class UpdateInstaller(HttpClient http, string directory)
                 while ((count = await source.ReadAsync(buffer, cancellationToken)) != 0)
                 {
                     total += count;
-                    if (total > release.Size) throw new IOException("Inštalátor presiahol očakávanú veľkosť.");
+                    if (total > release.Size) throw new IOException(Strings.Get("InstallerTooLarge"));
                     await target.WriteAsync(buffer.AsMemory(0, count), cancellationToken);
                 }
-                if (total != release.Size) throw new IOException("Inštalátor sa nestiahol celý.");
+                if (total != release.Size) throw new IOException(Strings.Get("IncompleteDownload"));
             }
             await using var downloaded = File.OpenRead(path);
             var hash = Convert.ToHexString(await SHA256.HashDataAsync(downloaded, cancellationToken));
             if (!hash.Equals(release.Sha256, StringComparison.OrdinalIgnoreCase))
-                throw new IOException("Kontrolný súčet inštalátora nesúhlasí. Inštalácia bola zrušená.");
+                throw new IOException(Strings.Get("ChecksumMismatch"));
             return path;
         }
         catch
@@ -61,7 +62,7 @@ public sealed class UpdateInstaller(HttpClient http, string directory)
             if (!ready.WaitOne(TimeSpan.FromSeconds(15)))
             {
                 if (!restart.HasExited) restart.Kill();
-                throw new IOException("Pomocník reštartu sa nepripravil. Aplikácia zostáva spustená.");
+                throw new IOException(Strings.Get("RestartNotReady"));
             }
             return helper;
         }
@@ -82,7 +83,7 @@ public sealed class UpdateInstaller(HttpClient http, string directory)
             Arguments = "-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand "
                 + Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(script))
         };
-        return Process.Start(start) ?? throw new IOException("Inštalátor sa nepodarilo spustiť.");
+        return Process.Start(start) ?? throw new IOException(Strings.Get("InstallerStartFailed"));
     }
 
     private static string Quote(string value) => "'" + value.Replace("'", "''") + "'";
@@ -99,7 +100,7 @@ public sealed class UpdateInstaller(HttpClient http, string directory)
                 $pipe = [IO.Pipes.NamedPipeServerStream]::new({{Quote(pipeName)}}, [IO.Pipes.PipeDirection]::Out, 1,
                     [IO.Pipes.PipeTransmissionMode]::Byte, [IO.Pipes.PipeOptions]::Asynchronous)
                 $connection = $pipe.BeginWaitForConnection($null, $null)
-                if (-not $connection.AsyncWaitHandle.WaitOne(60000)) { throw 'Pomocník reštartu sa nepripojil.' }
+                if (-not $connection.AsyncWaitHandle.WaitOne(60000)) { throw {{Quote(Strings.Get("RestartDisconnected"))}} }
                 $pipe.EndWaitForConnection($connection)
                 $connection.AsyncWaitHandle.Dispose()
                 $writer = [IO.StreamWriter]::new($pipe)
@@ -108,18 +109,18 @@ public sealed class UpdateInstaller(HttpClient http, string directory)
                 if ($parent) { $parent | Wait-Process -Timeout 120 }
                 $msi = {{Quote(path)}}
                 if ((Get-FileHash -LiteralPath $msi -Algorithm SHA256).Hash -ne {{Quote(sha256)}}) {
-                    throw 'Kontrolný súčet inštalátora nesúhlasí.'
+                    throw {{Quote(Strings.Get("HelperChecksum"))}}
                 }
                 $log = Join-Path (Split-Path -LiteralPath $msi) 'install.log'
                 $arguments = '/i "' + $msi + '" /quiet /norestart /L*v "' + $log + '"'
                 $process = Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\msiexec.exe') -ArgumentList $arguments -WindowStyle Hidden -Wait -PassThru
-                if ($process.ExitCode -notin @(0, 1641, 3010)) { throw "Inštalácia zlyhala ($($process.ExitCode)). Protokol: $log" }
+                if ($process.ExitCode -notin @(0, 1641, 3010)) { throw ({{Quote(Strings.Get("InstallFailure"))}} -f $process.ExitCode, $log) }
                 # Cleanup must not prevent restarting a successfully installed update.
                 Remove-Item -LiteralPath $msi -ErrorAction SilentlyContinue
                 $writer.WriteLine('installed')
             } catch {
                 Add-Type -AssemblyName System.Windows.Forms
-                [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Aktualizácia SolidRecords') | Out-Null
+                [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, {{Quote(Strings.Get("UpdateTitle"))}}) | Out-Null
             } finally {
                 if ($writer) { $writer.Dispose() }
                 if ($pipe) { $pipe.Dispose() }
@@ -151,12 +152,12 @@ public sealed class UpdateInstaller(HttpClient http, string directory)
                     $key = $registry.OpenSubKey('Software\SolidRecords\Installer')
                     try { $folder = if ($key) { $key.GetValue('InstallDirectory') } } finally { if ($key) { $key.Dispose() } }
                 } finally { $registry.Dispose() }
-                if (-not $folder) { throw 'Chýba cesta aplikácie. Spustite SolidRecords z ponuky Štart.' }
+                if (-not $folder) { throw {{Quote(Strings.Get("MissingInstallPath"))}} }
                 $application = Join-Path $folder 'SolidRecords.App.exe'
                 Start-Process -FilePath $application -WorkingDirectory $folder -WindowStyle Hidden -ErrorAction Stop | Out-Null
             } catch {
                 Add-Type -AssemblyName System.Windows.Forms
-                [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Reštart SolidRecords po aktualizácii') | Out-Null
+                [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, {{Quote(Strings.Get("RestartTitle"))}}) | Out-Null
             } finally {
                 if ($reader) { $reader.Dispose() }
                 if ($pipe) { $pipe.Dispose() }

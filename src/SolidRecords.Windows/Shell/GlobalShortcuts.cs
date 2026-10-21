@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Windows.Interop;
 using SolidRecords.Core;
+using SolidRecords.Core.Localization;
 
 namespace SolidRecords.Windows.Shell;
 
@@ -32,7 +33,7 @@ public sealed class GlobalShortcuts : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         settings.Validate();
-        if (_updating) throw new InvalidOperationException("Prebieha zmena klávesových skratiek.");
+        if (_updating) throw new InvalidOperationException(Strings.Get("ShortcutsBusy"));
         _updating = true;
         var added = new List<GlobalShortcut>();
         var desired = new Dictionary<GlobalShortcut, Action>();
@@ -46,7 +47,7 @@ public sealed class GlobalShortcuts : IDisposable
                 if (_registrations.ContainsKey(shortcut)) continue;
                 var id = ++_nextId;
                 if (!RegisterHotKey(_source.Handle, id, (uint)shortcut.Modifiers | 0x4000, (uint)shortcut.VirtualKey))
-                    throw new InvalidOperationException("Klávesovú skratku sa nepodarilo zaregistrovať. Používa ju iná aplikácia alebo ju vyhradil Windows. Vyberte inú kombináciu.",
+                    throw new InvalidOperationException(Strings.Get("ShortcutConflict"),
                         new Win32Exception(Marshal.GetLastWin32Error()));
                 _registrations.Add(shortcut, id);
                 added.Add(shortcut);

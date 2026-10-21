@@ -1,3 +1,5 @@
+using SolidRecords.Core.Localization;
+
 namespace SolidRecords.Core;
 
 [Flags]
@@ -11,6 +13,6 @@ public sealed record GlobalShortcut(ShortcutModifiers Modifiers, int VirtualKey)
     {
         if ((Modifiers & ~(ShortcutModifiers.Alt | ShortcutModifiers.Control | ShortcutModifiers.Shift | ShortcutModifiers.Windows)) != 0
             || (Modifiers & ~ShortcutModifiers.Shift) == 0 || !IsSupportedKey(VirtualKey))
-            throw new ArgumentException("Skratka musí obsahovať Ctrl, Alt alebo Win a písmeno, číslicu alebo F1–F24.");
+            throw new ArgumentException(Strings.Get("InvalidShortcut"));
     }
 }

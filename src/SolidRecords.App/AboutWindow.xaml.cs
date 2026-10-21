@@ -11,6 +11,7 @@ public partial class AboutWindow : Window
     public AboutWindow()
     {
         InitializeComponent();
+        Language = System.Windows.Markup.XmlLanguage.GetLanguage(SolidRecords.Core.Localization.Strings.Culture.IetfLanguageTag);
         DataContext = new AboutViewModel();
         AppLogo.Source = (ImageSource)Application.LoadComponent(
             new System.Uri("/SolidRecords.App;component/Assets/SolidRecords.xaml", System.UriKind.Relative));

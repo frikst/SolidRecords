@@ -1,5 +1,6 @@
 using Microsoft.Toolkit.Uwp.Notifications;
 using SolidRecords.Core.Updates;
+using SolidRecords.Core.Localization;
 
 namespace SolidRecords.Windows.Shell;
 
@@ -36,11 +37,11 @@ public sealed class UpdateNotifications : IUpdateNotifier, IDisposable
 
     public static ToastContentBuilder CreateContent(UpdateRelease release) => new ToastContentBuilder()
         .AddArgument("action", "later").AddArgument("tag", release.Tag)
-        .AddText($"SolidRecords {release.Tag[1..]} je k dispozícii")
-        .AddText("Stiahnuť MSI a nainštalovať na pozadí? Windows požiada o oprávnenie správcu. Aplikácia sa pri inštalácii ukončí.")
-        .AddButton(new ToastButton().SetContent("Stiahnuť a inštalovať").AddArgument("action", "install").AddArgument("tag", release.Tag))
-        .AddButton(new ToastButton().SetContent("O 4 hodiny").AddArgument("action", "later").AddArgument("tag", release.Tag))
-        .AddButton(new ToastButton().SetContent("Ignorovať verziu").AddArgument("action", "ignore").AddArgument("tag", release.Tag));
+        .AddText(Strings.Format("UpdateAvailable", release.Tag[1..]))
+        .AddText(Strings.Get("ToastInstallHelp"))
+        .AddButton(new ToastButton().SetContent(Strings.Get("DownloadInstall")).AddArgument("action", "install").AddArgument("tag", release.Tag))
+        .AddButton(new ToastButton().SetContent(Strings.Get("Later")).AddArgument("action", "later").AddArgument("tag", release.Tag))
+        .AddButton(new ToastButton().SetContent(Strings.Get("IgnoreVersion")).AddArgument("action", "ignore").AddArgument("tag", release.Tag));
 
     public void Show(UpdateRelease release) => CreateContent(release)
         .Show(toast => { toast.Tag = "update"; toast.Group = "updates"; toast.ExpirationTime = DateTimeOffset.Now.AddDays(7); });
