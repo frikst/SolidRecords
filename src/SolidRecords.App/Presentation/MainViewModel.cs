@@ -45,7 +45,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         ToggleRecordingCommand = new(ToggleRecordingAsync, ShowError);
         PreviousDayCommand = new(() => SelectedDate = AdjacentDate(-1), () => AdjacentDate(-1) is not null);
         NextDayCommand = new(() => SelectedDate = AdjacentDate(1), () => AdjacentDate(1) is not null);
-        TodayCommand = new(() => SelectedDate = Today);
+        TodayCommand = new(() => SelectedDate = Today, () => SelectedDate != Today);
         ClearSearchCommand = new(() => Search = "");
         _recorder.StateChanged += RecorderChanged;
         _recorder.RecordsChanged += RecordsChanged;
@@ -189,6 +189,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         PreviousDayCommand.NotifyCanExecuteChanged();
         NextDayCommand.NotifyCanExecuteChanged();
+        TodayCommand.NotifyCanExecuteChanged();
     }
 
     private void UpdateAvailableDates(IReadOnlyList<DateOnly> dates)
