@@ -166,7 +166,11 @@
                         AutomationProperties.Name="Detaily aplikácie" />
           <TextBox Style="{StaticResource SearchTextBox}" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}"
                    Width="280" HorizontalAlignment="Left" ToolTip="Hľadať aplikáciu, názov okna alebo URL"
-                   AutomationProperties.Name="Hľadať aktivity" />
+                   AutomationProperties.Name="Hľadať aktivity">
+            <TextBox.InputBindings>
+              <KeyBinding Key="Escape" Command="{Binding ClearSearchCommand}" />
+            </TextBox.InputBindings>
+          </TextBox>
         </DockPanel>
         <Grid Grid.Row="1">
           <Grid.ColumnDefinitions>

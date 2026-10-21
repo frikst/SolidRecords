@@ -338,6 +338,7 @@ internal static class Program
         void RenderFocusedSearch(string name)
         {
             if (!searchPreview) return;
+            vm.Search = "SolidRecords";
             window.Show();
             window.Activate();
             var search = Descendants<System.Windows.Controls.TextBox>(content)
@@ -360,6 +361,7 @@ internal static class Program
             using var file = File.Create(Path.Combine(directory, name));
             encoder.Save(file);
             Console.WriteLine($"Focused search preview DPI: {VisualTreeHelper.GetDpi(window).PixelsPerInchX}");
+            vm.ClearSearchCommand.Execute(null);
         }
         void RenderCalendar(string theme)
         {

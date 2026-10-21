@@ -46,6 +46,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         PreviousDayCommand = new(() => SelectedDate = AdjacentDate(-1), () => AdjacentDate(-1) is not null);
         NextDayCommand = new(() => SelectedDate = AdjacentDate(1), () => AdjacentDate(1) is not null);
         TodayCommand = new(() => SelectedDate = Today);
+        ClearSearchCommand = new(() => Search = "");
         _recorder.StateChanged += RecorderChanged;
         _recorder.RecordsChanged += RecordsChanged;
         // Coalesce bursts of window events; a continuous event stream cannot postpone a refresh.
@@ -66,6 +67,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand PreviousDayCommand { get; }
     public RelayCommand NextDayCommand { get; }
     public RelayCommand TodayCommand { get; }
+    public RelayCommand ClearSearchCommand { get; }
     public ObservableCollection<ActivityRow> Activities { get; } = [];
     public ObservableCollection<IActivityListRow> EventRows { get; } = [];
     public ObservableCollection<ActivityDetailNode> DetailApplications { get; } = [];
