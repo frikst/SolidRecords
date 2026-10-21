@@ -5,6 +5,8 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 ## Unreleased
 
+## [1.4.0] - 2026-10-21
+
 ### Added
 
 - English and Slovak interfaces with a language selector in settings. The default follows the system language, with English for other languages. Saving applies the change without restarting.
